@@ -1,0 +1,10 @@
+dnastack export-ignore
+pyproject.toml export-ignore
+.pre-commit-config.yaml export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+dnastack.py export-ignore
+scripts export-ignore
+tests export-ignore
+setup.py export-ignore
+requirements.txt export-ignore

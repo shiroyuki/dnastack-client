@@ -1,0 +1,19 @@
+##########################################
+# This is for testing and demo purposes. #
+##########################################
+FROM ${PYTHON_IMAGE}
+
+WORKDIR /app
+
+COPY ./scripts ./scripts
+RUN ls -r
+RUN ./scripts/setup-e2e-tests-for-linux.sh
+
+COPY ./requirements.txt .
+RUN pip install -qr requirements.txt
+
+COPY ./dnastack ./dnastack
+COPY ./samples ./samples
+COPY ./tests ./tests
+
+CMD bash -c "./scripts/run-e2e-tests.sh -fv tests/cli/test_* tests/client/test_*"
