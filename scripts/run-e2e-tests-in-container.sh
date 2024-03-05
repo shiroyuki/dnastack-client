@@ -12,7 +12,6 @@ rm -rf ${TEST_SANDBOX_DIR} || echo 'Not exists'
 mkdir -p ${TEST_SANDBOX_DIR}
 cp -r \
   dist/*.whl \
-  samples \
   scripts \
   tests \
   ${TEST_SANDBOX_DIR}
