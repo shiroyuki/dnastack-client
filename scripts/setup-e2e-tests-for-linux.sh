@@ -1,5 +1,7 @@
 #!/bin/bash
-set -e
+set -ex
+
+uname -a
 
 # This is designed to be invoked on Debian GNU/Linux.
 

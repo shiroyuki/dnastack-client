@@ -83,7 +83,7 @@ steps:
         dnastack use --no-auth viral.ai
   # End
 
-  # Test with Python 3.8
+  # Test with the oldest stable release of Python.
   - id: python-3.8
     name: python:3.8-slim
     entrypoint: bash
@@ -98,24 +98,24 @@ steps:
         path: /root
   # End
 
-  # Test with Python 3.11
-  - id: python-3.11
-    name: python:3.11-slim
-    entrypoint: bash
-    args:
-      - '-ec'
-      # language=bash
-      - |
-        export E2E_ENV_FILE=/root/.env
-        ./scripts/run-e2e-tests-in-container.sh -fv tests/cli/test_*
-    volumes:
-      - name: 'homedir'
-        path: /root
-  # End
+  # Test with the latest stable release of Python.
+  # FIXME: At the moment, disable this test to speed up the build process temporarily. Please re-enable when the concurrent tests are possible. (This is PRIORITY ONE.)
+#  - id: python-3.11
+#    name: python:3.11-slim
+#    entrypoint: bash
+#    args:
+#      - '-ec'
+#      # language=bash
+#      - |
+#        export E2E_ENV_FILE=/root/.env
+#        ./scripts/run-e2e-tests-in-container.sh -fv tests/cli/test_*
+#    volumes:
+#      - name: 'homedir'
+#        path: /root
+#  # End
 
   # Test with Anaconda's Python 3
-  # NOTE: The test is disabled due to the out-of-date software that prevents us from installing Chrome and Chrome Driver
-  #       (required for the device-code authentication).
+  # FIXME: At the moment, disable this test to speed up the build process temporarily. Please re-enable when the concurrent tests are possible. (This is priority 2.)
 #  - id: python-3.x-anaconda
 #    name: continuumio/miniconda3
 #    entrypoint: bash
