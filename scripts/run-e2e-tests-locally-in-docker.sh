@@ -17,7 +17,7 @@ echo "Test Tag: ${TEST_IMAGE_VERSION}"
 cat Dockerfile-template | PYTHON_IMAGE=${PYTHON_IMAGE} envsubst > ${TEST_DOCKERFILE}
 
 # Set --progress plain to see all build output.
-docker buildx build --platform=linux/amd64 --push \
+docker buildx build --platform=linux/amd64,linux/arm64 --push \
   --progress auto \
   ${TEST_BUILD_OPTS} \
   -t ${TEST_IMAGE} \

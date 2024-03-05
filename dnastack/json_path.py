@@ -48,10 +48,6 @@ class JsonPath:
         pointer = JsonPath.get(obj, '.'.join(target_property_names[:-1]), raise_error_on_null=True)
         visited_property_name = target_property_names[-1]
 
-        _logger.debug(f'setter: pointer => {type(pointer)}')
-        _logger.debug(f'setter: type(pointer) => {type(pointer)}')
-        _logger.debug(f'setter: visited_property_name => {visited_property_name}')
-
         if hasattr(pointer, visited_property_name):
             setattr(pointer, visited_property_name, value)
         else:
@@ -69,18 +65,15 @@ class JsonPath:
         node = obj
 
         while len(target_property_names) > 0:
-            target_propert_name = target_property_names.pop(0)
-            visited_property_names.append(target_propert_name)
+            target_property_name = target_property_names.pop(0)
+            visited_property_names.append(target_property_name)
 
-            _logger.debug(f'getter: P/{path}: node => ({type(node)}) {node}')
-            _logger.debug(f'getter: P/{path}: target_propert_name => {target_propert_name}')
-
-            if hasattr(node, target_propert_name):
+            if hasattr(node, target_property_name):
                 parent = node
-                node = getattr(node, target_propert_name)
+                node = getattr(node, target_property_name)
             elif isinstance(node, dict):
                 parent = node
-                node = node.get(target_propert_name)
+                node = node.get(target_property_name)
             else:
                 raise BrokenPropertyPathError(
                     obj,

@@ -13,7 +13,7 @@ COPY ./requirements.txt .
 RUN pip install -qr requirements.txt
 
 COPY ./dnastack ./dnastack
-COPY ./samples ./samples
+#COPY ./samples ./samples
 COPY ./tests ./tests
 
 CMD bash -c "./scripts/run-e2e-tests.sh -fv tests/cli/test_* tests/client/test_*"
