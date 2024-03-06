@@ -22,6 +22,7 @@ apt-get remove -y chromium
 
 pip3 install -q google-cloud-secret-manager \
                 google-crc32c \
+                pandas \
                 python-dotenv
 
 mkdir -p /root/.config/chromium/Crash\ Reports/pending/
