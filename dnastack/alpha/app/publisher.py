@@ -1,0 +1,149 @@
+from copy import deepcopy
+from typing import List, Optional, Any, Dict, Iterable, Callable
+
+from dnastack.alpha.app.publisher_helper.collection_wrapper import BlobApiMixin, CollectionApiMixin
+from dnastack.alpha.app.publisher_helper.data_connect import SearchOperation
+from dnastack.alpha.app.publisher_helper.exceptions import NoCollectionError, TooManyCollectionsError
+from dnastack.alpha.app.publisher_helper.models import ItemType, TableInfo, BaseItemInfo, \
+    BlobInfo
+from dnastack.client.collections.client import CollectionServiceClient, UnknownCollectionError
+from dnastack.client.collections.model import Collection as CollectionModel
+from dnastack.client.data_connect import DataConnectClient
+from dnastack.client.drs import DrsClient, Blob
+from dnastack.client.factory import EndpointRepository
+from dnastack.common.logger import get_logger_for
+from dnastack.common.simple_stream import SimpleStream
+from dnastack.context.helper import use
+
+
+class Collection(BlobApiMixin):
+    """ High-level Collection API Client """
+
+    def __init__(self,
+                 factory: EndpointRepository,
+                 cs: CollectionServiceClient,
+                 collection: CollectionModel,
+                 dc: DataConnectClient,
+                 no_auth: bool):
+        self._logger = get_logger_for(self)
+        self._factory = factory
+        self._cs = cs
+        self._collection = collection
+        self._no_auth = no_auth
+        self._drs: DrsClient = self._factory.get_one_of(client_class=DrsClient)
+        self._dc = dc
+
+    def get_record(self) -> CollectionModel:
+        return self._collection
+
+    def query(self, query: str):
+        return SearchOperation(self._dc, self._no_auth, query)
+
+    def list_items(self,
+                   *,
+                   limit: Optional[int],
+                   kind: Optional[ItemType] = None,
+                   kinds: Optional[Iterable[ItemType]] = None,
+                   on_has_more_result: Optional[Callable[[int], None]] = None) -> List[BaseItemInfo]:
+
+        assert limit >= 0, 'The limit has to be ZERO (no limit) or at least 1 (to impose the limit).'
+
+        slug_name = self._collection.slugName.replace("-", "_")
+
+        if kinds is None:
+            kinds = [kind]
+
+        limit_fragment = ""
+        if limit is not None and limit > 1:
+            limit_fragment = f" LIMIT {limit + 1}"
+
+        items = []
+        for kind in kinds:
+            if kind == ItemType.TABLE:
+                query = f"SELECT * FROM collections.{slug_name}._tables{limit_fragment}"
+            elif kind == ItemType.BLOB:
+                query = f"SELECT * FROM collections.{slug_name}._files{limit_fragment}"
+
+            items.extend([
+                self.__simplify_item(i)
+                for i in self._dc.query(query, no_auth=self._no_auth)
+            ])
+
+        row_count = len(items)
+
+        if 0 < limit < row_count and on_has_more_result and callable(on_has_more_result):
+            on_has_more_result(row_count)
+
+        return items
+
+    def find_blob_by_name(self, objectname: str) -> Blob:
+        return self._find_blob_by_name(objectname=objectname, column_name='metadata_url')
+
+    @staticmethod
+    def __simplify_item(row: Dict[str, Any]) -> BaseItemInfo:
+        if row['type'] == ItemType.BLOB.value:
+            return BlobInfo(**row)
+        elif row['type'] == ItemType.TABLE.value:
+            row_copy = deepcopy(row)
+            row_copy['name'] = (
+                    row.get('qualified_table_name')
+                    or row.get('preferred_name')
+                    or row.get('display_name')
+                    or row['name']
+            )
+            return TableInfo(**row_copy)
+        else:
+            return BaseItemInfo(**row)
+
+
+class Publisher(CollectionApiMixin):
+    """ High-level Publisher API Client
+
+        .. code-block:: python
+
+            from dnastack.alpha.app.explorer import Publisher
+
+            # Data Connect
+            query = Publisher(<url>).query('SELECT * FROM collections.public_datasets.metadata LIMIT 5')
+            df = query.to_data_frame()
+            rows = query.to_list()
+
+            # DRS (not yet manually tested with collections with blobs)
+            blob: Optional[Blob] = collection.blob(id='123-456') or collection.blob(name='foo-bar')
+            blobs: Dict[str, Optional[Blob]] = collection.blobs(ids=['123-456']) or collection.blobs(names=['foo-bar'])
+
+    """
+
+    def __init__(self, context_name_or_url: str, *, no_auth: bool = False):
+        self._logger = get_logger_for(self)
+        self._context_name_or_url = context_name_or_url
+        self._factory = use(self._context_name_or_url, no_auth=no_auth)
+        self._no_auth = no_auth
+        self._cs: CollectionServiceClient = self._factory.get_one_of(client_class=CollectionServiceClient)
+        self._dc = self.data_connect()
+
+    def collection(self, id_or_slug_name: Optional[str] = None, *, name: Optional[str] = None) -> Collection:
+        return Collection(self._factory,
+                          self._cs,
+                          self.get_collection_info(id_or_slug_name=id_or_slug_name, name=name),
+                          self._dc,
+                          no_auth=self._no_auth)
+
+    def query(self, query: str):
+        return SearchOperation(self._dc, self._no_auth, query)
+
+    def data_connect(self) -> DataConnectClient:
+        default_no_auth_properties = {'authentication': None, 'fallback_authentications': None}
+
+        # Look up for any similar registered service endpoint.
+        matched_endpoints = self._factory.all(client_class=DataConnectClient)
+        if matched_endpoints:
+            target_endpoint = matched_endpoints[0]
+        else:
+            raise RuntimeError('Unable to find a usable Data Connect endpoint')
+
+        return DataConnectClient.make(
+            target_endpoint.copy(update=default_no_auth_properties)
+            if self._no_auth
+            else target_endpoint
+        )
