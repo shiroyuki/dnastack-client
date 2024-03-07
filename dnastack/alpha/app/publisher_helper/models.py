@@ -29,6 +29,6 @@ class BlobInfo(BaseItemInfo):
     checksums: List[Dict[str, str]] = Field(default_factory=list)
 
 
-class ItemType(Enum):
+class ItemType(str, Enum):
     BLOB = 'blob'
     TABLE = 'table'

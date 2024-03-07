@@ -68,22 +68,25 @@ class TestEndToEnd(TestCase):
             # The original code selects all columns. This test code only select one column
             # to reduce the unnecessary load on the server.
 
-            result = publisher.query(
-                # language=sql
-                f'SELECT name '
-                f'FROM collections.{collection_info.dbSchemaName}._tables '
-                f'LIMIT 10'
-            )
+            tables = publisher.collection(collection_info.slugName).list_items(limit=10, kind=ItemType.TABLE)
+            if tables:
+                for table in tables:
+                    self.assertRegex(table.name, r'^collections\.[^.]+\.[^.]+$')
 
-            df = result.to_data_frame()
+                    df = publisher.query(
+                        # language=sql
+                        f'SELECT * FROM {table.name}'
+                    ).to_data_frame()
 
-            if len(df) > 0:
-                logger.debug(f'C/{collection_info.slugName}: Found some tables')
-                self.assertTrue(True)  # Just to mark it as ok
-                return
-            else:
-                logger.info(f'C/{collection_info.slugName}: Not usable for this test. No tables available.')
-                continue
+                    self.assertGreaterEqual(len(df), 0, 'Failed to iterating the result.')
+
+                    return  # We only concern the first table that is available for testing.
+                # end: for
+            # end: if
+
+            continue
+
+        # end: for
 
         self.fail(f'No usable collections out of {len(registered_collections)} for this test. A suitable collection '
                   'must have at least one table.')
