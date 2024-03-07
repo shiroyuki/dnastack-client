@@ -37,18 +37,25 @@ class TestEndToEnd(TestCase):
         for collection_info in registered_collections:
             collection = publisher.collection(collection_info.slugName)
             blobs = collection.list_items(limit=10, kind=ItemType.BLOB)
+            identical_blobs = collection.list_items(limit=10, kinds=[ItemType.BLOB])
 
             if blobs:
                 logger.debug(f'C/{collection_info.slugName}: Found some blobs for this test')
+
+                self.assertEqual(len(blobs),
+                                 len(identical_blobs),
+                                 'Both filter methods should yield the same result.')
+
+                for blob in blobs:
+                    signed_url = get_signed_url(collection, blob.name)
+                    self.assertGreater(len(signed_url), 0, f'The given signed URL is "{signed_url}".')
+
+                return
             else:
                 logger.info(f'C/{collection_info.slugName}: Not usable for this test. No blobs available.')
                 continue
-
-            for blob in blobs:
-                signed_url = get_signed_url(collection, blob.name)
-                self.assertGreater(len(signed_url), 0, f'The given signed URL is "{signed_url}".')
-
-            return
+            # end if
+        # end for
 
         self.fail(f'No usable collections out of {len(registered_collections)} for this test. A suitable collection '
                   'must have at least one blob.')
@@ -68,8 +75,15 @@ class TestEndToEnd(TestCase):
             # The original code selects all columns. This test code only select one column
             # to reduce the unnecessary load on the server.
 
-            tables = publisher.collection(collection_info.slugName).list_items(limit=10, kind=ItemType.TABLE)
+            collection = publisher.collection(collection_info.slugName)
+            tables = collection.list_items(limit=10, kind=ItemType.TABLE)
+            identical_tables = collection.list_items(limit=10, kinds=[ItemType.TABLE])
+
             if tables:
+                self.assertEqual(len(tables),
+                                 len(identical_tables),
+                                 'Both filter methods should yield the same result.')
+
                 for table in tables:
                     self.assertRegex(table.name, r'^collections\.[^.]+\.[^.]+$')
 

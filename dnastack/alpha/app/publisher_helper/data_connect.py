@@ -10,6 +10,9 @@ class SearchOperation:
         self._no_auth = no_auth
         self.__query = query
 
+    def __iter__(self):
+        return self._dc.query(self.__query, no_auth=self._no_auth)
+
     def load_data(self) -> Iterator[Dict[str, Any]]:
         return self._dc.query(self.__query, no_auth=self._no_auth)
 

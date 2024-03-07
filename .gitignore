@@ -1,3 +1,4 @@
+*.ipynb
 helpers
 Dockerfile-*
 !Dockerfile-template
