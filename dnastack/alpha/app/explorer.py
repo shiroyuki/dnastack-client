@@ -80,6 +80,8 @@ class Collection(PerCollectionApiMixin, BlobApiMixin):
 class Explorer(RootCollectionApiMixin):
     """ High-level Explorer API Client
 
+        Docs: /docs/alpha/app/explorer.md
+
         .. code-block:: python
 
             from dnastack.alpha.app.explorer import Explorer

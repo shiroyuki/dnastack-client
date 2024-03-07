@@ -42,6 +42,8 @@ class Collection(PerCollectionApiMixin, BlobApiMixin):
 class Publisher(RootCollectionApiMixin):
     """ High-level Publisher API Client
 
+        Docs: /docs/alpha/app/publisher.md
+
         .. code-block:: python
 
             from dnastack.alpha.app.explorer import Publisher
