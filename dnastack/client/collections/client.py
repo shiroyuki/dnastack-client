@@ -78,9 +78,6 @@ class CollectionServiceClient(BaseServiceClient):
             res = session.get(urljoin(self.url, 'collections'), trace_context=trace)
             return [Collection(**raw_collection) for raw_collection in res.json()]
 
-    def list_items(self, no_auth: bool = False, trace: Optional[Span] = None):
-        ...
-
     def data_connect_endpoint(self,
                               collection: Union[str, Collection, None] = None,
                               no_auth: bool = False) -> ServiceEndpoint:
