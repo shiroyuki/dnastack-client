@@ -7,9 +7,8 @@ from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.cli.config.context import ContextCommandHandler
 from dnastack.cli.helpers.client_factory import ConfigurationBasedClientFactory
 
+DEFAULT_WORKBENCH_DESTINATION = "workbench.omics.ai"
 
-
-DEFAULT_WORKBENCH_DESTINATION="workbench.dnatack.com"
 
 def _populate_workbench_endpoint():
     handler: ContextCommandHandler = container.get(ContextCommandHandler)
@@ -41,3 +40,32 @@ def get_workflow_client(context_name: Optional[str] = None,
 class UnableToMergeJsonError(RuntimeError):
     def __init__(self, key):
         super().__init__(f'Unable to merge key {key}. The value for {key} must be of type dict, str, int or float')
+
+
+class UnableToFindFileError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class UnableToDecodeFileError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class UnableToDisplayFileError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class IncorrectFlagError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class UnableToCreateFilePathError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+class UnableToWriteToFileError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)

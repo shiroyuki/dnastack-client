@@ -1,3 +1,4 @@
+import json
 from typing import List, Iterator, Optional
 from urllib.parse import urljoin
 
@@ -5,7 +6,8 @@ from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.workbench.base_client import BaseWorkbenchClient
 from dnastack.client.workbench.workflow.models import WorkflowDescriptor, WorkflowListResponse, Workflow, \
     WorkflowCreate, \
-    WorkflowVersionCreate, WorkflowVersion, WorkflowVersionListResponse, WorkflowListOptions, WorkflowVersionListOptions
+    WorkflowVersionCreate, WorkflowVersion, WorkflowVersionListResponse, WorkflowListOptions, \
+    WorkflowVersionListOptions, WorkflowFile
 from dnastack.client.workbench.base_client import WorkbenchResultLoader
 from dnastack.common.tracing import Span
 from dnastack.http.session import JsonPatch, HttpSession
@@ -118,6 +120,29 @@ class WorkflowClient(BaseWorkbenchClient):
             workflow_version = WorkflowVersion(**response.json())
             workflow_version.etag = response.headers.get("Etag").strip("\"")
             return workflow_version
+
+    def get_workflow_files(self, workflow_id: str, version_id: str) -> List[WorkflowFile]:
+        with self.create_http_session() as session:
+            response = session.get(
+                urljoin(self.endpoint.url,
+                        f'{self.namespace}/workflows/{workflow_id}/versions/{version_id}/files'))
+            return [
+                WorkflowFile(**item)
+                for item in response.json()
+            ]
+
+    # not used yet, being saved for when the API changes
+    def get_workflow_descriptor(self, workflow_id: str, version_id: str) -> WorkflowFile:
+        with self.create_http_session() as session:
+            with session.get(
+                    urljoin(self.endpoint.url,
+                            f'{self.namespace}/workflows/{workflow_id}/versions/{version_id}/descriptor')
+            )as response:
+                if int(response.headers['Content-Length']) == 0:
+                    yield None
+                    return
+                for chunk in response.iter_content(chunk_size=None):
+                    yield chunk
 
     @staticmethod
     def _prepare_workflow_files(files):

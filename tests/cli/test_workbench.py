@@ -1,4 +1,9 @@
 import datetime
+import io
+import logging
+import os
+import shutil
+import sys
 import tempfile
 import zipfile
 from datetime import date
@@ -411,7 +416,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             with open(main_wdl_filename, 'w') as main_wdl_file:
                 main_wdl_file.write("""
                 version 1.0
-                
+
                 workflow no_task_workflow {
                     input {
                         String first_name
@@ -693,3 +698,141 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assert_not_empty(engines_result, "Expected engine result to not be empty")
         self.assertEqual(len(engines_result), 1, "Expected only one engine")
         self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
+
+    def test_workflows_files(self):
+        main_file_content = """
+                version 1.0
+
+                workflow no_task_workflow {
+                    input {
+                        String first_name
+                        String? last_name
+                    }
+                }
+                """
+        description_file_content = """
+                        TITLE
+                        DESCRIPTION
+                        """
+
+        # Store the current working directory
+        original_dir = os.getcwd()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                # Change the current working directory to the temporary directory
+                os.chdir(temp_dir)
+
+                def _create_files():
+                    with open('main.wdl', 'w') as main_wdl_file:
+                        main_wdl_file.write(main_file_content)
+
+                    with open('description.md', 'w') as description_file:
+                        description_file.write(description_file_content)
+
+                    with open('binary.bin', 'wb') as binary_file:
+                        binary_file.write(b'binary content')
+
+                def _delete_files():
+                    os.remove('main.wdl')
+                    os.remove('description.md')
+                    os.remove('binary.bin')
+
+                def _create_workflow() -> Workflow:
+                    return Workflow(**self.simple_invoke(
+                        'workbench', 'workflows', 'create',
+                        '--description', '@description.md',
+                        '--entrypoint', 'main.wdl',
+                        'main.wdl',
+                    ))
+
+                def _add_files(workflow: Workflow):
+                    result = self.invoke(
+                        'workbench', 'workflows', 'versions', 'create',
+                        '--workflow', workflow.internalId,
+                        '--name', 'v1',
+                        '--description', '@description.md',
+                        '--entrypoint', 'main.wdl',
+                        'binary.bin', 'main.wdl'
+                    )
+
+                _create_files()
+                created_workflow = _create_workflow()
+                _add_files(created_workflow)
+
+                def test_stdout_specific_file():
+                    specified_file_path = 'main.wdl'
+                    result = self.invoke('workbench', 'workflows', 'versions', 'files',
+                                         '--path', specified_file_path,
+                                         '--workflow', created_workflow.internalId,
+                                         created_workflow.latestVersion
+                                         )
+                    self.assert_not_empty(result.stdout)
+                    self.assertTrue(main_file_content in result.stdout)
+
+                test_stdout_specific_file()
+
+                def test_stdout_descriptor():
+                    result = self.invoke('workbench', 'workflows', 'versions', 'files',
+                                         '--workflow', created_workflow.internalId,
+                                         created_workflow.latestVersion
+                                         )
+                    self.assert_not_empty(result.stdout)
+                    self.assertTrue(main_file_content in result.stdout)
+
+                test_stdout_descriptor()
+
+                def test_copy_specific_file_to_output():
+                    specified_file_path = 'main.wdl'
+                    output_path = os.path.join(os.getcwd(), 'output.wdl')
+                    self.simple_invoke('workbench', 'workflows', 'versions', 'files',
+                                       '--path', specified_file_path,
+                                       '--output', output_path,
+                                       '--workflow', created_workflow.internalId,
+                                       created_workflow.latestVersion
+                                       )
+
+                    self.assertTrue(os.path.exists(output_path))
+                    with open(output_path, 'r') as opened_file:
+                        content = opened_file.read()
+                        self.assertTrue(content in main_file_content)
+                    os.remove(output_path)
+
+                test_copy_specific_file_to_output()
+
+                def unzip_file(zip_file_path, destination_path):
+                    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                        zip_ref.extractall(destination_path)
+
+                def test_zip_specific_file():
+                    zip_path = os.path.join(os.getcwd(), 'downloaded.zip')
+                    self.simple_invoke('workbench', 'workflows', 'versions', 'files',
+                                       '--path', 'main.wdl',
+                                       '--output', zip_path,
+                                       '--zip',
+                                       '--workflow', created_workflow.internalId,
+                                       created_workflow.latestVersion
+                                       )
+
+                    destination_path = 'extracted-zip'
+                    if not os.path.exists(destination_path):
+                        os.makedirs(destination_path)
+                    unzip_file(zip_path, destination_path)
+
+                    file_path = os.path.join(destination_path, 'main.wdl')
+                    self.assertTrue(os.path.exists(file_path))
+                    with open(file_path, 'r') as opened_file:
+                        content = opened_file.read()
+                        self.assertTrue(main_file_content in content)
+
+                    # clean
+                    if os.path.exists(destination_path):
+                        shutil.rmtree(destination_path)
+                    if os.path.exists(zip_path):
+                        os.remove(zip_path)
+
+                test_zip_specific_file()
+
+                _delete_files()
+            finally:
+                os.chdir(original_dir)

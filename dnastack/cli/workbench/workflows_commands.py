@@ -1,18 +1,25 @@
+import binascii
+import os
 from pathlib import Path
 from typing import Optional
 
 import click
 from click import style
 
-from dnastack.cli.workbench.utils import get_workflow_client
+from dnastack.cli.drs import download
+from dnastack.cli.workbench.utils import get_workflow_client, UnableToFindFileError, \
+    UnableToDisplayFileError, UnableToDecodeFileError, IncorrectFlagError, UnableToCreateFilePathError, \
+    UnableToWriteToFileError
 from dnastack.client.workbench.workflow.models import WorkflowCreate, WorkflowVersionCreate, WorkflowSource, \
-    WorkflowListOptions, WorkflowVersionListOptions
+    WorkflowListOptions, WorkflowVersionListOptions, WorkflowFileType, WorkflowFile
 from dnastack.http.session import JsonPatch
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 from dnastack.common.json_argument_parser import *
+import base64
+import zipfile as zf
 
 
 @click.group('versions')
@@ -643,7 +650,7 @@ def add_version(context: Optional[str],
                  arg_names=['--workflow'],
                  help='The id of the workflow',
                  as_option=True
-             ),
+             )
          ]
          )
 def update_workflow_version(context: Optional[str],
@@ -675,6 +682,213 @@ def update_workflow_version(context: Optional[str],
         click.echo(to_json(normalize(workflow_version)))
     else:
         raise ValueError("Must specify at least one attribute to update")
+
+
+def get_descriptor_file(files_list: List[WorkflowFile]):
+    for file in files_list:
+        if file.file_type == WorkflowFileType.primary:
+            return file
+    raise UnableToFindFileError("No primary descriptor file found for the workflow. Must specify a file's "
+                                "path using --path flag.")
+
+
+def find_file(file_path: str, files_list: List[WorkflowFile]):
+    for file in files_list:
+        if file_path == file.path:
+            return file
+    raise UnableToFindFileError(f'File not found at {file_path}')
+
+
+def decode_base64_content(base64_content: str):
+    try:
+        return base64.b64decode(base64_content)
+    except binascii.Error as e:
+        raise UnableToDecodeFileError(f"Failed to decode base64 content: {e}")
+
+
+def decode_readable_file(file: WorkflowFile):
+    if file.content_type == "application/json" or file.content_type.startswith("text/"):
+        return decode_base64_content(file.base64_content)
+    else:
+        raise UnableToDisplayFileError(f"File cannot be displayed due to unsupported content type: {file.content_type}")
+
+
+def is_folder(path):
+    base, extension = os.path.splitext(path)
+    return extension == ""
+
+
+def is_zip_file(path):
+    base, extension = os.path.splitext(path)
+    return extension.lower() == ".zip"
+
+
+def create_missing_directories(path):
+    if not os.path.exists(path) and path != "":
+        try:
+            os.makedirs(path)
+        except Exception:
+            raise UnableToCreateFilePathError(f"Could not create file path: {path}")
+
+
+def handle_zip_output(output: str, files: List[WorkflowFile], workflow_name, workflow_version):
+    output_path = None
+    if not output:
+        output = os.getcwd()
+        output_path = os.path.join(output, f'{workflow_name}-{workflow_version}-files.zip')
+        click.secho(f"No --output flag specified. Downloading zip file as "
+                    f"{workflow_name}-{workflow_version}-files.zip into current directory", fg='green')
+
+    # checks if output is a directory
+    elif is_folder(output):
+        create_missing_directories(output)
+        output_path = os.path.join(output, f'{workflow_name}-{workflow_version}-files.zip')
+        click.secho(f"--output flag specified a folder instead of a zip file path. "
+                    f"Downloading zip file into {output_path}", fg='green')
+
+    # check if output is a zip file
+    elif is_zip_file(output):
+        zip_file_dir_path = os.path.dirname(output)
+        create_missing_directories(zip_file_dir_path)
+        output_path = output
+
+    # if output ends with an existing file that is a zip file then raise error
+    else:
+        raise IncorrectFlagError("The path specified with --output ends with a file. Must either specify --output "
+                                 "to end with a .zip extension or to end with a folder")
+
+    with zf.ZipFile(output_path, mode='w') as z:
+        for file in files:
+            content = decode_base64_content(file.base64_content)
+            # must decode bytes to string to write to a zip file
+            if file.content_type == "application/json" or file.content_type.startswith("text/"):
+                try:
+                    content = content.decode('utf-8')
+                except UnicodeDecodeError as e:
+                    raise UnableToDecodeFileError(f"Failed to decode binary content: {e}")
+            z.writestr(file.path, content)
+
+
+def write_to_file(output, content):
+    try:
+        with open(output, mode='w') as file_path:
+            click.echo(content, file=file_path, nl=False)
+    # fails when writing specific file and output has trailing separator or is directory
+    except Exception:
+        raise UnableToWriteToFileError(f"Unable to write to file specified by --output: {output} Please ensure that "
+                                       f"if you are writing to a specific file that your path specified by "
+                                       f"--output does not have a trailing separator and does not point to a directory")
+
+
+def handle_files_output(output: str, files: List[WorkflowFile]):
+    # if --path, --output and --zip flags are NOT specified, print the descriptor file contents
+    if not output:
+        output_file = get_descriptor_file(files)
+        content = decode_readable_file(output_file)
+        click.echo(content)
+
+    # if only --output then write the entire hierarchy of files to output location
+    else:
+        create_missing_directories(output)
+        if os.path.isdir(output):
+            for file in files:
+                content = decode_base64_content(file.base64_content)
+                appended_path = os.path.join(output, file.path)
+                # if file.path contains more nested directories, we create them
+                directory = os.path.dirname(appended_path)
+                create_missing_directories(directory)
+                write_to_file(appended_path, content)
+        else:
+            raise IncorrectFlagError("The path specified with --output ends with a file. Must either specify "
+                                     "a specific file with --path flag to be copied into the location specified "
+                                     "by --output or change the path specified by --output to end with a folder.")
+
+
+@command(workflow_versions_command_group,
+         "files",
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='path',
+                 arg_names=['--path'],
+                 help='An optional flag to define a path to print the specific file',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='output',
+                 arg_names=['--output'],
+                 help='An optional flag to define the path where the content should'
+                      'be saved instead of being printed to the screen',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='zip',
+                 arg_names=['--zip'],
+                 help='An optional flag that specifies whether the files should be downloaded in a zip folder.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='workflow_id',
+                 arg_names=['--workflow'],
+                 help='The id of the workflow',
+                 as_option=True
+             ),
+         ]
+         )
+def retrieve_workflow_files(context: Optional[str],
+                            endpoint_id: Optional[str],
+                            namespace: Optional[str],
+                            path: str = None,
+                            output: str = None,
+                            zip: bool = False,
+                            workflow_id: str = None,
+                            version_id: str = None):
+    """
+        Output the workflow's files
+    """
+    workflows_client = get_workflow_client(context, endpoint_id, namespace)
+
+    if not workflow_id:
+        raise NameError("You must specify workflow ID")
+
+    if not version_id:
+        raise NameError("You must specify version ID")
+
+    # get files
+    files = workflows_client.get_workflow_files(workflow_id=workflow_id, version_id=version_id)
+    if path:
+        output_file = find_file(path, files)
+
+        # --path and --zip are defined (--output is checked in the function)
+        if zip:
+            handle_zip_output(output, [output_file], workflow_id, version_id)
+
+        # --path and --output are defined without --zip
+        else:
+            if output:
+                content = decode_base64_content(output_file.base64_content)
+                directory = os.path.dirname(output)
+                create_missing_directories(directory)
+                write_to_file(output, content)
+
+            # only --path is defined
+            else:
+                content = decode_readable_file(output_file)
+                click.echo(content)
+    else:
+        # --zip is defined without --path
+        if zip:
+            handle_zip_output(output, files, workflow_id, version_id)
+
+        # --path and --zip are not defined (--output is checked in the function)
+        else:
+            handle_files_output(output, files)
 
 
 workflows_command_group.add_command(workflow_versions_command_group)
