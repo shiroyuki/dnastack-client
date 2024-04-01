@@ -684,7 +684,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_engine_list(self):
         engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
-            'alpha', 'workbench', 'engines', 'list'
+            'workbench', 'engines', 'list'
         )]
 
         self.assert_not_empty(engines_result, "Expected at least one engine")
@@ -692,7 +692,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_engine_describe(self):
         engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
-            'alpha', 'workbench', 'engines', 'describe', self.execution_engine.id
+            'workbench', 'engines', 'describe', self.execution_engine.id
         )]
 
         self.assert_not_empty(engines_result, "Expected engine result to not be empty")
