@@ -8,7 +8,8 @@ from dnastack.client.workbench.base_client import BaseWorkbenchClient, Workbench
 from dnastack.client.workbench.ewes.models import WesServiceInfo, ExtendedRunStatus, ExtendedRunListOptions, \
     ExtendedRunListResponse, ExtendedRun, RunId, WorkbenchApiError, BatchActionResult, MinimalExtendedRun, \
     BatchRunResponse, BatchRunRequest, ExtendedRunRequest, Log, TaskListOptions, \
-    TaskListResponse, LogType, ExecutionEngineListOptions, ExecutionEngineListResponse, ExecutionEngine
+    TaskListResponse, LogType, ExecutionEngineListOptions, ExecutionEngineListResponse, ExecutionEngine, \
+    EngineParamPreset, EngineParamPresetListOptions, EngineParamPresetListResponse
 from dnastack.common.tracing import Span
 from dnastack.http.session import HttpSession
 
@@ -73,6 +74,24 @@ class EngineListResultLoader(WorkbenchResultLoader):
 
     def extract_api_response(self, response_body: dict) -> ExecutionEngineListResponse:
         return ExecutionEngineListResponse(**response_body)
+
+
+class EngineParamPresetListResultLoader(WorkbenchResultLoader):
+    def __init(self,
+               service_url: str,
+               http_session: HttpSession,
+               trace: Span,
+               list_options: Optional[ExecutionEngineListOptions] = None):
+        super().__init__(service_url=service_url,
+                         http_session=http_session,
+                         list_options=list_options,
+                         trace=trace)
+
+    def get_new_list_options(self) -> EngineParamPresetListOptions:
+        return EngineParamPresetListOptions()
+
+    def extract_api_response(self, response_body: dict) -> EngineParamPresetListResponse:
+        return EngineParamPresetListResponse(**response_body)
 
 
 class EWesClient(BaseWorkbenchClient):
@@ -253,3 +272,26 @@ class EWesClient(BaseWorkbenchClient):
             response = session.get(urljoin(self.endpoint.url, f'{self.namespace}/engines/{engine_id}'),
                                    trace_context=trace)
             return ExecutionEngine(**response.json())
+
+    def list_engine_param_presets(self,
+                                  engine_id: str,
+                                  list_options: EngineParamPresetListOptions,
+                                  trace: Optional[Span] = None) -> Iterable[EngineParamPreset]:
+        trace = trace or Span(origin=self)
+        return ResultIterator(EngineParamPresetListResultLoader(
+            service_url=urljoin(self.endpoint.url, f'{self.namespace}/engines/{engine_id}/param-presets'),
+            http_session=self.create_http_session(),
+            list_options=list_options,
+            trace=trace,
+        ))
+
+    def get_engine_param_preset(self,
+                                engine_id: str,
+                                param_preset_id: str,
+                                trace: Optional[Span] = None) -> EngineParamPreset:
+        with self.create_http_session() as session:
+            response = session.get(
+                urljoin(self.endpoint.url,
+                        f'{self.namespace}/engines/{engine_id}/param-presets/{param_preset_id}'),
+                trace_context=trace)
+            return EngineParamPreset(**response.json())

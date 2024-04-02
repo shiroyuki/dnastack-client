@@ -122,7 +122,6 @@ class MinimalExtendedRun(BaseModel):
     trace_id: Optional[str]
 
 
-
 class MinimalExtendedRunWithInputs(BaseModel):
     run_id: str
     inputs: Optional[Dict]
@@ -236,4 +235,26 @@ class ExecutionEngineListResponse(PaginatedResource):
 
 
 class ExecutionEngineListOptions(BaseListOptions):
+    pass
+
+
+class EngineParamPreset(BaseModel):
+    id: str
+    name: str
+    default: Optional[bool]
+    preset_values: Dict[str, object]
+    engine_id: str
+    e_tag: Optional[str]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+
+
+class EngineParamPresetListResponse(PaginatedResource):
+    engine_param_presets: List[EngineParamPreset]
+
+    def items(self) -> List[EngineParamPreset]:
+        return self.engine_param_presets
+
+
+class EngineParamPresetListOptions(BaseListOptions):
     pass
