@@ -9,7 +9,7 @@ from dnastack import ServiceEndpoint
 from dnastack.client.factory import EndpointRepository
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.ewes.models import MinimalExtendedRun, ExtendedRunRequest, BatchRunResponse, \
-    BatchRunRequest
+    BatchRunRequest, EngineParamPreset
 from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate
 from dnastack.common.environments import env
@@ -132,6 +132,7 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                                              cls.test_user.email,
                                              cls.test_user.personalAccessToken) as session:
             cls.execution_engine = cls._create_execution_engine(session)
+            # cls.engine_params = cls._add_execution_engine_parameter(session, cls.execution_engine.id)
             cls._base_logger.info(f'Class {cls.__name__}: Created execution engine: {cls.execution_engine}')
 
     @classmethod
@@ -200,6 +201,21 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         response = session.post(urljoin(cls.workbench_base_url, f'/services/ewes-service/{cls.namespace}/engines'),
                                 json=cls.execution_engine.dict())
         return ExecutionEngine(**response.json())
+
+    @classmethod
+    def _add_execution_engine_parameter(cls, session: HttpSession, engine_id: str) -> EngineParamPreset:
+        new_param_preset = {
+            "name": "presetName",
+            "presetValues": {
+                "key1": "value1",
+                "key2": "value2"
+            },
+            "default": True
+        }
+        response = session.post(urljoin(cls.workbench_base_url,
+                                        f'/services/ewes-service/{cls.namespace}/engines/{engine_id}/param-presets'),
+                                json=new_param_preset)
+        return EngineParamPreset(**response.json())
 
     @classmethod
     def _cleanup_namespace(cls, session: HttpSession) -> None:

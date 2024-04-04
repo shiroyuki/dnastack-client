@@ -10,7 +10,7 @@ from datetime import date
 
 from dnastack.alpha.client.workflow.models import Workflow, WorkflowVersion
 from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
-    MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine
+    MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset
 from .base import WorkbenchCliTestCase
 
 
@@ -698,6 +698,14 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assert_not_empty(engines_result, "Expected engine result to not be empty")
         self.assertEqual(len(engines_result), 1, "Expected only one engine")
         self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
+
+    # def test_engine_parameters_list(self):
+    #     engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
+    #         'workbench', 'engines', 'parameters', 'list', '--engine', self.execution_engine.id
+    #     )]
+    #
+    #     self.assert_not_empty(engine_params_result, "Expected at least one engine")
+    #     self.assertTrue(any(param.name == self.engine_params.name for param in engine_params_result))
 
     def test_workflows_files(self):
         main_file_content = """
