@@ -699,13 +699,23 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(len(engines_result), 1, "Expected only one engine")
         self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
 
-    # def test_engine_parameters_list(self):
-    #     engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
-    #         'workbench', 'engines', 'parameters', 'list', '--engine', self.execution_engine.id
-    #     )]
-    #
-    #     self.assert_not_empty(engine_params_result, "Expected at least one engine")
-    #     self.assertTrue(any(param.name == self.engine_params.name for param in engine_params_result))
+    def test_engine_parameters_list(self):
+        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
+            'workbench', 'engines', 'parameters', 'list', '--engine', self.execution_engine.id
+        )]
+
+        self.assert_not_empty(engine_params_result, "Expected at least one param")
+        self.assertTrue(any(param.name == self.engine_params.name for param in engine_params_result))
+
+    def test_engine_parameters_describe(self):
+        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
+            'workbench', 'engines', 'parameters', 'describe', '--engine', self.execution_engine.id,
+            self.engine_params.id
+        )]
+
+        self.assert_not_empty(engine_params_result, "Expected at least one param description")
+        self.assertEqual(len(engine_params_result), 1, "Expected only one param description")
+        self.assertTrue(any(param.name == self.engine_params.name for param in engine_params_result))
 
     def test_workflows_files(self):
         main_file_content = """

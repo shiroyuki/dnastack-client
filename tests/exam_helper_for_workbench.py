@@ -93,6 +93,15 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                          ).json())))
     namespace: str = None
     hello_world_workflow: Workflow = None
+    engine_param = {
+        "id": "presetId",
+        "name": "presetName",
+        "preset_values": {
+            "key1": "value1",
+            "key2": "value2"
+        },
+        "default": True,
+    }
 
     @classmethod
     def get_factory(cls) -> EndpointRepository:
@@ -132,7 +141,7 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                                              cls.test_user.email,
                                              cls.test_user.personalAccessToken) as session:
             cls.execution_engine = cls._create_execution_engine(session)
-            # cls.engine_params = cls._add_execution_engine_parameter(session, cls.execution_engine.id)
+            cls.engine_params = cls._add_execution_engine_parameter(session, cls.execution_engine.id)
             cls._base_logger.info(f'Class {cls.__name__}: Created execution engine: {cls.execution_engine}')
 
     @classmethod
@@ -204,17 +213,9 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
 
     @classmethod
     def _add_execution_engine_parameter(cls, session: HttpSession, engine_id: str) -> EngineParamPreset:
-        new_param_preset = {
-            "name": "presetName",
-            "presetValues": {
-                "key1": "value1",
-                "key2": "value2"
-            },
-            "default": True
-        }
         response = session.post(urljoin(cls.workbench_base_url,
                                         f'/services/ewes-service/{cls.namespace}/engines/{engine_id}/param-presets'),
-                                json=new_param_preset)
+                                json=cls.engine_param)
         return EngineParamPreset(**response.json())
 
     @classmethod
