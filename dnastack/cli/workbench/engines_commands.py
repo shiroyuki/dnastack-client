@@ -140,7 +140,7 @@ def describe_engine_parameters(context: Optional[str],
                                engine_id: str = None,
                                param_preset_ids: List[str] = None):
     """
-    Describes an engine's parameter preset value
+    Describes an engine's parameter preset values
     """
     if engine_id is None:
         raise NameError('You must specify engine ID after --engine flag')
