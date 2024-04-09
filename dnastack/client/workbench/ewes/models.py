@@ -244,7 +244,7 @@ class EngineParamPreset(BaseModel):
     default: Optional[bool]
     preset_values: Dict[str, object]
     engine_id: str
-    e_tag: Optional[str]
+    etag: Optional[str]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 

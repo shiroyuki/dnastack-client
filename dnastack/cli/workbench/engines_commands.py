@@ -14,7 +14,7 @@ from dnastack.common.json_argument_parser import *
 
 @click.group('engines')
 def engines_command_group():
-    """ Create and interact with engines """
+    """ Interact with engines """
 
 
 @click.group('parameters')
