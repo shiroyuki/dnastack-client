@@ -506,11 +506,30 @@ def submit_batch(context: Optional[str],
 
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
+    if default_workflow_engine_parameters:
+        param_ids_list = default_workflow_engine_parameters.extract_param_ids()
+        param_presets = list()
+        for param_id in param_ids_list:
+            param_preset = None
+            try:
+                param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
+                param_presets.append(param_preset.preset_values)
+            except Exception as e:
+                raise ValueError(f"Unable to find engine parameter preset with id {param_id}. {e}")
+        user_input_engine_params = default_workflow_engine_parameters.parsed_value()
+        # merge param_presets and user_input_engine_params
+        combined_params = param_presets.append(user_input_engine_params)
+        parse_and_merge_arguments(combined_params)
+
+    else:
+        default_workflow_engine_parameters = None
+
+
     batch_request: BatchRunRequest = BatchRunRequest(
         workflow_url=workflow_url,
         workflow_type="WDL",
         engine_id=engine_id,
-        default_workflow_engine_parameters=default_workflow_engine_parameters.parsed_value() if default_workflow_engine_parameters else None,
+        default_workflow_engine_parameters=default_workflow_engine_parameters,
         default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
         default_tags=tags.parsed_value() if tags else None,
         run_requests=list()

@@ -19,8 +19,8 @@ except UnsupportedOperation as e:
     if in_global_debug_mode:
         logger.warning("Could start importing httpie modules but failed to finish it.")
         traceback.print_exc()
-        logger.warning("This module will be imported but there will be no guarantee that the dependant code will work normally.")
-
+        logger.warning(
+            "This module will be imported but there will be no guarantee that the dependant code will work normally.")
 
 JSONType = Union[str, bool, int, list, dict]
 KV_PAIR_SEPARATOR = ","
@@ -30,6 +30,7 @@ class ArgumentType(str, Enum):
     JSON_LITERAL_PARAM_TYPE = "JSON_LITERAL"
     FILE = "FILE"
     KV_PARAM_TYPE = "KEY_VALUE"
+    STRING_PARAM_TYPE = "STRING"
     UNKNOWN_PARAM_TYPE = "UNKNOWN"
 
 
@@ -61,6 +62,20 @@ class JsonLike(FileOrValue):
             return parse_kv_arguments(split_kv_pairs(value))
         else:
             return json.loads(value)
+
+    def extract_param_ids(self) -> List[str]:
+        value = super().value()
+        # deals with simple string: my-preset-id
+        if self.argument_type == ArgumentType.STRING_PARAM_TYPE:
+            return list(value)
+        # deals with a mix of the kv pairs and strings, e.g. my-preset-id,key=value
+        param_ids_list = list()
+        if self.argument_type == ArgumentType.KV_PARAM_TYPE:
+            possible_kv_pairs_list = split_kv_pairs(value)
+            for element in possible_kv_pairs_list:
+                if "=" not in element:
+                    param_ids_list.append(element)
+        return param_ids_list
 
 
 def merge(base, override_dict, path=None):
@@ -111,7 +126,7 @@ def get_argument_type(argument: str) -> str:
         return ArgumentType.JSON_LITERAL_PARAM_TYPE
     if "=" in argument:
         return ArgumentType.KV_PARAM_TYPE
-    return ArgumentType.UNKNOWN_PARAM_TYPE
+    return ArgumentType.STRING_PARAM_TYPE
 
 
 def parse_kv_arguments(arguments: List[str]) -> Union[List[JSONType], Dict[str, JSONType]]:
