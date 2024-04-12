@@ -7,7 +7,7 @@ from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.workbench_user_service.models import WorkbenchUser
 
 
-class WorkbenchUserClient(BaseServiceClient):
+class WusClient(BaseServiceClient):
 
     @staticmethod
     def get_adapter_type() -> str:
@@ -27,7 +27,7 @@ class WorkbenchUserClient(BaseServiceClient):
             endpoint.type = cls.get_default_service_type()
         return cls(endpoint)
 
-    def get_user_config(self) -> WorkbenchUser:
+    def fetch_current_user(self) -> WorkbenchUser:
         with self.create_http_session() as session:
             response = session.get(
                 urljoin(self.endpoint.url, f'users/me')
