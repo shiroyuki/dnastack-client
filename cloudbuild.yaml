@@ -1,3 +1,5 @@
+timeout: 7200s
+
 steps:
   - id: setup
     name: 'gcr.io/cloud-builders/gcloud'
