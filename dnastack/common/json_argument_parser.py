@@ -2,7 +2,7 @@ import json
 import traceback
 from enum import Enum
 from io import UnsupportedOperation
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 
 from dnastack.common.logger import get_logger
 from dnastack.feature_flags import in_global_debug_mode
@@ -30,7 +30,8 @@ class ArgumentType(str, Enum):
     JSON_LITERAL_PARAM_TYPE = "JSON_LITERAL"
     FILE = "FILE"
     KV_PARAM_TYPE = "KEY_VALUE"
-    STRING_PARAM_TYPE = "STRING"
+    STRING_PARAM_TYPE = "STRING_PARAM"
+    STRING_PARAM_LIST_TYPE = "STRING_PARAM_LIST"
     UNKNOWN_PARAM_TYPE = "UNKNOWN"
 
 
@@ -63,19 +64,29 @@ class JsonLike(FileOrValue):
         else:
             return json.loads(value)
 
-    def extract_param_ids(self) -> List[str]:
+    def return_parsed_literal_or_file(self) -> JSONType:
+        value = super().value()
+        if self.argument_type == ArgumentType.FILE or self.argument_type == ArgumentType.JSON_LITERAL_PARAM_TYPE:
+            return json.loads(value)
+
+    def separate_strings_and_kvps(self) -> Tuple[List[str], List[str]]:
         value = super().value()
         # deals with simple string: my-preset-id
         if self.argument_type == ArgumentType.STRING_PARAM_TYPE:
-            return list(value)
+            return [value], []
+        if self.argument_type == ArgumentType.STRING_PARAM_LIST_TYPE:
+            return value.split(KV_PAIR_SEPARATOR), []
         # deals with a mix of the kv pairs and strings, e.g. my-preset-id,key=value
         param_ids_list = list()
+        kv_pairs_list = list()
         if self.argument_type == ArgumentType.KV_PARAM_TYPE:
-            possible_kv_pairs_list = split_kv_pairs(value)
-            for element in possible_kv_pairs_list:
+            separated_list = split_kv_pairs(value)
+            for element in separated_list:
                 if "=" not in element:
                     param_ids_list.append(element)
-        return param_ids_list
+                else:
+                    kv_pairs_list.append(element)
+        return param_ids_list, kv_pairs_list
 
 
 def merge(base, override_dict, path=None):
@@ -126,6 +137,8 @@ def get_argument_type(argument: str) -> str:
         return ArgumentType.JSON_LITERAL_PARAM_TYPE
     if "=" in argument:
         return ArgumentType.KV_PARAM_TYPE
+    if "," in argument:
+        return ArgumentType.STRING_PARAM_LIST_TYPE
     return ArgumentType.STRING_PARAM_TYPE
 
 

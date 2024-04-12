@@ -478,7 +478,7 @@ def get_run_logs(context: Optional[str],
              ),
              ArgumentSpec(
                  name='overrides',
-                 help='Additional arguments to set input values for all runs. The override values can be any JSON-like value' 
+                 help='Additional arguments to set input values for all runs. The override values can be any JSON-like value'
                       'such as inline JSON, command separated key value pairs or'
                       'a json file referenced preceded by the "@" symbol.',
                  as_option=False,
@@ -507,23 +507,28 @@ def submit_batch(context: Optional[str],
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
     if default_workflow_engine_parameters:
-        param_ids_list = default_workflow_engine_parameters.extract_param_ids()
-        param_presets = list()
-        for param_id in param_ids_list:
-            param_preset = None
-            try:
-                param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
-                param_presets.append(param_preset.preset_values)
-            except Exception as e:
-                raise ValueError(f"Unable to find engine parameter preset with id {param_id}. {e}")
-        user_input_engine_params = default_workflow_engine_parameters.parsed_value()
-        # merge param_presets and user_input_engine_params
-        combined_params = param_presets.append(user_input_engine_params)
-        parse_and_merge_arguments(combined_params)
+        possible_literal_or_file = default_workflow_engine_parameters.return_parsed_literal_or_file()
+        if possible_literal_or_file:
+            default_workflow_engine_parameters = possible_literal_or_file
+        else:
+            [param_ids_list, kv_pairs_list] = default_workflow_engine_parameters.separate_strings_and_kvps()
+            print(f'param_ids_list: {param_ids_list}, kv_pairs_list: {kv_pairs_list}')
+            param_presets = dict()
+            for param_id in param_ids_list:
+                try:
+                    param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
+                    param_presets.update(param_preset.preset_values)
+                except Exception as e:
+                    raise ValueError(f"Unable to find engine parameter preset with id {param_id}. {e}")
 
+            if kv_pairs_list:  # if there are key value pairs left
+                user_input_engine_params = parse_kv_arguments(kv_pairs_list)
+                param_presets.update(user_input_engine_params)  # merge param_presets and user_input_engine_params
+            default_workflow_engine_parameters = param_presets
     else:
         default_workflow_engine_parameters = None
 
+    click.echo(f'default_workflow_engine_parameters: {default_workflow_engine_parameters}')
 
     batch_request: BatchRunRequest = BatchRunRequest(
         workflow_url=workflow_url,
@@ -533,7 +538,6 @@ def submit_batch(context: Optional[str],
         default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
         default_tags=tags.parsed_value() if tags else None,
         run_requests=list()
-
     )
 
     for workflow_param in workflow_params:
