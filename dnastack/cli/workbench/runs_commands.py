@@ -512,7 +512,6 @@ def submit_batch(context: Optional[str],
             default_workflow_engine_parameters = possible_literal_or_file
         else:
             [param_ids_list, kv_pairs_list] = default_workflow_engine_parameters.separate_strings_and_kvps()
-            print(f'param_ids_list: {param_ids_list}, kv_pairs_list: {kv_pairs_list}')
             param_presets = dict()
             for param_id in param_ids_list:
                 try:
@@ -536,8 +535,6 @@ def submit_batch(context: Optional[str],
             default_workflow_engine_parameters = param_presets
     else:
         default_workflow_engine_parameters = None
-
-    click.echo(f'default_workflow_engine_parameters: {default_workflow_engine_parameters}')
 
     batch_request: BatchRunRequest = BatchRunRequest(
         workflow_url=workflow_url,
