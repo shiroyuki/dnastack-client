@@ -519,11 +519,20 @@ def submit_batch(context: Optional[str],
                     param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
                     param_presets.update(param_preset.preset_values)
                 except Exception as e:
-                    raise ValueError(f"Unable to find engine parameter preset with id {param_id}. {e}")
+                    raise ValueError(f"Unable to find engine parameter preset with id {param_id}. "
+                                     f"You may only specify parameter preset ids and key value pairs in a list "
+                                     f"together. To include file content or JSON literals, it must be specified "
+                                     f"as a key-value pair. For more information please refer to "
+                                     f"https://docs.omics.ai/products/command-line-interface/"
+                                     f"working-with-json-data. {e}")
 
             if kv_pairs_list:  # if there are key value pairs left
-                user_input_engine_params = parse_kv_arguments(kv_pairs_list)
-                param_presets.update(user_input_engine_params)  # merge param_presets and user_input_engine_params
+                try:
+                    user_input_engine_params = parse_kv_arguments(kv_pairs_list)
+                except Exception as e:
+                    raise ValueError(f"Failed to parse the key value pairs {kv_pairs_list}. "
+                                     f"Ensure they are each separated with a comma. {e}")
+                merge(param_presets, user_input_engine_params)  # merge param_presets and user_input_engine_params
             default_workflow_engine_parameters = param_presets
     else:
         default_workflow_engine_parameters = None

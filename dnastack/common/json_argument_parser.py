@@ -65,7 +65,10 @@ class JsonLike(FileOrValue):
             return json.loads(value)
 
     def return_parsed_literal_or_file(self) -> JSONType:
-        value = super().value()
+        try:
+            value = super().value()
+        except Exception as e:
+            raise ValueError(f"Failed to parse the value from the file: {self.raw_value}. {e}")
         if self.argument_type == ArgumentType.FILE or self.argument_type == ArgumentType.JSON_LITERAL_PARAM_TYPE:
             return json.loads(value)
 
