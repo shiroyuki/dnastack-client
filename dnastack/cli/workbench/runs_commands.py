@@ -7,7 +7,7 @@ from click import style
 
 from dnastack.cli.workbench.utils import get_ewes_client
 from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
-    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State
+    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State, ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
@@ -438,8 +438,9 @@ def get_run_logs(context: Optional[str],
                  name='default_workflow_engine_parameters',
                  arg_names=['--engine-params'],
                  help='Set the global engine parameters for all runs that are to be submitted. '
-                      'Engine params can be specified as a KV pair, inlined JSON, or as a json file preceded by the "@"'
-                      'symbol.',
+                      'Engine params can be specified as inlined JSON, json file preceded by the "@" symbol, '
+                      'KV pair, parameter preset ID, or as a list of KV pairs and preset IDs separated by commas '
+                      '(e.g. my-preset-id,key=value).',
                  as_option=True,
                  default=None,
                  required=False
@@ -478,8 +479,8 @@ def get_run_logs(context: Optional[str],
              ),
              ArgumentSpec(
                  name='overrides',
-                 help='Additional arguments to set input values for all runs. The override values can be any JSON-like value'
-                      'such as inline JSON, command separated key value pairs or'
+                 help='Additional arguments to set input values for all runs. The override values can be any '
+                      'JSON-like value such as inline JSON, command separated key value pairs or '
                       'a json file referenced preceded by the "@" symbol.',
                  as_option=False,
                  default=None,
@@ -506,6 +507,15 @@ def submit_batch(context: Optional[str],
 
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
+    def get_default_engine_id():
+        list_options = ExecutionEngineListOptions()
+        engines = ewes_client.list_engines(list_options)
+        for engine in engines:
+            if engine.default:
+                return engine.id
+        raise ValueError("No default engine found. Please specify an engine id in "
+                         "the workflow engine parameters list using ENGINE_ID_KEY=....")
+
     if default_workflow_engine_parameters:
         possible_literal_or_file = default_workflow_engine_parameters.return_parsed_literal_or_file()
         if possible_literal_or_file:
@@ -513,17 +523,20 @@ def submit_batch(context: Optional[str],
         else:
             [param_ids_list, kv_pairs_list] = default_workflow_engine_parameters.separate_strings_and_kvps()
             param_presets = dict()
-            for param_id in param_ids_list:
-                try:
-                    param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
-                    param_presets.update(param_preset.preset_values)
-                except Exception as e:
-                    raise ValueError(f"Unable to find engine parameter preset with id {param_id}. "
-                                     f"You may only specify parameter preset ids and key value pairs in a list "
-                                     f"together. To include file content or JSON literals, it must be specified "
-                                     f"as a key-value pair. For more information please refer to "
-                                     f"https://docs.omics.ai/products/command-line-interface/"
-                                     f"working-with-json-data. {e}")
+            if param_ids_list:
+                if not engine_id:
+                    engine_id = get_default_engine_id()
+                for param_id in param_ids_list:
+                    try:
+                        param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
+                        param_presets.update(param_preset.preset_values)
+                    except Exception as e:
+                        raise ValueError(f"Unable to find engine parameter preset with id {param_id}. "
+                                         f"You may only specify parameter preset ids and key value pairs in a list "
+                                         f"together. To include file content or JSON literals, it must be specified "
+                                         f"as a key-value pair. For more information please refer to "
+                                         f"https://docs.omics.ai/products/command-line-interface/"
+                                         f"working-with-json-data. {e}")
 
             if kv_pairs_list:  # if there are key value pairs left
                 try:
