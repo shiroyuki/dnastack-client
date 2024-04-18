@@ -513,8 +513,8 @@ def submit_batch(context: Optional[str],
         for engine in engines:
             if engine.default:
                 return engine.id
-        raise ValueError("No default engine found. Please specify an engine id in "
-                         "the workflow engine parameters list using ENGINE_ID_KEY=....")
+        raise ValueError("No default engine found. Please specify an engine id using the --engine flag "
+                         "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
 
     if default_workflow_engine_parameters:
         possible_literal_or_file = default_workflow_engine_parameters.return_parsed_literal_or_file()
