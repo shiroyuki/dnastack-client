@@ -5,7 +5,8 @@ from typing import Optional, Iterable
 import click
 from click import style
 
-from dnastack.cli.workbench.utils import get_ewes_client
+from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
+    UnableToFindParameterError
 from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
     MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State, ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
@@ -513,39 +514,26 @@ def submit_batch(context: Optional[str],
         for engine in engines:
             if engine.default:
                 return engine.id
-        raise ValueError("No default engine found. Please specify an engine id using the --engine flag "
-                         "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
+        raise NoDefaultEngineError("No default engine found. Please specify an engine id using the --engine flag "
+                                   "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
 
     if default_workflow_engine_parameters:
-        possible_literal_or_file = default_workflow_engine_parameters.return_parsed_literal_or_file()
-        if possible_literal_or_file:
-            default_workflow_engine_parameters = possible_literal_or_file
-        else:
-            [param_ids_list, kv_pairs_list] = default_workflow_engine_parameters.separate_strings_and_kvps()
-            param_presets = dict()
-            if param_ids_list:
-                if not engine_id:
-                    engine_id = get_default_engine_id()
-                for param_id in param_ids_list:
-                    try:
-                        param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
-                        param_presets.update(param_preset.preset_values)
-                    except Exception as e:
-                        raise ValueError(f"Unable to find engine parameter preset with id {param_id}. "
-                                         f"You may only specify parameter preset ids and key value pairs in a list "
-                                         f"together. To include file content or JSON literals, it must be specified "
-                                         f"as a key-value pair. For more information please refer to "
-                                         f"https://docs.omics.ai/products/command-line-interface/"
-                                         f"working-with-json-data. {e}")
+        [param_ids_list, kv_pairs_list, json_literals_list,
+         files_list] = default_workflow_engine_parameters.separate_arguments_list()
 
-            if kv_pairs_list:  # if there are key value pairs left
+        param_presets = merge_param_json_data(kv_pairs_list, json_literals_list, files_list)
+
+        if param_ids_list:
+            if not engine_id:
+                engine_id = get_default_engine_id()
+            for param_id in param_ids_list:
                 try:
-                    user_input_engine_params = parse_kv_arguments(kv_pairs_list)
+                    param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
+                    merge(param_presets, param_preset.preset_values)
                 except Exception as e:
-                    raise ValueError(f"Failed to parse the key value pairs {kv_pairs_list}. "
-                                     f"Ensure they are each separated with a comma. {e}")
-                merge(param_presets, user_input_engine_params)  # merge param_presets and user_input_engine_params
-            default_workflow_engine_parameters = param_presets
+                    raise UnableToFindParameterError(f"Unable to find engine parameter preset with id {param_id}. {e}")
+
+        default_workflow_engine_parameters = param_presets
     else:
         default_workflow_engine_parameters = None
 
