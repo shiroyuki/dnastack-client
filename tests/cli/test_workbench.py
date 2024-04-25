@@ -1,5 +1,6 @@
 import datetime
 import io
+import json
 import logging
 import os
 import shutil
@@ -393,11 +394,15 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         test_submit_batch_with_engine_preset_param()
 
-        def test_submit_batch_with_mixed_engine_preset_param_types():
+        def test_submit_batch_with_engine_mixed_param_types():
             submitted_batch = BatchRunResponse(**self.simple_invoke(
                 'workbench', 'runs', 'submit',
                 '--url', hello_world_workflow_url,
-                '--engine-params', f'goodbye=moon,{self.engine_params.id},hello=world',
+                '--engine-params', f'goodbye=moon,'
+                                   f'hello=world,'
+                                   f'{self.engine_params.id},'
+                                   f'{json.dumps({"hello":"world"})},'
+                                   f'@{input_json_file}',
             ))
             self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
             described_runs = [ExtendedRun(**described_run) for described_run in self.simple_invoke(
@@ -408,15 +413,16 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
             processed_engine_params = {
                 'engine_id': self.execution_engine.id,
-                'goodbye': 'moon',
+                'test.hello.name': 'bar',
                 'hello': 'world',
+                'goodbye': 'moon',
                 **self.engine_params.preset_values
             }
             self.assertEqual(described_runs[0].request.workflow_engine_parameters, processed_engine_params,
                              f'Expected workflow engine params to be exactly the same. '
                              f'Found {described_runs[0].request.workflow_engine_parameters}')
 
-        test_submit_batch_with_mixed_engine_preset_param_types()
+        test_submit_batch_with_engine_mixed_param_types()
 
     def test_workflows_list(self):
         result = [Workflow(**workflow) for workflow in self.simple_invoke(
