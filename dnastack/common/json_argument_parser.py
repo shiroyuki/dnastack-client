@@ -64,7 +64,7 @@ class JsonLike(FileOrValue):
         else:
             return json.loads(value)
 
-    def separate_arguments_list(self) -> Tuple[List[str], List[str], List[str], List[str]]:
+    def extract_arguments_list(self) -> Tuple[List[str], List[str], List[str], List[str]]:
         # ordered as lists of param ids, kv pairs, json literals, files
         params_ids = []
         kv_pairs = []

@@ -440,8 +440,8 @@ def get_run_logs(context: Optional[str],
                  arg_names=['--engine-params'],
                  help='Set the global engine parameters for all runs that are to be submitted. '
                       'Engine params can be specified as inlined JSON, json file preceded by the "@" symbol, '
-                      'KV pair, parameter preset ID, or as a list of KV pairs and preset IDs separated by commas '
-                      '(e.g. my-preset-id,key=value).',
+                      'KV pair, parameter preset ID, or as a comma-separated-list containing any of those types '
+                      '(e.g. my-preset-id,key=value,\'{"literal":"json"}\',@file.json).',
                  as_option=True,
                  default=None,
                  required=False
@@ -519,7 +519,7 @@ def submit_batch(context: Optional[str],
 
     if default_workflow_engine_parameters:
         [param_ids_list, kv_pairs_list, json_literals_list,
-         files_list] = default_workflow_engine_parameters.separate_arguments_list()
+         files_list] = default_workflow_engine_parameters.extract_arguments_list()
 
         param_presets = merge_param_json_data(kv_pairs_list, json_literals_list, files_list)
 
