@@ -93,7 +93,7 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                          ).json())))
     namespace: str = None
     hello_world_workflow: Workflow = None
-    engine_param = {
+    engine_params = {
         "id": "presetId",
         "name": "presetName",
         "preset_values": {
@@ -215,7 +215,7 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
     def _add_execution_engine_parameter(cls, session: HttpSession, engine_id: str) -> EngineParamPreset:
         response = session.post(urljoin(cls.workbench_base_url,
                                         f'/services/ewes-service/{cls.namespace}/engines/{engine_id}/param-presets'),
-                                json=cls.engine_param)
+                                json=cls.engine_params)
         return EngineParamPreset(**response.json())
 
     @classmethod

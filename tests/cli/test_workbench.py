@@ -1,5 +1,6 @@
 import datetime
 import io
+import json
 import logging
 import os
 import shutil
@@ -10,7 +11,8 @@ from datetime import date
 
 from dnastack.alpha.client.workflow.models import Workflow, WorkflowVersion
 from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
-    MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset
+    MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
+    BatchRunRequest
 from .base import WorkbenchCliTestCase
 
 
@@ -352,6 +354,75 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                              f'Expected workflow params to be exactly the same. Found {described_runs[3].inputs}')
 
         test_submit_batch_with_multiple_params()
+
+        def test_submit_batch_with_engine_key_value_param():
+            submitted_batch = BatchRunResponse(**self.simple_invoke(
+                'workbench', 'runs', 'submit',
+                '--url', hello_world_workflow_url,
+                '--engine-params', 'key=value'
+            ))
+            self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
+            described_runs = [ExtendedRun(**described_run) for described_run in self.simple_invoke(
+                'workbench', 'runs', 'describe',
+                submitted_batch.runs[0].run_id
+            )]
+            self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
+            self.assertEqual(described_runs[0].request.workflow_engine_parameters, {'key': 'value'},
+                             f'Expected workflow engine params to be exactly the same. '
+                             f'Found {described_runs[0].request.workflow_engine_parameters}')
+
+        test_submit_batch_with_engine_key_value_param()
+
+        def test_submit_batch_with_engine_preset_param():
+            submitted_batch = BatchRunResponse(**self.simple_invoke(
+                'workbench', 'runs', 'submit',
+                '--url', hello_world_workflow_url,
+                '--engine-params', self.engine_params.id,
+            ))
+            self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
+            described_runs = [ExtendedRun(**described_run) for described_run in self.simple_invoke(
+                'workbench', 'runs', 'describe',
+                submitted_batch.runs[0].run_id
+            )]
+
+            self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
+            processed_engine_params = {'engine_id': self.execution_engine.id}
+            processed_engine_params.update(self.engine_params.preset_values)
+            self.assertEqual(described_runs[0].request.workflow_engine_parameters, processed_engine_params,
+                             f'Expected workflow engine params to be exactly the same. '
+                             f'Found {described_runs[0].request.workflow_engine_parameters}')
+
+        test_submit_batch_with_engine_preset_param()
+
+        def test_submit_batch_with_engine_mixed_param_types():
+            submitted_batch = BatchRunResponse(**self.simple_invoke(
+                'workbench', 'runs', 'submit',
+                '--url', hello_world_workflow_url,
+                '--engine-params', f'goodbye=moon,'
+                                   f'hello=world,'
+                                   f'{self.engine_params.id},'
+                                   f'{json.dumps({"hello":"world"})},'
+                                   f'@{input_json_file}',
+            ))
+            self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
+            described_runs = [ExtendedRun(**described_run) for described_run in self.simple_invoke(
+                'workbench', 'runs', 'describe',
+                submitted_batch.runs[0].run_id
+            )]
+
+            self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
+            processed_engine_params = {
+                'engine_id': self.execution_engine.id,
+                'test.hello.name': 'bar',
+                'hello': 'world',
+                'goodbye': 'moon',
+                **self.engine_params.preset_values
+            }
+            self.assertEqual(described_runs[0].request.workflow_engine_parameters, processed_engine_params,
+                             f'Expected workflow engine params to be exactly the same. '
+                             f'Found {described_runs[0].request.workflow_engine_parameters}')
+
+        test_submit_batch_with_engine_mixed_param_types()
 
     def test_workflows_list(self):
         result = [Workflow(**workflow) for workflow in self.simple_invoke(

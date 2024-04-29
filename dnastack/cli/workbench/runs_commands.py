@@ -5,9 +5,10 @@ from typing import Optional, Iterable
 import click
 from click import style
 
-from dnastack.cli.workbench.utils import get_ewes_client
+from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
+    UnableToFindParameterError
 from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
-    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State
+    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State, ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
@@ -438,8 +439,9 @@ def get_run_logs(context: Optional[str],
                  name='default_workflow_engine_parameters',
                  arg_names=['--engine-params'],
                  help='Set the global engine parameters for all runs that are to be submitted. '
-                      'Engine params can be specified as a KV pair, inlined JSON, or as a json file preceded by the "@"'
-                      'symbol.',
+                      'Engine params can be specified as inlined JSON, json file preceded by the "@" symbol, '
+                      'KV pair, parameter preset ID, or as a comma-separated-list containing any of those types '
+                      '(e.g. my-preset-id,key=value,\'{"literal":"json"}\',@file.json).',
                  as_option=True,
                  default=None,
                  required=False
@@ -478,8 +480,8 @@ def get_run_logs(context: Optional[str],
              ),
              ArgumentSpec(
                  name='overrides',
-                 help='Additional arguments to set input values for all runs. The override values can be any JSON-like value' 
-                      'such as inline JSON, command separated key value pairs or'
+                 help='Additional arguments to set input values for all runs. The override values can be any '
+                      'JSON-like value such as inline JSON, command separated key value pairs or '
                       'a json file referenced preceded by the "@" symbol.',
                  as_option=False,
                  default=None,
@@ -506,15 +508,43 @@ def submit_batch(context: Optional[str],
 
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
+    def get_default_engine_id():
+        list_options = ExecutionEngineListOptions()
+        engines = ewes_client.list_engines(list_options)
+        for engine in engines:
+            if engine.default:
+                return engine.id
+        raise NoDefaultEngineError("No default engine found. Please specify an engine id using the --engine flag "
+                                   "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
+
+    if default_workflow_engine_parameters:
+        [param_ids_list, kv_pairs_list, json_literals_list,
+         files_list] = default_workflow_engine_parameters.extract_arguments_list()
+
+        param_presets = merge_param_json_data(kv_pairs_list, json_literals_list, files_list)
+
+        if param_ids_list:
+            if not engine_id:
+                engine_id = get_default_engine_id()
+            for param_id in param_ids_list:
+                try:
+                    param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
+                    merge(param_presets, param_preset.preset_values)
+                except Exception as e:
+                    raise UnableToFindParameterError(f"Unable to find engine parameter preset with id {param_id}. {e}")
+
+        default_workflow_engine_parameters = param_presets
+    else:
+        default_workflow_engine_parameters = None
+
     batch_request: BatchRunRequest = BatchRunRequest(
         workflow_url=workflow_url,
         workflow_type="WDL",
         engine_id=engine_id,
-        default_workflow_engine_parameters=default_workflow_engine_parameters.parsed_value() if default_workflow_engine_parameters else None,
+        default_workflow_engine_parameters=default_workflow_engine_parameters,
         default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
         default_tags=tags.parsed_value() if tags else None,
         run_requests=list()
-
     )
 
     for workflow_param in workflow_params:

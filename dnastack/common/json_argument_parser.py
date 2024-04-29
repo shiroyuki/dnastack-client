@@ -2,8 +2,9 @@ import json
 import traceback
 from enum import Enum
 from io import UnsupportedOperation
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 
+# from dnastack.cli.workbench.utils import UnableToDecodeFileError, UnableToDecodeJSONDataError
 from dnastack.common.logger import get_logger
 from dnastack.feature_flags import in_global_debug_mode
 
@@ -19,17 +20,18 @@ except UnsupportedOperation as e:
     if in_global_debug_mode:
         logger.warning("Could start importing httpie modules but failed to finish it.")
         traceback.print_exc()
-        logger.warning("This module will be imported but there will be no guarantee that the dependant code will work normally.")
-
+        logger.warning(
+            "This module will be imported but there will be no guarantee that the dependant code will work normally.")
 
 JSONType = Union[str, bool, int, list, dict]
-KV_PAIR_SEPARATOR = ","
+LIST_SEPARATOR = ","
 
 
 class ArgumentType(str, Enum):
     JSON_LITERAL_PARAM_TYPE = "JSON_LITERAL"
     FILE = "FILE"
     KV_PARAM_TYPE = "KEY_VALUE"
+    STRING_PARAM_TYPE = "STRING_PARAM"
     UNKNOWN_PARAM_TYPE = "UNKNOWN"
 
 
@@ -58,9 +60,31 @@ class JsonLike(FileOrValue):
     def parsed_value(self) -> JSONType:
         value = super().value()
         if self.argument_type == ArgumentType.KV_PARAM_TYPE:
-            return parse_kv_arguments(split_kv_pairs(value))
+            return parse_kv_arguments(split_arguments_list(value))
         else:
             return json.loads(value)
+
+    def extract_arguments_list(self) -> Tuple[List[str], List[str], List[str], List[str]]:
+        # ordered as lists of param ids, kv pairs, json literals, files
+        params_ids = []
+        kv_pairs = []
+        json_literals = []
+        files = []
+        value = self.raw_value
+        separated_arguments = split_arguments_list(value)
+        for arg in separated_arguments:
+            arg_type = get_argument_type(arg)
+            if arg_type == ArgumentType.STRING_PARAM_TYPE:
+                params_ids.append(arg)
+            if arg_type == ArgumentType.KV_PARAM_TYPE:
+                kv_pairs.append(arg)
+            if arg_type == ArgumentType.JSON_LITERAL_PARAM_TYPE:
+                json_literals.append(arg)
+            if arg_type == ArgumentType.FILE:
+                files.append(arg)
+            if arg_type == ArgumentType.UNKNOWN_PARAM_TYPE:
+                raise ValueError(f"Cannot recognize parameter: {arg}")
+        return params_ids, kv_pairs, json_literals, files
 
 
 def merge(base, override_dict, path=None):
@@ -83,9 +107,10 @@ def merge(base, override_dict, path=None):
     return base
 
 
-def split_kv_pairs(kv_pairs: str) -> List[str]:
-    kv_pairs = kv_pairs.replace("\\,", "%2C")
-    return [kv_pair.replace("\\,", ",").replace("%2C", ",") for kv_pair in kv_pairs.split(KV_PAIR_SEPARATOR)]
+def split_arguments_list(args_list: str) -> List[str]:
+    args_list = args_list.replace("\\,", "%2C")
+    return [arg.replace("\\,", ",").replace("%2C", ",")
+            for arg in args_list.split(LIST_SEPARATOR)]
 
 
 def is_json_object_or_array_string(string: str) -> bool:
@@ -111,7 +136,7 @@ def get_argument_type(argument: str) -> str:
         return ArgumentType.JSON_LITERAL_PARAM_TYPE
     if "=" in argument:
         return ArgumentType.KV_PARAM_TYPE
-    return ArgumentType.UNKNOWN_PARAM_TYPE
+    return ArgumentType.STRING_PARAM_TYPE
 
 
 def parse_kv_arguments(arguments: List[str]) -> Union[List[JSONType], Dict[str, JSONType]]:
@@ -140,7 +165,7 @@ def parse_and_merge_arguments(arguments: List[JsonLike]) -> Dict[str, JSONType]:
     kv_arguments = list()
     for argument in arguments:
         if argument.argument_type == ArgumentType.KV_PARAM_TYPE:
-            kv_arguments.extend(split_kv_pairs(argument.value()))
+            kv_arguments.extend(split_arguments_list(argument.value()))
         elif argument.argument_type == ArgumentType.UNKNOWN_PARAM_TYPE:
             raise ValueError(f"Cannot merge non json value from argument: {argument}")
         else:
@@ -150,3 +175,36 @@ def parse_and_merge_arguments(arguments: List[JsonLike]) -> Dict[str, JSONType]:
     if kv_arguments_result:
         merge(arguments_results, kv_arguments_result)
     return arguments_results
+
+
+def merge_param_json_data(kv_pairs_list: List[str], json_literals_list: List[str],
+                          files_list: List[str]) -> Dict[str, JSONType]:
+    param_presets = dict()
+
+    # in this ordering the JSON content of the file will be overwritten by any keys with the same values
+    if files_list:
+        for file_path in files_list:
+            try:
+                file_data = read_file_content(file_path)
+                file_json = json.loads(file_data)
+                merge(param_presets, file_json)
+            except Exception as e:
+                raise ValueError(f"Failed to parse and merge the JSON file {file_path}. {e}")
+
+    if json_literals_list:
+        for json_literal in json_literals_list:
+            try:
+                json_literal_data = json.loads(json_literal)
+                merge(param_presets, json_literal_data)
+            except Exception as e:
+                raise ValueError(f"Failed to parse and merge the JSON literal {json_literal}. {e}")
+
+    if kv_pairs_list:
+        try:
+            kv_params = parse_kv_arguments(kv_pairs_list)
+            merge(param_presets, kv_params)
+        except Exception as e:
+            raise ValueError(f"Failed to parse and merge the key value pairs {kv_pairs_list}. "
+                             f"Ensure they are each separated with a comma. {e}")
+
+    return param_presets

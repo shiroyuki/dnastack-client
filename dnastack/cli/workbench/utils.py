@@ -8,7 +8,6 @@ from dnastack.client.workbench.workbench_user_service.client import WorkbenchUse
 from dnastack.cli.config.context import ContextCommandHandler
 from dnastack.cli.helpers.client_factory import ConfigurationBasedClientFactory
 
-
 DEFAULT_WORKBENCH_DESTINATION = "workbench.omics.ai"
 
 
@@ -18,7 +17,7 @@ def _populate_workbench_endpoint():
 
 
 def get_user_client(context_name: Optional[str] = None,
-                        endpoint_id: Optional[str] = None) -> WorkbenchUserClient:
+                    endpoint_id: Optional[str] = None) -> WorkbenchUserClient:
     factory: ConfigurationBasedClientFactory = container.get(ConfigurationBasedClientFactory)
     try:
         return factory.get(WorkbenchUserClient, endpoint_id=endpoint_id, context_name=context_name)
@@ -30,8 +29,6 @@ def get_user_client(context_name: Optional[str] = None,
 def get_ewes_client(context_name: Optional[str] = None,
                     endpoint_id: Optional[str] = None,
                     namespace: Optional[str] = None) -> EWesClient:
-    
-
     if not namespace:
         user_client = get_user_client(context_name=context_name, endpoint_id=endpoint_id)
         namespace = user_client.get_user_config().default_namespace
@@ -57,8 +54,6 @@ def get_workflow_client(context_name: Optional[str] = None,
     except AssertionError:
         _populate_workbench_endpoint()
         return factory.get(WorkflowClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
-
-
 
 
 class UnableToMergeJsonError(RuntimeError):
@@ -90,6 +85,16 @@ class UnableToCreateFilePathError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
 
+
 class UnableToWriteToFileError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class UnableToFindParameterError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+class NoDefaultEngineError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
