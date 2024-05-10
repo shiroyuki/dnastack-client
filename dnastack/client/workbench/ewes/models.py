@@ -215,7 +215,6 @@ class ExecutionEngineProviderType(str, Enum):
 
 class ExecutionEngine(BaseModel):
     id: str
-    internal_id: str
     name: str
     description: Optional[str]
     provider: ExecutionEngineProviderType
