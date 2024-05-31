@@ -1,7 +1,7 @@
 import binascii
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import click
 from click import style
@@ -278,6 +278,11 @@ def create_workflow(context: Optional[str],
     """
 
     workflows_client = get_workflow_client(context, endpoint_id, namespace)
+    # Add entrypoint to workflow_files
+    if entrypoint not in workflow_files:
+        workflow_files_list = list(workflow_files)
+        workflow_files_list.insert(0, entrypoint)
+        workflow_files = tuple(workflow_files_list)
 
     create_request = WorkflowCreate(
         name=name,
