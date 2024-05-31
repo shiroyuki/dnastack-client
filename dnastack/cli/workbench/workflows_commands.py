@@ -1,7 +1,7 @@
 import binascii
 import os
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 import click
 from click import style
