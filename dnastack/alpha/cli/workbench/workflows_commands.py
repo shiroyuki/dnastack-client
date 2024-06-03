@@ -6,7 +6,7 @@ from click import style
 from dnastack.alpha.cli.workbench.utils import get_workflow_client
 from dnastack.alpha.client.workflow.models import WorkflowCreate, WorkflowVersionCreate, WorkflowSource
 from dnastack.http.session import JsonPatch
-from dnastack.alpha.client.workflow.utils import WorkflowSourceLoader
+from dnastack.client.workbench.workflow.utils import WorkflowSourceLoader
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
