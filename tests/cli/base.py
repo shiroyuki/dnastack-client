@@ -140,8 +140,8 @@ class CliTestCase(BaseTestCase):
         except JSONDecodeError:
             try:
                 return yaml.load(content, Loader=yaml.SafeLoader)
-            except:
-                raise ValueError(f'Unable to parse this content either as JSON or YAML string:\n\n{content}')
+            except Exception as e:
+                raise ValueError(f'Unable to parse this content either as JSON or YAML string. {str(e)}:\n\n{content}')
 
     def _show_config(self):
         self.execute(f'cat {self._config_file_path}')

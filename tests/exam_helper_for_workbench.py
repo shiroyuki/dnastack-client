@@ -60,11 +60,15 @@ class EngineAdapterConfiguration(BaseModel):
 class ExecutionEngine(BaseModel):
     id: Optional[str] = None
     version: Optional[str] = None
-    name: str
-    provider: str
-    region: str
-    default: bool
-    engine_adapter_configuration: EngineAdapterConfiguration
+    name: Optional[str] = None
+    updated_at: Optional[str] = None
+    created_at: Optional[str] = None
+    provider: Optional[str] = None
+    region: Optional[str] = None
+    default: Optional[bool] = False
+    description: Optional[str] = None
+    health: Optional[str] = None
+    engine_adapter_configuration: Optional[EngineAdapterConfiguration] = None
 
 
 class BaseWorkbenchTestCase(WithTestUserTestCase):

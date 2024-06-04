@@ -6,6 +6,12 @@ from typing import List, Tuple, Optional
 import re
 
 from dnastack.client.workbench.workflow.models import WorkflowFile, WorkflowFileType
+class LoadedFile:
+
+    def __init__(self, abs_location: Path, rel_location: Path, content: bytes):
+        self.abs_location = abs_location
+        self.rel_location = rel_location
+        self.content = content
 
 
 class WorkflowSourceLoaderError(Exception):
@@ -13,7 +19,7 @@ class WorkflowSourceLoaderError(Exception):
 
 
 class WorkflowSourceLoader(object):
-    def __init__(self, entrypoint, source_files: List[str]):
+    def __init__(self, entrypoint, source_files: List[Path]):
         if not source_files:
             raise WorkflowSourceLoaderError("Cannot load workflow source files. At least one file must be specified")
         self.source_files = source_files
@@ -72,30 +78,37 @@ class WorkflowSourceLoader(object):
         # Add the parent of the primary path
         # Given the list of absolute paths, strip the common leading path off of the set of paths
         # and the relativize each file path to the common leading path
-        common_path = Path(os.path.commonpath([file[0] for file in path_and_contents] + [Path(os.path.abspath(self.entrypoint))]))
-        path_and_contents = [(Path(file[0]).relative_to(common_path), file[1]) for file in path_and_contents]
-        self._entrypoint = Path(os.path.abspath(self.entrypoint)).relative_to(common_path)
-        self._loaded_files = path_and_contents
+
+        if len(path_and_contents) > 1:
+            common_path = Path(os.path.commonpath([file[0] for file in path_and_contents] + [Path(os.path.abspath(self.entrypoint))]))
+            self._loaded_files: List[LoadedFile] = [
+                    LoadedFile(file[0], Path(file[0]).relative_to(common_path), file[1]) for file in path_and_contents]
+
+            self._entrypoint = Path(os.path.abspath(self.entrypoint)).relative_to(common_path)
+        else:
+            self._loaded_files = [LoadedFile(file[0], Path(file[0].name), file[1]) for file in path_and_contents]
+
 
     def to_zip(self) -> Path:
         tempdir = tempfile.mkdtemp()
         output_location = os.path.join(tempdir, 'dependencies.zip')
         with zipfile.ZipFile(output_location,'w') as output_zip:
             for file in self.loaded_files:
-                file_loc = os.path.join(tempdir, file[0])
+                file_loc = os.path.join(tempdir, file.rel_location)
                 dir_name = os.path.dirname(file_loc)
                 if not os.path.exists(dir_name):
                     os.makedirs(dir_name)
                 with open(file_loc, 'wb') as f:
-                    f.write(file[1])
+                    f.write(file.content)
                 output_zip.write(file_loc, arcname=Path(file_loc).relative_to(tempdir))
         return Path(output_location)
 
     @property
-    def loaded_files(self) -> List[Tuple[Path, bytes]]:
+    def loaded_files(self) -> List[LoadedFile]:
         return self._loaded_files
 
     @property
     def entrypoint(self) -> str:
         return str(self._entrypoint)
+
 

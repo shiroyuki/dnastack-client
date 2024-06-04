@@ -295,17 +295,16 @@ def create_workflow(context: Optional[str],
     workflows_client = get_workflow_client(context, endpoint_id, namespace)
     # Add entrypoint to workflow_files
 
-    if not workflow_files:
-        workflow_files = []
+    workflow_files_list: List[Path] = list(workflow_files)
 
-    has_zip = any([file.name.endswith("zip") for file in workflow_files])
-    if has_zip and len(workflow_files)>1:
+    has_zip = any([file.name.endswith("zip") for file in workflow_files_list])
+    if has_zip and len(workflow_files_list) > 1:
         raise ValueError("Cannot upload both a zip file and other files at the same time")
     if not has_zip:
-        if not workflow_files:
-            workflow_files = [Path(entrypoint)]
-        loader = WorkflowSourceLoader(entrypoint=entrypoint, source_files=workflow_files)
-        workflow_files = [loader.to_zip()]
+        if entrypoint not in workflow_files_list:
+            workflow_files_list = [Path(entrypoint)] + workflow_files_list
+        loader = WorkflowSourceLoader(entrypoint=entrypoint, source_files=workflow_files_list)
+        workflow_files_list = [loader.to_zip()]
         entrypoint = loader.entrypoint
 
     create_request = WorkflowCreate(
@@ -314,7 +313,7 @@ def create_workflow(context: Optional[str],
         description=description.value() if description else None,
         organization=organization,
         entrypoint=entrypoint,
-        files=workflow_files
+        files=workflow_files_list
     )
 
     result = workflows_client.create_workflow(workflow_create_request=create_request)
@@ -631,24 +630,23 @@ def add_version(context: Optional[str],
     """
     workflows_client = get_workflow_client(context, endpoint_id, namespace)
 
-    if not workflow_files:
-        workflow_files = []
+    workflow_files_list: List[Path] = list(workflow_files)
 
-    has_zip = any([file.name.endswith("zip") for file in workflow_files])
-    if has_zip and len(workflow_files)>1:
+    has_zip = any([file.name.endswith("zip") for file in workflow_files_list])
+    if has_zip and len(workflow_files_list) > 1:
         raise ValueError("Cannot upload both a zip file and other files at the same time")
     if not has_zip:
-        if not workflow_files:
-            workflow_files = [Path(entrypoint)]
-        loader = WorkflowSourceLoader(entrypoint=entrypoint, source_files=workflow_files)
-        workflow_files = [loader.to_zip()]
+        if entrypoint not in workflow_files_list:
+            workflow_files_list = [Path(entrypoint)] + workflow_files_list
+        loader = WorkflowSourceLoader(entrypoint=entrypoint, source_files=workflow_files_list)
+        workflow_files_list = [loader.to_zip()]
         entrypoint = loader.entrypoint
 
     create_request = WorkflowVersionCreate(
         version_name=name,
         description=description.value() if description else None,
         entrypoint=entrypoint,
-        files=workflow_files
+        files=workflow_files_list
     )
 
     result = workflows_client.create_version(workflow_id=workflow, workflow_version_create_request=create_request)
