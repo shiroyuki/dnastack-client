@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Any, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 
@@ -85,7 +85,8 @@ class WorkflowListOptions(BaseListOptions):
     search: Optional[str]
     source: Optional[WorkflowSource]
     deleted: Optional[bool]
-    order: Optional[str]
+    sort: Optional[str]
+    order: Optional[str] = Field(..., deprecated=True)
     direction: Optional[str]
 
 
