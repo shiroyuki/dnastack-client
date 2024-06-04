@@ -294,8 +294,6 @@ def create_workflow(context: Optional[str],
         workflow_files = [loader.to_zip()]
         entrypoint = loader.entrypoint
 
-    print(workflow_files)
-    print(entrypoint)
     create_request = WorkflowCreate(
         name=name,
         version_name=version_name,
