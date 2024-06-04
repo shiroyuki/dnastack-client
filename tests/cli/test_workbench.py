@@ -535,6 +535,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             self.assertIsNotNone(created_workflow_from_file.internalId, 'Expected custom workflow to be created.')
             self.assertEqual(created_workflow_from_file.source, 'PRIVATE', 'Expected workflow to be PRIVATE.')
 
+            created_workflow_from_file = Workflow(**self.simple_invoke(
+                'workbench', 'workflows', 'create',
+                '--entrypoint', "main.wdl",
+            ))
+            self.assertIsNotNone(created_workflow_from_file.internalId, 'Expected custom workflow to be created.')
+            self.assertEqual(created_workflow_from_file.source, 'PRIVATE', 'Expected workflow to be PRIVATE.')
+
             created_workflow_from_zip = Workflow(**self.simple_invoke(
                 'workbench', 'workflows', 'create',
                 '--entrypoint', "main.wdl",
