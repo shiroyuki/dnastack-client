@@ -58,9 +58,21 @@ def tasks_command_group():
                  as_option=True
              ),
              ArgumentSpec(
+                 name='sort',
+                 arg_names=['--sort'],
+                 help='An optional flag to define how results are sorted. '
+                      'The value should be in the form `column(:direction)?(;(column(:direction)?)*`'
+                      'If no directions are specified, the results are returned in ascending order'
+                      'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
+                      'e.g.: --sort "end_time:ASC", --sort "workflow_id;end_time:DESC;"',
+
+                 as_option=True
+             ),
+             ArgumentSpec(
                  name='order',
                  arg_names=['--order'],
-                 help='An optional flag to define the ordering of the results. '
+                 help='This flag is now deprecated, please use --sort instead. '
+                      'An optional flag to define the ordering of the results. '
                       'The value should return to the attribute name to order the results by. '
                       'By default, results are returned in descending order. '
                       'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
@@ -126,6 +138,7 @@ def list_runs(context: Optional[str],
               max_results: Optional[int],
               page: Optional[int],
               page_size: Optional[int],
+              sort: Optional[str],
               order: Optional[str],
               submitted_since: Optional[str],
               submitted_until: Optional[str],
@@ -162,6 +175,7 @@ def list_runs(context: Optional[str],
     list_options: ExtendedRunListOptions = ExtendedRunListOptions(
         page=page,
         page_size=page_size,
+        sort=sort,
         order=order,
         direction=order_direction,
         state=states,

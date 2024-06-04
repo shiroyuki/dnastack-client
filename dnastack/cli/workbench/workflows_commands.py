@@ -87,9 +87,21 @@ def _get_replace_patch(path: str, value: str) -> Union[JsonPatch, None]:
                  as_option=True
              ),
              ArgumentSpec(
+                 name='sort',
+                 arg_names=['--sort'],
+                 help='Define how results are sorted. '
+                      'The value should be in the form `column(:direction)?(;(column(:direction)?)*`'
+                      'If no directions are specified, the results are returned in ascending order'
+                      'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
+                      'e.g.: --sort "last_updated_at:ASC", --sort "name;source:DESC;"',
+
+                 as_option=True
+             ),
+             ArgumentSpec(
                  name='order',
                  arg_names=['--order'],
-                 help='Define the ordering of the results. '
+                 help='This flag is now deprecated, please use --sort instead. '
+                      'Define the ordering of the results. '
                       'The value should return to the attribute name to order the results by. '
                       'By default, results are returned in descending order. '
                       'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
@@ -130,6 +142,7 @@ def list_workflows(context: Optional[str],
                    max_results: Optional[int],
                    page: Optional[int],
                    page_size: Optional[int],
+                   sort: Optional[str],
                    order: Optional[str],
                    search: Optional[str],
                    source: Optional[WorkflowSource],
@@ -154,6 +167,7 @@ def list_workflows(context: Optional[str],
     list_options = WorkflowListOptions(
         page=page,
         page_size=page_size,
+        sort=sort,
         order=order,
         direction=order_direction,
         source=source,

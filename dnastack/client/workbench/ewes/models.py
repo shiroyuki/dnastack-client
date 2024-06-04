@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 import re
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 from dnastack.client.service_registry.models import Service
@@ -188,7 +188,8 @@ class ExtendedRunListOptions(BaseListOptions):
     until: Optional[str]
     since: Optional[str]
     search: Optional[str]
-    order: Optional[str]
+    sort: Optional[str]
+    order: Optional[str] = Field(..., deprecated=True)
     direction: Optional[str]
     batch_id: Optional[str]
     state: Optional[List[State]]
