@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 import re
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 from dnastack.client.service_registry.models import Service
@@ -222,7 +222,8 @@ class ExecutionEngine(BaseModel):
     default: Optional[bool]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
-    health: Optional[str]
+    state: Optional[str]
+    health: Optional[str] = Field(..., deprecated=True)
     engine_adapter_configuration: Optional[Dict[str, JSONType]]
 
 
