@@ -106,6 +106,17 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         },
         "default": True,
     }
+    health_checks = {
+        "checks": [
+            {
+                "type": "CONNECTIVITY",
+                "outcome": "SUCCESS",
+            }
+        ],
+        "namespace": "test-68009138-d945-492e-9c51-af7c80f64366",
+        "engine_id": "cromwell-on-google-cloud-platform-lle",
+        "outcome": "SUCCESS",
+    }
 
     @classmethod
     def get_factory(cls) -> EndpointRepository:

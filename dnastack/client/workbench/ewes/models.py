@@ -259,3 +259,30 @@ class EngineParamPresetListResponse(PaginatedResource):
 
 class EngineParamPresetListOptions(BaseListOptions):
     pass
+
+
+class EngineHealthCheck(BaseModel):
+    class Check(BaseModel):
+        type: str
+        outcome: str
+        error: Optional[str]
+    
+    namespace: str
+    engine_id: str
+    created_at: Optional[datetime]
+    outcome: str
+    checks: List[Check]
+    # Checks -- double check the data type conversion in Python
+    
+
+class EngineHealthCheckListResponse(PaginatedResource):
+    health_checks: List[EngineHealthCheck]
+
+    def items(self) -> List[EngineHealthCheck]:
+        return self.health_checks
+
+
+class EngineHealthCheckListOptions(BaseListOptions):
+    outcome: Optional[str]
+    check_type: Optional[str]
+    sort: Optional[str]

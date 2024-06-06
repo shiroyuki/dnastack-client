@@ -9,7 +9,8 @@ from dnastack.client.workbench.ewes.models import WesServiceInfo, ExtendedRunSta
     ExtendedRunListResponse, ExtendedRun, RunId, WorkbenchApiError, BatchActionResult, MinimalExtendedRun, \
     BatchRunResponse, BatchRunRequest, ExtendedRunRequest, Log, TaskListOptions, \
     TaskListResponse, LogType, ExecutionEngineListOptions, ExecutionEngineListResponse, ExecutionEngine, \
-    EngineParamPreset, EngineParamPresetListOptions, EngineParamPresetListResponse
+    EngineParamPreset, EngineParamPresetListOptions, EngineParamPresetListResponse, \
+    EngineHealthCheck, EngineHealthCheckListOptions, EngineHealthCheckListResponse
 from dnastack.common.tracing import Span
 from dnastack.http.session import HttpSession
 
@@ -92,6 +93,24 @@ class EngineParamPresetListResultLoader(WorkbenchResultLoader):
 
     def extract_api_response(self, response_body: dict) -> EngineParamPresetListResponse:
         return EngineParamPresetListResponse(**response_body)
+
+
+class EngineHealthCheckListResultLoader(WorkbenchResultLoader):
+    def __init(self,
+               service_url: str,
+               http_session: HttpSession,
+               trace: Span,
+               list_options: Optional[ExecutionEngineListOptions] = None):
+        super().__init__(service_url=service_url,
+                         http_session=http_session,
+                         list_options=list_options,
+                         trace=trace)
+
+    def get_new_list_options(self) -> EngineHealthCheckListOptions:
+        return EngineHealthCheckListOptions()
+
+    def extract_api_response(self, response_body: dict) -> EngineHealthCheckListResponse:
+        return EngineHealthCheckListResponse(**response_body)
 
 
 class EWesClient(BaseWorkbenchClient):
@@ -295,3 +314,17 @@ class EWesClient(BaseWorkbenchClient):
                         f'{self.namespace}/engines/{engine_id}/param-presets/{param_preset_id}'),
                 trace_context=trace)
             return EngineParamPreset(**response.json())
+
+    def list_engine_health_checks(self,
+                                  engine_id: str,
+                                  list_options: EngineHealthCheckListOptions,
+                                  max_results: int = None,
+                                  trace: Optional[Span] = None) -> Iterable[EngineHealthCheck]:
+        trace = trace or Span(origin=self)
+        return ResultIterator(EngineHealthCheckListResultLoader(
+            service_url=urljoin(self.endpoint.url, f'{self.namespace}/engines/{engine_id}/health-checks'),
+            http_session=self.create_http_session(),
+            list_options=list_options,
+            max_results=max_results,
+            trace=trace,
+        ))

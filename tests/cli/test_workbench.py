@@ -12,7 +12,7 @@ from datetime import date
 from dnastack.alpha.client.workflow.models import Workflow, WorkflowVersion
 from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
     MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
-    BatchRunRequest
+    BatchRunRequest, EngineHealthCheck
 from .base import WorkbenchCliTestCase
 
 
@@ -821,6 +821,21 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assert_not_empty(engine_params_result, "Expected at least one param description")
         self.assertEqual(len(engine_params_result), 1, "Expected only one param description")
         self.assertTrue(any(param.preset_values == self.engine_params.preset_values for param in engine_params_result))
+
+    def test_engine_health_check_list(self):
+        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
+            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id
+        )]
+
+        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
+        self.assertTrue(any(health_check.outcome == self.health_checks["outcome"] for health_check in engine_health_checks_result))
+
+        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
+            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id, '--outcome', 'SUCCESS', '--check-type', 'PERMISSIONS'
+        )]
+
+        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
+        self.assertTrue(any(health_check.outcome == 'SUCCESS' for health_check in engine_health_checks_result))
 
     def test_workflows_files(self):
         main_file_content = """
