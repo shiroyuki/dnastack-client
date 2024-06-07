@@ -276,12 +276,9 @@ class Check(BaseModel):
 
 
 class EngineHealthCheck(BaseModel):
-    
-    
     created_at: Optional[datetime]
     outcome: str
     checks: List[Check]
-    # Checks -- double check the data type conversion in Python
     
 
 class EngineHealthCheckListResponse(PaginatedResource):
