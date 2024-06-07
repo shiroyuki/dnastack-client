@@ -259,3 +259,36 @@ class EngineParamPresetListResponse(PaginatedResource):
 
 class EngineParamPresetListOptions(BaseListOptions):
     pass
+
+
+class CheckType(str, Enum):
+    CONNECTIVITY = 'CONNECTIVITY'
+    CREDENTIALS = 'CREDENTIALS'
+    PERMISSIONS = 'PERMISSIONS'
+    STORAGE = 'STORAGE'
+    LOGS = 'LOGS'
+
+
+class Check(BaseModel):
+    type: CheckType
+    outcome: Outcome
+    error: Optional[str]
+
+
+class EngineHealthCheck(BaseModel):
+    created_at: Optional[datetime]
+    outcome: str
+    checks: List[Check]
+    
+
+class EngineHealthCheckListResponse(PaginatedResource):
+    health_checks: List[EngineHealthCheck]
+
+    def items(self) -> List[EngineHealthCheck]:
+        return self.health_checks
+
+
+class EngineHealthCheckListOptions(BaseListOptions):
+    outcome: Optional[str]
+    check_type: Optional[str]
+    sort: Optional[str]
