@@ -4,7 +4,7 @@ import click
 from click import style
 
 from dnastack.cli.workbench.utils import get_ewes_client
-from dnastack.client.workbench.ewes.models import ExecutionEngineListOptions, EngineParamPresetListOptions, EngineHealthCheckListOptions
+from dnastack.client.workbench.ewes.models import CheckType, ExecutionEngineListOptions, EngineParamPresetListOptions, EngineHealthCheckListOptions, Outcome
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
@@ -201,21 +201,15 @@ engines_command_group.add_command(engine_parameters_command_group)
          ])
 def list_engine_health_checks(context: Optional[str],
                               endpoint_id: Optional[str],
-                              outcome: Optional[str],
-                              check_type: Optional[str],
+                              outcome: Optional[Outcome],
+                              check_type: Optional[CheckType],
                               namespace: Optional[str],
                               max_results: Optional[int],
-                              engine_id: str = None):
+                              engine_id: str):
     """
     Lists engine health checks
     """
-    if engine_id is None:
-        raise NameError('You must specify engine ID after --engine flag')
-    if outcome is not None and outcome not in ["SUCCESS", "FAILURE"]:
-        raise ValueError('--outcome value must be either "SUCCESS" or "FAILURE"')
-    if check_type is not None and check_type not in ["CONNECTIVITY", "CREDENTIALS", "PERMISSIONS", "STORAGE", "LOGS"]:
-        raise ValueError('--check-type value must be one of "CONNECTIVITY", "CREDENTIALS", "PERMISSIONS", "STORAGE", or "LOGS"')
-
+    
     client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     list_options: EngineHealthCheckListOptions = EngineHealthCheckListOptions(
         outcome=outcome,

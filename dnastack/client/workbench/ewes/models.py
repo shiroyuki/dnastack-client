@@ -261,14 +261,23 @@ class EngineParamPresetListOptions(BaseListOptions):
     pass
 
 
+class CheckType(str, Enum):
+    CONNECTIVITY = 'CONNECTIVITY'
+    CREDENTIALS = 'CREDENTIALS'
+    PERMISSIONS = 'PERMISSIONS'
+    STORAGE = 'STORAGE'
+    LOGS = 'LOGS'
+
+
+class Check(BaseModel):
+    type: CheckType
+    outcome: Outcome
+    error: Optional[str]
+
+
 class EngineHealthCheck(BaseModel):
-    class Check(BaseModel):
-        type: str
-        outcome: str
-        error: Optional[str]
     
-    namespace: str
-    engine_id: str
+    
     created_at: Optional[datetime]
     outcome: str
     checks: List[Check]
