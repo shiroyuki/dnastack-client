@@ -149,7 +149,7 @@ def list_runs(context: Optional[str],
     """
     List workflow runs
 
-    docs: https://docs.omics.ai/docs/runs-list
+    docs: https://docs.omics.ai/products/command-line-interface/reference/workbench/runs-list
     """
 
     def parse_to_datetime_iso_format(date: str, start_of_day: bool = False, end_of_day: bool = False) -> str:

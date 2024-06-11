@@ -974,3 +974,9 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 _delete_files()
             finally:
                 os.chdir(original_dir)
+    def test_namespaces(self):
+        def test_get_default_namespace():
+            result = self.simple_invoke('workbench', 'namespaces', 'get-default')
+            self.assert_not_empty(result)
+
+        test_get_default_namespace()
