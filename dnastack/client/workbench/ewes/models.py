@@ -189,7 +189,7 @@ class ExtendedRunListOptions(BaseListOptions):
     since: Optional[str]
     search: Optional[str]
     sort: Optional[str]
-    order: Optional[str] = Field(..., deprecated=True)
+    order: Optional[str] = Field(type=str, deprecated=True, default=None)
     direction: Optional[str]
     batch_id: Optional[str]
     state: Optional[List[State]]
