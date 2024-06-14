@@ -14,6 +14,7 @@ from dnastack.common.tracing import Span
 from dnastack.constants import __version__
 from dnastack.http.authenticators.abstract import Authenticator
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
+from dnastack.http.client_factory import HttpClientFactory
 
 
 class AuthenticationError(RuntimeError):
@@ -128,7 +129,7 @@ class HttpSession(AbstractContextManager):
     @property
     def _session(self) -> Session:
         if not self.__session:
-            self.__session = Session()
+            self.__session = HttpClientFactory.make()
             self.__session.headers.update({
                 'User-Agent': self.generate_http_user_agent()
             })
