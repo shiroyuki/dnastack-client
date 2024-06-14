@@ -1,11 +1,11 @@
 import time
 from typing import Optional, Any, Dict
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 from urllib.parse import urljoin
 from uuid import uuid4
 
 from math import floor
-from requests import Response, Request
+from requests import Response, Request, Session
 
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
 from dnastack.client.models import ServiceEndpoint
@@ -18,6 +18,7 @@ from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
 from dnastack.http.authenticators.oauth2_adapter.abstract import OAuth2Adapter
 from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFactory
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
+from dnastack.http.client_factory import HttpClientFactory
 from dnastack.http.session_info import SessionInfo, InMemorySessionStorage, SessionManager, SessionInfoHandler
 from tests.exam_helper import token_endpoint, publisher_client_secret, publisher_client_id, BasePublisherTestCase
 
@@ -193,25 +194,38 @@ class TestOAuth2AuthenticatorUnitTest(BaseAuthTest):
 
         session_manager = SessionManager(session_storage)
 
-        auth = OAuth2Authenticator(self.service_endpoint, self.auth_info, session_manager)
+        mock_adapter_factory = self._mock_adapter_factory(dict(
+            access_token='test_access_token',
+            refresh_token='test_refresh_token',
+            token_type='test_token_type',
+            expires_in=60,
+        ))
+
+        mock_http_session = Mock(spec=Session)
+        http_client_factory = Mock(spec=HttpClientFactory)
+        http_client_factory.make = Mock(return_value=mock_http_session)
+
+        auth = OAuth2Authenticator(endpoint=self.service_endpoint,
+                                   auth_info=self.auth_info,
+                                   session_manager=session_manager,
+                                   http_client_factory=http_client_factory)
 
         with self.assertRaises(RefreshRequired):
             # noinspection PyStatementEffect
             auth.restore_session()
 
-        with patch('requests.post') as mock_post_method:
-            mock_response = MagicMock(Response)
-            mock_response.ok = True
-            mock_response.json.return_value = dict(
-                access_token='fake_access_token',
-                refresh_token='fake_refresh_token',
-                token_type='fake_token_type',
-                expires_in=100,
-            )
+        mock_response = MagicMock(Response)
+        mock_response.ok = True
+        mock_response.json.return_value = dict(
+            access_token='fake_access_token',
+            refresh_token='fake_refresh_token',
+            token_type='fake_token_type',
+            expires_in=100,
+        )
 
-            mock_post_method.return_value = mock_response
+        mock_http_session.post.return_value = mock_response
 
-            auth.refresh()
+        auth.refresh()
 
         current_session = auth.restore_session()
 

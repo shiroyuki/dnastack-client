@@ -18,11 +18,11 @@ class TestDataConnectCommand(PublisherCliTestCase, DataConnectTestCaseMixin):
         self.invoke('use', self.explorer_urls[0])
 
         if not self.usable_endpoints:
-            self.usable_endpoints.extend([
+            self.usable_endpoints = [
                 ServiceEndpoint(**endpoint)
                 for endpoint in self.simple_invoke('config', 'endpoints', 'list', '-o', 'json')
                 if endpoint['type'] == DATA_CONNECT_TYPE_V1_0
-            ])
+            ]
 
     def _get_default_parameters(self) -> List[str]:
         return ['--endpoint-id', self.usable_endpoints[0].id, '-o', 'json']
