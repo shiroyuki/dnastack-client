@@ -1,9 +1,8 @@
 from typing import Dict, Any, List
 
-import requests
-
 from dnastack.common.tracing import Span
 from dnastack.http.authenticators.oauth2_adapter.abstract import OAuth2Adapter, AuthException
+from dnastack.http.client_factory import HttpClientFactory
 
 
 class ClientCredentialAdapter(OAuth2Adapter):
@@ -34,8 +33,9 @@ class ClientCredentialAdapter(OAuth2Adapter):
 
         with trace_context.new_span(metadata={'oauth': 'client-credentials', 'init_url': auth_info.token_endpoint}) \
                 as sub_span:
-            span_headers = sub_span.create_http_headers()
-            response = requests.post(auth_info.token_endpoint, data=auth_params, headers=span_headers)
+            with HttpClientFactory.make() as http_session:
+                span_headers = sub_span.create_http_headers()
+                response = http_session.post(auth_info.token_endpoint, data=auth_params, headers=span_headers)
 
         if not response.ok:
             raise AuthException(f'Failed to perform client-credential authentication for {auth_info.client_id} as the '
