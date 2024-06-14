@@ -18,6 +18,7 @@ from dnastack.common.events import EventSource, Event
 from dnastack.common.logger import get_logger
 from dnastack.configuration.manager import ConfigurationManager
 from dnastack.context.models import Context
+from dnastack.http.client_factory import HttpClientFactory
 
 
 class ContextMetadata(BaseModel):
@@ -335,10 +336,9 @@ class BaseContextManager:
     def _on_endpoint_sync(self, event: Event):
         self.events.dispatch('context-sync', event)
 
-    @classmethod
-    def _scan_for_registry_endpoint(cls, hostname: str) -> Optional[ServiceRegistry]:
+    def _scan_for_registry_endpoint(self, hostname: str) -> Optional[ServiceRegistry]:
         """ Scan the service for the list of service info. """
-        base_url = hostname if cls._re_http_scheme.search(hostname) else f'https://{hostname}'
+        base_url = hostname if self._re_http_scheme.search(hostname) else f'https://{hostname}'
         context_name = urlparse(base_url).netloc
 
         # Base-registry-URL-to-listing-URL map
@@ -354,10 +354,10 @@ class BaseContextManager:
         ]
 
         for api_path in potential_registry_base_paths:
-            registry_url = cls._check_if_root_url_and_sanitize_url(urljoin(base_url, api_path))
+            registry_url = self._check_if_root_url_and_sanitize_url(urljoin(base_url, api_path))
 
             if registry_url:
-                return ServiceRegistry.make(cls._create_registry_endpoint_definition(context_name, registry_url))
+                return ServiceRegistry.make(self._create_registry_endpoint_definition(context_name, registry_url))
             else:
                 continue
 
@@ -367,31 +367,40 @@ class BaseContextManager:
     def _create_registry_endpoint_definition(id: str, url: str) -> ServiceEndpoint:
         return ServiceEndpoint(id=id, url=url, type=STANDARD_SERVICE_REGISTRY_TYPE_V1_0)
 
-    @classmethod
-    def _check_if_root_url_and_sanitize_url(cls, registry_url: str):
+    def _check_if_root_url_and_sanitize_url(self, registry_url: str):
         root_url = registry_url + ('' if registry_url.endswith('/') else '/')
         listing_url = urljoin(root_url, 'services')
 
-        try:
-            response = requests.get(listing_url, headers={'Accept': 'application/json'})
-        except requests.exceptions.ConnectionError:
-            return None
-
-        if response.ok:
-            # noinspection PyBroadException
+        with HttpClientFactory.make() as http_session:
             try:
-                ids = sorted([entry['id'] for entry in response.json()])
-                cls._logger.debug(f'CHECK: IDS => {", ".join(ids)}')
-            except Exception as e:
-                # Look for the next one.
-                error_type_name = f'{type(e).__module__}.{type(e).__name__}'
-                cls._logger.debug(f'Received OK but failed to parse the response due to ({error_type_name}) {e}')
-                cls._logger.debug(f'Here is the response:\n{response.text}')
+                response = http_session.get(listing_url, headers={'Accept': 'application/json'})
+            except requests.exceptions.ConnectionError:
                 return None
 
-            return root_url if response.headers['Content-Type'] == 'application/json' else None
-        else:
-            return None
+            if response.ok:
+                is_json_response = (
+                        'Content-Type' in response.headers
+                        and response.headers['Content-Type'] == 'application/json'
+                )
+
+                raw_response_text = response.text
+
+                # noinspection PyBroadException
+                try:
+                    ids = sorted([entry['id'] for entry in response.json()])
+                    self._logger.debug(f'CHECK: IDS => {", ".join(ids)}')
+                except Exception as e:
+                    # Look for the next one.
+                    error_type_name = f'{type(e).__module__}.{type(e).__name__}'
+                    self._logger.debug(f'Received OK but failed to parse the response due to ({error_type_name}) {e}')
+                    self._logger.debug(f'Here is the response:\n{raw_response_text}')
+                    return None
+                finally:
+                    pass
+
+                return root_url if is_json_response else None
+            else:
+                return None
         # end: if
 
 
