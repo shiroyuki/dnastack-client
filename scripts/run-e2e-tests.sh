@@ -5,7 +5,7 @@ echo "Please ensure that this script is run from the root directory of the proje
 
 # Install dependencies
 echo "Installing test dependencies..."
-python3 -m pip install --disable-pip-version-check -q selenium pyjwt~=2.1.0
+python3 -m pip install --disable-pip-version-check -q selenium
 
 # Import the environment variables
 if [[ -z "${E2E_ENV_FILE}" ]]; then
