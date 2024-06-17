@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from typing import List, Optional, Any
 from uuid import uuid4
 
+import jwt
 from pydantic import BaseModel
 from requests import Session, Response
 
@@ -12,6 +13,8 @@ from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.constants import __version__
 from dnastack.http.authenticators.abstract import Authenticator
+from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
+from dnastack.http.client_factory import HttpClientFactory
 
 
 class AuthenticationError(RuntimeError):
@@ -35,12 +38,16 @@ class HttpError(RuntimeError):
 
         error_feedback = f'HTTP {response.status_code}'
 
-        # Handle the response body.
+        # Prepare the error feedback.
         response_text = response.text.strip()
         if len(response_text) == 0:
             error_feedback = f'{error_feedback} (empty response)'
         else:
             error_feedback = f'{error_feedback}: {response_text}'
+
+        trace: Span = self.trace
+        if trace:
+            error_feedback = f'[{trace.trace_id},{trace.span_id}] {error_feedback}'
 
         return error_feedback
 
@@ -122,7 +129,7 @@ class HttpSession(AbstractContextManager):
     @property
     def _session(self) -> Session:
         if not self.__session:
-            self.__session = Session()
+            self.__session = HttpClientFactory.make()
             self.__session.headers.update({
                 'User-Agent': self.generate_http_user_agent()
             })
@@ -253,11 +260,17 @@ class HttpSession(AbstractContextManager):
                     else:
                         raise RuntimeError('Invalid state')
                 else:
+                    logger.error(f'--x--> HTTP {response.status_code}: {method} {url}')
                     # Non-access-denied error will be handled here.
-                    self._raise_http_error(response, trace_context=trace_context)
+                    self._raise_http_error(response,
+                                           authenticator=authenticator,
+                                           trace_context=trace_context)
             else:
+                logger.error(f'--x--> HTTP {response.status_code}: {method} {url}')
                 # No-auth requests will just throw an exception.
-                self._raise_http_error(response, trace_context=trace_context)
+                self._raise_http_error(response,
+                                       authenticator=authenticator,
+                                       trace_context=trace_context)
         # End if response is not OK.
 
     def get(self, url, trace_context: Optional[Span] = None, **kwargs) -> Response:
@@ -296,7 +309,38 @@ class HttpSession(AbstractContextManager):
     def authenticators(self):
         return self.__authenticators
 
-    def _raise_http_error(self, response: Response, trace_context: Span):
+    def _raise_http_error(self,
+                          response: Response,
+                          authenticator: Authenticator,
+                          trace_context: Span):
+        trace_logger = trace_context.create_span_logger(self.__logger) if trace_context else self.__logger
+
+        if isinstance(authenticator, OAuth2Authenticator):
+            last_known_session_info = authenticator.last_known_session_info
+
+            if last_known_session_info:
+                trace_logger.error(f'session_id = {authenticator.session_id}')
+
+                # noinspection PyBroadException
+                try:
+                    parsed_response = response.json()
+                except Exception:
+                    parsed_response = None
+
+                if isinstance(parsed_response, dict) and parsed_response.get('error') == 'invalid_token':
+                    trace_logger.error(f'The server responded with an invalid token error.')
+                    token = last_known_session_info.access_token
+                    if token:
+                        trace_logger.error(f'The token claims are {jwt.decode(token, options={"verify_signature": False})}.')
+                    else:
+                        trace_logger.error(f'The token is not available for this request.')
+                else:
+                    pass  # No need for additional error handling.
+            else:
+                pass  # As there is no session info, there is no additional info to extract.
+        else:
+            trace_logger.error(f'The authenticator is not available or supported for extracting additional info.')
+
         raise (ClientError if response.status_code < 500 else ServerError)(response, trace_context=trace_context)
 
     def __del__(self):

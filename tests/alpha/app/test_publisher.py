@@ -89,7 +89,7 @@ class TestEndToEnd(TestCase):
 
                     df = publisher.query(
                         # language=sql
-                        f'SELECT * FROM {table.name}'
+                        f'SELECT * FROM {table.name} LIMIT 10'
                     ).to_data_frame()
 
                     self.assertGreaterEqual(len(df), 0, 'Failed to iterating the result.')

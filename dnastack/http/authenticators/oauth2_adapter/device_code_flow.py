@@ -11,6 +11,7 @@ from dnastack.common.tracing import Span
 from dnastack.feature_flags import in_global_debug_mode
 from dnastack.http.authenticators.oauth2_adapter.abstract import OAuth2Adapter, AuthException
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
+from dnastack.http.client_factory import HttpClientFactory
 
 
 class DeviceCodeFlowAdapter(OAuth2Adapter):
@@ -32,7 +33,7 @@ class DeviceCodeFlowAdapter(OAuth2Adapter):
         ]
 
     def exchange_tokens(self, trace_context: Span) -> Dict[str, Any]:
-        session = Session()
+        session = HttpClientFactory.make()
 
         auth_info = self._auth_info
         grant_type = auth_info.grant_type

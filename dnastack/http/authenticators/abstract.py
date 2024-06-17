@@ -114,6 +114,9 @@ class Authenticator(AuthBase, ABC):
                                    origin=self)
         self._logger = get_logger(f'{type(self).__name__}')
 
+        # This is for caching and debugging.
+        self._last_known_session_info: Optional[SessionInfo] = None
+
     @property
     def events(self) -> EventSource:
         return self._events
@@ -131,6 +134,10 @@ class Authenticator(AuthBase, ABC):
     def session_id(self):
         raise NotImplementedError()
 
+    @property
+    def last_known_session_info(self) -> SessionInfo:
+        return self._last_known_session_info
+
     def initialize(self, trace_context: Span) -> SessionInfo:
         """ Initialize the authenticator """
         self.events.dispatch('initialization-before', dict(origin=f'{self.class_name}'))
@@ -140,17 +147,22 @@ class Authenticator(AuthBase, ABC):
             info = self.restore_session()
             self.events.dispatch('session-restored', None)
             logger.debug('initialize: Restored')
-            return info
+            self._last_known_session_info = info
+            return self._last_known_session_info
         except (AuthenticationRequired, ReauthenticationRequired) as _:
             logger.debug('initialize: Initiating the authentication...')
-            return self.authenticate(trace_context)
+            self._last_known_session_info = self.authenticate(trace_context)
+            return self._last_known_session_info
         except RefreshRequired as refresh_exception:
             logger.debug('initialize: Initiating the token refresh...')
+
             try:
-                return self.refresh(trace_context)
+                self._last_known_session_info = self.refresh(trace_context)
+                return self._last_known_session_info
             except ReauthenticationRequired as _:
                 logger.debug('initialize: Failed to refresh tokens. Initiating the re-authentication...')
-            return self.authenticate(trace_context)
+                self._last_known_session_info = self.authenticate(trace_context)
+                return self._last_known_session_info
 
     def authenticate(self, trace_context: Span) -> SessionInfo:
         """ Force-initiate the authorization process """

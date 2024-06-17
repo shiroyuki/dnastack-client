@@ -3,7 +3,6 @@ from json import JSONDecodeError
 from time import time
 from typing import Optional, Any, Dict, Union
 
-import requests
 from imagination import container
 from requests import Request, Session, Response
 
@@ -11,11 +10,13 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.feature_flags import in_global_debug_mode
+from dnastack.http import client_factory
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired, ReauthenticationRequired, \
     RefreshRequired, InvalidStateError, NoRefreshToken, AuthState, ReauthenticationRequiredDueToConfigChange, \
     AuthStateStatus
 from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFactory
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
+from dnastack.http.client_factory import HttpClientFactory
 from dnastack.http.session_info import SessionInfo, SessionManager, SessionInfoHandler
 
 
@@ -28,7 +29,8 @@ class OAuth2Authenticator(Authenticator):
                  endpoint: ServiceEndpoint,
                  auth_info: Dict[str, Any],
                  session_manager: Optional[SessionManager] = None,
-                 adapter_factory: Optional[OAuth2AdapterFactory] = None):
+                 adapter_factory: Optional[OAuth2AdapterFactory] = None,
+                 http_client_factory: Optional[HttpClientFactory] = None):
         super().__init__()
 
         self._endpoint = endpoint
@@ -37,6 +39,7 @@ class OAuth2Authenticator(Authenticator):
                                   if endpoint
                                   else f'{type(self).__name__}: A/SID:{self.session_id}')
         self._adapter_factory: OAuth2AdapterFactory = adapter_factory or container.get(OAuth2AdapterFactory)
+        self._http_client_factory: HttpClientFactory = http_client_factory or container.get(HttpClientFactory)
         self._session_manager: SessionManager = session_manager or container.get(SessionManager)
         self._session_info: Optional[SessionInfo] = None
 
@@ -99,6 +102,7 @@ class OAuth2Authenticator(Authenticator):
         return self._session_info
 
     def refresh(self, trace_context: Optional[Span] = None) -> SessionInfo:
+        """ Refresh the session using a refresh token. """
         trace_context = trace_context or Span(origin='OAuth2Authenticator.refresh')
 
         session_id = self.session_id
@@ -126,12 +130,19 @@ class OAuth2Authenticator(Authenticator):
             raise NoRefreshToken()
 
         auth_info = OAuth2Authentication(**session_info.handler.auth_info)
+
+        if not auth_info.token_endpoint:
+            raise ReauthenticationRequired('Reauthentication required as the client cannot request for a new token '
+                                           'without the token endpoint defined.')
+
+        http_session = self._http_client_factory.make()
+
         refresh_token = session_info.refresh_token
         refresh_token_res: Optional[Response] = None
 
         try:
             with trace_context.new_span({'method': 'post', 'url': auth_info.token_endpoint}):
-                refresh_token_res = requests.post(
+                refresh_token_res = http_session.post(
                     auth_info.token_endpoint,
                     data={
                         "grant_type": "refresh_token",
@@ -198,6 +209,8 @@ class OAuth2Authenticator(Authenticator):
         finally:
             if refresh_token_res:
                 refresh_token_res.close()
+
+            http_session.close()
 
     def revoke(self):
         session_id = self.session_id
