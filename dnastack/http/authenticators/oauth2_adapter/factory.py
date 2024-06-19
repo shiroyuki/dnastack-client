@@ -6,7 +6,6 @@ from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authenticat
 from dnastack.http.authenticators.oauth2_adapter.abstract import OAuth2Adapter
 from dnastack.http.authenticators.oauth2_adapter.client_credential import ClientCredentialAdapter
 from dnastack.http.authenticators.oauth2_adapter.device_code_flow import DeviceCodeFlowAdapter
-from dnastack.http.authenticators.oauth2_adapter.personal_access_token import PersonalAccessTokenAdapter
 
 
 @service.registered()
@@ -15,7 +14,6 @@ class OAuth2AdapterFactory:
     __supported_auth_adapter_classes = [
         DeviceCodeFlowAdapter,
         ClientCredentialAdapter,
-        PersonalAccessTokenAdapter,
     ]
 
     def get_from(self, auth_info: OAuth2Authentication) -> Optional[OAuth2Adapter]:

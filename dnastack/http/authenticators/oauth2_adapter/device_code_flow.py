@@ -3,7 +3,6 @@ from time import time, sleep
 from typing import Dict, Any, List
 
 from imagination import container
-from requests import Session
 
 from dnastack.common.console import Console
 from dnastack.common.environments import env

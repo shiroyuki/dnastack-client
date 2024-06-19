@@ -10,7 +10,6 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.feature_flags import in_global_debug_mode
-from dnastack.http import client_factory
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired, ReauthenticationRequired, \
     RefreshRequired, InvalidStateError, NoRefreshToken, AuthState, ReauthenticationRequiredDueToConfigChange, \
     AuthStateStatus
