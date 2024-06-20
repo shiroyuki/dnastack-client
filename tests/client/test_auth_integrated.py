@@ -67,7 +67,7 @@ class TestOAuth2AuthenticatorIntegrationTest(BasePublisherTestCase):
                                             auth_info=dc.endpoint.authentication)
         current_access_token = authenticator.restore_session().access_token
         session_info = authenticator.refresh()
-        self.assertNotEqual(current_access_token, session_info.access_token, 'The new access token is the same as the')
+        self.assertNotEqual(current_access_token, session_info.access_token, 'The new access token is not changed')
 
     def __create_event_interceptor(self, client_events: List[str], event_type):
         def intercept(event: Event):

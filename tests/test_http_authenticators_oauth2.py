@@ -122,7 +122,7 @@ class UnitTest(TestCase):
         session_manager.restore = Mock(return_value=existing_session_info)
 
         # Trigger the action.
-        with self.assertRaisesRegex(ReauthenticationRequired, r'Reauthentication required as the client cannot request for a new token without the token endpoint defined.'):
+        with self.assertRaisesRegex(ReauthenticationRequired, r'Re-authentication required as the client cannot request for a new token without the token endpoint defined.'):
             token_endpoint_response = Mock(Response)
             token_endpoint_response.ok = False
             token_endpoint_response.status_code = 400

@@ -94,8 +94,8 @@ class _SpanInterface(ABC):
             if v is not None
         }
 
-    def create_span_logger(self, parent_logger: TraceableLogger) -> TraceableLogger:
-        return parent_logger.fork(trace_id=self.trace_id, span_id=self.span_id)
+    def create_span_logger(self, parent_logger: TraceableLogger, log_level: Optional[int] = None) -> TraceableLogger:
+        return parent_logger.fork(trace_id=self.trace_id, span_id=self.span_id, level=log_level)
 
     def close(self):
         self._active = False
