@@ -216,6 +216,7 @@ class TestOAuth2AuthenticatorUnitTest(BaseAuthTest):
 
         mock_response = MagicMock(Response)
         mock_response.ok = True
+        mock_response.status_code = 200
         mock_response.json.return_value = dict(
             access_token='fake_access_token',
             refresh_token='fake_refresh_token',

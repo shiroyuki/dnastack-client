@@ -13,6 +13,7 @@ from dnastack.feature_flags import in_global_debug_mode
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired, ReauthenticationRequired, \
     RefreshRequired, InvalidStateError, NoRefreshToken, AuthState, ReauthenticationRequiredDueToConfigChange, \
     AuthStateStatus
+from dnastack.http.authenticators.constants import authenticator_log_level
 from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFactory
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.http.client_factory import HttpClientFactory
@@ -34,9 +35,12 @@ class OAuth2Authenticator(Authenticator):
 
         self._endpoint = endpoint
         self._auth_info = auth_info
-        self._logger = get_logger(f'{type(self).__name__}: E/T:{endpoint.type}/ID:{endpoint.id}'
-                                  if endpoint
-                                  else f'{type(self).__name__}: A/SID:{self.session_id}')
+        self._logger_name = (
+            f'{type(self).__name__}: E/T:{endpoint.type}/ID:{endpoint.id}'
+            if endpoint
+            else f'{type(self).__name__}: A/SID:{self.session_id}'
+        )
+        self._logger = get_logger(self._logger_name, authenticator_log_level)
         self._adapter_factory: OAuth2AdapterFactory = adapter_factory or container.get(OAuth2AdapterFactory)
         self._http_client_factory: HttpClientFactory = http_client_factory or container.get(HttpClientFactory)
         self._session_manager: SessionManager = session_manager or container.get(SessionManager)
@@ -70,16 +74,23 @@ class OAuth2Authenticator(Authenticator):
         )
 
     def authenticate(self, trace_context: Optional[Span] = None) -> SessionInfo:
+        trace_context = trace_context or Span(origin='OAuth2Authenticator.refresh')
+        logger = trace_context.create_span_logger(self._logger)
+
         session_id = self.session_id
         event_details = dict(session_id=session_id,
                              auth_info=self._auth_info)
+
+        logger.debug(f'authenticate: Session ID = {session_id}')
 
         self.events.dispatch('authentication-before', event_details)
 
         auth_info = OAuth2Authentication(**self._auth_info)
         adapter = self._adapter_factory.get_from(auth_info)
 
-        if not adapter:
+        if adapter:
+            logger.debug(f'authenticate: Authenticate with {type(adapter).__module__}.{type(adapter).__name__}')
+        else:
             event_details['reason'] = 'No compatible OAuth2 adapter'
             self.events.dispatch('authentication-failure', event_details)
 
@@ -103,6 +114,7 @@ class OAuth2Authenticator(Authenticator):
     def refresh(self, trace_context: Optional[Span] = None) -> SessionInfo:
         """ Refresh the session using a refresh token. """
         trace_context = trace_context or Span(origin='OAuth2Authenticator.refresh')
+        logger = trace_context.create_span_logger(self._logger)
 
         session_id = self.session_id
         event_details = dict(cached=self._session_info is not None,
@@ -110,12 +122,17 @@ class OAuth2Authenticator(Authenticator):
 
         self.events.dispatch('refresh-before', event_details)
 
+        logger.debug(f'refresh: Session ID = {session_id}')
         session_info = self._session_info or self._session_manager.restore(session_id)
 
         if session_info is None:
+            logger.debug(f'refresh: The session does not exist.')
             raise ReauthenticationRequired('No existing session information available')
 
         if session_info.dnastack_schema_version < 3:
+            logger.debug('refresh: Cannot refresh the tokens as there are not enough information to perform the '
+                         'action. You can use the session ID for debugging further.')
+
             event_details['reason'] = f'Not enough information for token refresh'
             self.events.dispatch('refresh-failure', event_details)
 
@@ -123,6 +140,8 @@ class OAuth2Authenticator(Authenticator):
                                            f'refresh token. (given: {session_info})')
 
         if not session_info.refresh_token:
+            logger.debug('refresh: Cannot refresh the tokens as the refresh token is not provided.')
+
             event_details['reason'] = 'No refresh token'
             self.events.dispatch('refresh-failure', event_details)
 
@@ -131,7 +150,8 @@ class OAuth2Authenticator(Authenticator):
         auth_info = OAuth2Authentication(**session_info.handler.auth_info)
 
         if not auth_info.token_endpoint:
-            raise ReauthenticationRequired('Reauthentication required as the client cannot request for a new token '
+            logger.debug('refresh: Cannot refresh the tokens as the token endpoint is not defined.')
+            raise ReauthenticationRequired('Re-authentication required as the client cannot request for a new token '
                                            'without the token endpoint defined.')
 
         http_session = self._http_client_factory.make()
@@ -140,7 +160,10 @@ class OAuth2Authenticator(Authenticator):
         refresh_token_res: Optional[Response] = None
 
         try:
-            with trace_context.new_span({'method': 'post', 'url': auth_info.token_endpoint}):
+            with trace_context.new_span({'method': 'post', 'url': auth_info.token_endpoint}) as sub_span:
+                sub_logger = sub_span.create_span_logger(self._logger)
+                sub_logger.debug('Initiate the token refresh')
+                sub_logger.debug(f'refresh_token = {refresh_token}')
                 refresh_token_res = http_session.post(
                     auth_info.token_endpoint,
                     data={
@@ -150,12 +173,11 @@ class OAuth2Authenticator(Authenticator):
                     },
                     auth=(auth_info.client_id, auth_info.client_secret),
                 )
+                sub_logger.debug(f'refresh_token: HTTP {refresh_token_res.status_code} {auth_info.token_endpoint}:'
+                                 f'\n{refresh_token_res.text}')
 
             if refresh_token_res.ok:
                 refresh_token_json = refresh_token_res.json()
-
-                if in_global_debug_mode:
-                    self._logger.debug(f'refresh_token_json = {refresh_token_json}')
 
                 # Fill in the missing data.
                 refresh_token_json['refresh_token'] = refresh_token

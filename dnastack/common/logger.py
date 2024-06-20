@@ -8,15 +8,20 @@ from typing import Optional
 from dnastack.common.environments import env
 from dnastack.feature_flags import in_global_debug_mode
 
+
+def get_log_level(level_name: str) -> int:
+    return getattr(logging, level_name.upper()) \
+        if level_name and level_name.upper() in ('DEBUG', 'INFO', 'WARNING', 'ERROR') \
+        else logging.WARNING
+
+
 logging_format = '[ %(asctime)s | %(levelname)s ] %(name)s: %(message)s'
 overriding_logging_level_name = env(
     'DNASTACK_LOG_LEVEL',
     description='Default CLI/library log level. In the debug mode, the log level will be overridden to DEBUG',
     required=False
 )
-default_logging_level = getattr(logging, overriding_logging_level_name) \
-    if overriding_logging_level_name in ('DEBUG', 'INFO', 'WARNING', 'ERROR') \
-    else logging.WARNING
+default_logging_level = get_log_level(overriding_logging_level_name)
 
 if in_global_debug_mode:
     default_logging_level = logging.DEBUG
