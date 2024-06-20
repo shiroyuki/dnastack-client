@@ -240,6 +240,8 @@ class OAuth2Authenticator(Authenticator):
         self._session_info = None
         self._session_manager.delete(session_id)
 
+        self._logger.debug(f'Revoked Session {session_id}')
+
         self.events.dispatch('session-revoked', dict(session_id=session_id))
 
     def restore_session(self) -> Optional[SessionInfo]:
@@ -249,21 +251,23 @@ class OAuth2Authenticator(Authenticator):
         event_details = dict(cached=self._session_info is not None,
                              cache_hash=session_id)
 
-        logger.debug(f'Existing Session Info: {self._session_info}')
+        session: SessionInfo = self._session_info
 
-        session = self._session_info or self._session_manager.restore(session_id)
-
-        logger.debug(f'Restored Session Info: {session}')
+        if session:
+            logger.debug(f'In-memory Session Info: {session}')
+        else:
+            session = self._session_manager.restore(session_id)
+            logger.debug(f'Restored Session Info: {session}')
 
         if not session:
-            logger.debug('No session restored')
-
             event_details['reason'] = 'No session available'
             self.events.dispatch('session-not-restored', event_details)
 
+            logger.debug(f'Require RE-AUTH -- event details = {event_details}')
+
             raise AuthenticationRequired('No session available')
         elif session.is_valid():
-            logger.debug('The session is valid')
+            logger.debug('The session is valid (based on expiration time).')
 
             current_auth_info = OAuth2Authentication(**self._auth_info)
             current_config_hash = current_auth_info.get_content_hash()
@@ -275,24 +279,26 @@ class OAuth2Authenticator(Authenticator):
                 event_details['reason'] = 'Authentication information has changed and the session is invalidated.'
                 self.events.dispatch('session-not-restored', event_details)
 
+                logger.debug(f'Require RE-AUTH -- event details = {event_details}')
+
                 raise ReauthenticationRequiredDueToConfigChange(
                     'The session is invalidated as the endpoint configuration has changed.'
                 )
         else:
-            logger.debug('The session is INVALID.')
+            logger.debug('The session is INVALID due to expired token (pre-flight check).')
 
             if session.refresh_token:
-                logger.debug('Require REFRESH')
-
                 event_details['reason'] = 'The session is invalid but it can be refreshed.'
                 self.events.dispatch('session-not-restored', event_details)
 
+                logger.debug(f'Require REFRESH -- event details = {event_details}')
+
                 raise RefreshRequired(session)
             else:
-                logger.debug('Require RE-AUTH')
-
                 event_details['reason'] = 'The session is invalid. Require re-authentication.'
                 self.events.dispatch('session-not-restored', event_details)
+
+                logger.debug(f'Require RE-AUTH -- event details = {event_details}')
 
                 raise ReauthenticationRequired('The session is invalid and refreshing tokens is not possible.')
 
@@ -325,6 +331,17 @@ class OAuth2Authenticator(Authenticator):
             self._logger.debug(f'Bearer Token Claims: {session.access_token.split(".")[1]}')
 
         return r
+
+    def remove_access_token(self):
+        """ Remove the access token """
+        session_id = self.session_id
+
+        session = self._session_manager.restore(session_id)
+        session.access_token = None
+
+        self._session_manager.save(session_id, session)
+
+        self._logger.debug(f'Removed the access token from session {session_id}')
 
     @classmethod
     def make(cls, endpoint: ServiceEndpoint, auth_info: Dict[str, Any]):

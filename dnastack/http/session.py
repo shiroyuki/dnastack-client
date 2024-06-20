@@ -13,6 +13,7 @@ from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.constants import __version__
 from dnastack.http.authenticators.abstract import Authenticator
+from dnastack.http.authenticators.constants import authenticator_log_level
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
 from dnastack.http.client_factory import HttpClientFactory
 
@@ -208,9 +209,8 @@ class HttpSession(AbstractContextManager):
 
             response = getattr(session, http_method)(url, **kwargs)
 
-            sub_logger.debug(f'Response/URL {url}')
-            sub_logger.debug(f'Response/HTTP {response.status_code} ({len(response.text)}B)')
-            sub_logger.debug(f'Response/Body:\n{response.text}')
+            sub_logger.debug(f'HTTP {response.status_code} {method} {url} ({len(response.text)}B)'
+                             f'\n{response.text}')
 
         if response.ok:
             return response
@@ -222,6 +222,9 @@ class HttpSession(AbstractContextManager):
             status_code = response.status_code
 
             if self.__enable_auth:
+                fallback_logger = trace_context.create_span_logger(logger, authenticator_log_level)
+                fallback_logger.debug(f'HTTP {status_code}: {method} {url}\n{response.text}')
+
                 if status_code == 401 and authenticator:
                     authenticator.revoke()
 
@@ -235,6 +238,8 @@ class HttpSession(AbstractContextManager):
                     retry_history.append(retry)
 
                     if retry_with_reauthentication:
+                        fallback_logger.debug('Retry with re-authentication.')
+
                         # Initiate the reauthorization process.
                         retry.resolution = 'retry with re-authentication'
 
@@ -247,6 +252,8 @@ class HttpSession(AbstractContextManager):
                                            trace_context=trace_context,
                                            **kwargs)
                     elif retry_with_next_authenticator:
+                        fallback_logger.debug('Retry with the next authenticator.')
+
                         retry.resolution = 'retry with the next authenticator'
 
                         return self.submit(method,
@@ -260,13 +267,11 @@ class HttpSession(AbstractContextManager):
                     else:
                         raise RuntimeError('Invalid state')
                 else:
-                    logger.error(f'--x--> HTTP {response.status_code}: {method} {url}')
                     # Non-access-denied error will be handled here.
                     self._raise_http_error(response,
                                            authenticator=authenticator,
                                            trace_context=trace_context)
             else:
-                logger.error(f'--x--> HTTP {response.status_code}: {method} {url}')
                 # No-auth requests will just throw an exception.
                 self._raise_http_error(response,
                                        authenticator=authenticator,
@@ -319,8 +324,6 @@ class HttpSession(AbstractContextManager):
             last_known_session_info = authenticator.last_known_session_info
 
             if last_known_session_info:
-                trace_logger.error(f'session_id = {authenticator.session_id}')
-
                 # noinspection PyBroadException
                 try:
                     parsed_response = response.json()
