@@ -3,10 +3,11 @@ import re
 from abc import ABC
 from typing import Any, Dict, List
 
+from dnastack.common.environments import env
 from dnastack.common.events import EventSource
 from dnastack.common.tracing import Span
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
-from dnastack.common.logger import get_logger
+from dnastack.common.logger import get_logger, get_log_level, default_logging_level
 
 
 class AuthException(RuntimeError):
@@ -31,7 +32,14 @@ class OAuth2Adapter(ABC):
         self._auth_info = auth_info
         self._events = EventSource(['blocking-response-required', 'blocking-response-ok', 'blocking-response-failed'],
                                    origin=self)
-        self._logger = get_logger(f'{type(self).__name__}/{self._auth_info.get_content_hash()[:8]}')
+        self._log_level_name = env('DNASTACK_AUTH_LOG_LEVEL',
+                                   description='The log level for the authenticator. This overrides '
+                                               'DNASTACK_LOG_LEVEL or the default log level.',
+                                   required=False,
+                                   default=None)
+        self._log_level = get_log_level(self._log_level_name) if self._log_level_name else default_logging_level
+        self._logger = get_logger(f'{type(self).__name__}/{self._auth_info.get_content_hash()[:8]}',
+                                  self._log_level)
 
     @property
     def events(self) -> EventSource:

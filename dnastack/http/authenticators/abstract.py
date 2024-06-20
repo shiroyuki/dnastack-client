@@ -8,9 +8,11 @@ from requests import Request, Session
 from requests.auth import AuthBase
 
 from dnastack.client.models import ServiceEndpoint
+from dnastack.common.environments import env
 from dnastack.common.events import EventSource
-from dnastack.common.logger import get_logger
+from dnastack.common.logger import get_logger, get_logger_for, get_log_level, default_logging_level
 from dnastack.common.tracing import Span
+from dnastack.http.authenticators.constants import authenticator_log_level
 from dnastack.http.session_info import SessionInfo
 
 
@@ -112,7 +114,7 @@ class Authenticator(AuthBase, ABC):
                                     'session-not-restored',
                                     'session-revoked'],
                                    origin=self)
-        self._logger = get_logger(f'{type(self).__name__}')
+        self._logger = get_logger_for(self, authenticator_log_level)
 
         # This is for caching and debugging.
         self._last_known_session_info: Optional[SessionInfo] = None
@@ -143,17 +145,17 @@ class Authenticator(AuthBase, ABC):
         self.events.dispatch('initialization-before', dict(origin=f'{self.class_name}'))
         logger = trace_context.create_span_logger(self._logger)
         try:
-            logger.debug('initialize: Restoring...')
+            logger.debug('initialize: Restoring the session...')
             info = self.restore_session()
             self.events.dispatch('session-restored', None)
-            logger.debug('initialize: Restored')
+            logger.debug('initialize: Restored the session')
             self._last_known_session_info = info
             return self._last_known_session_info
         except (AuthenticationRequired, ReauthenticationRequired) as _:
             logger.debug('initialize: Initiating the authentication...')
             self._last_known_session_info = self.authenticate(trace_context)
             return self._last_known_session_info
-        except RefreshRequired as refresh_exception:
+        except RefreshRequired as _:
             logger.debug('initialize: Initiating the token refresh...')
 
             try:

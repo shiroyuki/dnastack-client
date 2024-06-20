@@ -3,6 +3,7 @@ from typing import List
 from dnastack import DataConnectClient
 from dnastack.client.collections.client import CollectionServiceClient
 from dnastack.common.events import Event
+from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
 from tests.exam_helper import BasePublisherTestCase, EventCollector
 
 
@@ -60,6 +61,13 @@ class TestOAuth2AuthenticatorIntegrationTest(BasePublisherTestCase):
             self.assertIn('session-restored',
                           event_sequence,
                           'Unexpected auth sequence when the client has already had valid sessions')
+
+        # Force the token refresh for testing.
+        authenticator = OAuth2Authenticator(endpoint=dc.endpoint,
+                                            auth_info=dc.endpoint.authentication)
+        current_access_token = authenticator.restore_session().access_token
+        session_info = authenticator.refresh()
+        self.assertNotEqual(current_access_token, session_info.access_token, 'The new access token is the same as the')
 
     def __create_event_interceptor(self, client_events: List[str], event_type):
         def intercept(event: Event):
