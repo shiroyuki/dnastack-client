@@ -251,13 +251,15 @@ class OAuth2Authenticator(Authenticator):
     def clear_access_token(self):
         session_id = self.session_id
 
+        self._session_info = self._session_info or self._session_manager.restore(session_id)
+
         if self._session_info:
             # Clear the access token only
             self._session_info.access_token = None
             self._session_manager.save(session_id, self._session_info)
             self._logger.debug(f'Cleared the access token from Session {session_id}')
         else:
-            pass  # Do nothing
+            self._logger.debug(f'Not cleared the access token from Session {session_id} as it is not available')
 
     def restore_session(self) -> Optional[SessionInfo]:
         logger = self._logger
@@ -346,17 +348,6 @@ class OAuth2Authenticator(Authenticator):
             self._logger.debug(f'Bearer Token Claims: {session.access_token.split(".")[1]}')
 
         return r
-
-    def remove_access_token(self):
-        """ Remove the access token """
-        session_id = self.session_id
-
-        session = self._session_manager.restore(session_id)
-        session.access_token = None
-
-        self._session_manager.save(session_id, session)
-
-        self._logger.debug(f'Removed the access token from session {session_id}')
 
     @classmethod
     def make(cls, endpoint: ServiceEndpoint, auth_info: Dict[str, Any]):
