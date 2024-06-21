@@ -193,12 +193,16 @@ class OAuth2Authenticator(Authenticator):
             else:
                 try:
                     error_json = refresh_token_res.json()
-                    error_msg = error_json['error_description']
+                    error_msg = error_json.get('error_description')
                 except JSONDecodeError:
                     error_msg = refresh_token_res.text
 
                 # Handle Wallet-specific implementation
-                reauthentication_required = refresh_token_res.status_code == 400 and 'JWT expired' in error_msg
+                reauthentication_required = (
+                        refresh_token_res.status_code == 401
+                        or
+                        (refresh_token_res.status_code == 400 and 'JWT expired' in error_msg)
+                )
 
                 if not reauthentication_required:
                     event_details['reason'] = 'Invalid state while refreshing tokens'
@@ -241,6 +245,17 @@ class OAuth2Authenticator(Authenticator):
         self._session_manager.delete(session_id)
 
         self._logger.debug(f'Revoked Session {session_id}')
+
+        self.events.dispatch('session-revoked', dict(session_id=session_id))
+
+    def clear_access_token(self):
+        session_id = self.session_id
+
+        # Clear the local cache
+        self._session_info.access_token = None
+        self._session_manager.save(session_id, self._session_info)
+
+        self._logger.debug(f'Cleared the access token from Session {session_id}')
 
         self.events.dispatch('session-revoked', dict(session_id=session_id))
 
