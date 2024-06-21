@@ -183,7 +183,21 @@ class OAuth2Authenticator(Authenticator):
                 refresh_token_json['refresh_token'] = refresh_token
 
                 # Update the session
-                self._session_info = self._convert_token_response_to_session(auth_info.dict(), refresh_token_json)
+                updated_session_info = self._convert_token_response_to_session(auth_info.dict(), refresh_token_json)
+                session_info.access_token = updated_session_info.access_token
+                session_info.token_type = updated_session_info.token_type
+                session_info.valid_until = updated_session_info.valid_until
+
+                if updated_session_info.scope:
+                    session_info.scope = updated_session_info.scope
+                
+                if updated_session_info.refresh_token:
+                    # NOTE: The refresh token may not be available in the response.
+                    session_info.refresh_token = updated_session_info.refresh_token
+
+                # "session_info" is already a reference to "self._session_info". This redundant line is here to make it
+                # easier to read the code.
+                self._session_info = session_info
                 self._session_manager.save(session_id, self._session_info)
 
                 event_details['session_info'] = self._session_info
