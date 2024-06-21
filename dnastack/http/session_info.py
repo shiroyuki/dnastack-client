@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 import re
 import shutil
@@ -58,14 +59,18 @@ class SessionInfo(BaseModel):
     valid_until: int  # Epoch timestamp (UTC)
 
     def is_valid(self) -> bool:
-        return time() <= self.valid_until
+        return self.access_token and time() <= self.valid_until
 
     def access_token_claims(self) -> Optional[JwtClaims]:
         return JwtClaims.make(self.access_token) if self.access_token else None
 
 
 # Alias for backward-compatibility with early release candidates
-Session = SessionInfo
+class Session(SessionInfo):
+    def __init__(self, *args, **kwargs):
+        logging.warning('dnastack.http.session_info.Session is deprecated. Please use '
+                        'dnastack.http.session_info.SessionInfo instead.')
+        super().__init__(*args, **kwargs)
 
 
 class UnknownSessionError(RuntimeError):
