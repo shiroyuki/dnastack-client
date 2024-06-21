@@ -298,7 +298,7 @@ class OAuth2Authenticator(Authenticator):
 
             raise AuthenticationRequired('No session available')
         elif session.is_valid():
-            logger.debug('The session is valid (based on expiration time).')
+            logger.debug('The session is valid.')
 
             current_auth_info = OAuth2Authentication(**self._auth_info)
             current_config_hash = current_auth_info.get_content_hash()
@@ -316,7 +316,7 @@ class OAuth2Authenticator(Authenticator):
                     'The session is invalidated as the endpoint configuration has changed.'
                 )
         else:
-            logger.debug('The session is INVALID due to expired token (pre-flight check).')
+            logger.debug(f'The session is INVALID ({"expired" if session.access_token else "token revoked"}).')
 
             if session.refresh_token:
                 event_details['reason'] = 'The session is invalid but it can be refreshed.'
