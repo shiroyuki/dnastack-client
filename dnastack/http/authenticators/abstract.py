@@ -147,8 +147,17 @@ class Authenticator(AuthBase, ABC):
         try:
             logger.debug('initialize: Restoring the session...')
             info = self.restore_session()
-            self.events.dispatch('session-restored', None)
-            logger.debug('initialize: Restored the session')
+            if not info:
+                logger.debug('initialize: Session is not available')
+                raise AuthenticationRequired('Session is not available')
+            elif (not info.access_token or not info.is_valid()):
+                if info.refresh_token:
+                    raise RefreshRequired(info)
+                else:
+                    raise ReauthenticationRequired('Session exists but invalid. Token refresh is also unavailable.')
+            else:
+                self.events.dispatch('session-restored', None)
+                logger.debug('initialize: Restored the session')
             self._last_known_session_info = info
             return self._last_known_session_info
         except (AuthenticationRequired, ReauthenticationRequired) as _:
@@ -184,6 +193,14 @@ class Authenticator(AuthBase, ABC):
     def revoke(self):
         """
         Revoke the session and remove the corresponding session info
+
+        :raises FeatureNotAvailable: The feature is not available and the caller may ignore this exception.
+        """
+        raise NotImplementedError()
+
+    def clear_access_token(self):
+        """
+        Only clear the access token from the session info
 
         :raises FeatureNotAvailable: The feature is not available and the caller may ignore this exception.
         """

@@ -1,17 +1,19 @@
 import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Dict, List
+from time import time, sleep
+from typing import Dict, List, Any, Optional, Union
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock
 
 from dnastack import ServiceEndpoint
+from dnastack.common.tracing import Span
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
 from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFactory
 from dnastack.http.session import HttpSession, ClientError
-from dnastack.http.session_info import InMemorySessionStorage, SessionManager
-from requests import Session
+from dnastack.http.session_info import InMemorySessionStorage, SessionManager, SessionInfo
+from requests import Session, Response, Request
 from pydantic import BaseModel, Field
 
 
@@ -80,6 +82,95 @@ class MockWebHandler(BaseHTTPRequestHandler):
 
 
 class TestHttpSession(TestCase):
+
+    def test_handle_midflight_reauthentication(self):
+        mock_session_id = 'foxtrot'
+        mock_session_storage = InMemorySessionStorage()
+        mock_session_manager = SessionManager(mock_session_storage)
+        mock_session_manager.save(mock_session_id, self._make_mock_session_info(ttl=1))
+
+        # ##### Mock the authenticator #####
+        # Please note that this mock setup is a bit complicate as we would like the white-box assertion.
+        class MockAuthenticator(Authenticator):
+            def __init__(self, session_manager: SessionManager, session_id: str):
+                super().__init__()
+                self._session_manager = session_manager
+                self._session_id = session_id
+
+            @property
+            def session_id(self):
+                return self._session_id
+
+            def authenticate(self, trace_context: Span) -> SessionInfo:
+                raise RuntimeError('Unexpected authentication')
+
+            def restore_session(self) -> SessionInfo:
+                return self._session_manager.restore(self._session_id)
+
+            def update_request(self, session: SessionInfo, r: Union[Request, Session]) -> Union[Request, Session]:
+                pass  # Noop
+
+            def revoke(self):
+                self._session_manager.delete(self._session_id)
+
+            def clear_access_token(self):
+                session_id = self.session_id
+
+                session_info = self._session_manager.restore(session_id)
+                session_info.access_token = None
+
+                self._session_manager.save(session_id, session_info)
+
+            def refresh(self, trace_context: Optional[Span] = None) -> SessionInfo:
+                raise RuntimeError('refresh triggered')
+
+        mock_authenticator = MockAuthenticator(mock_session_manager, mock_session_id)
+
+        # ##### Mock response sequence #####
+        mock_response_sequence = [
+            self._make_mock_response(401),
+            self._make_mock_response(200),
+        ]
+
+        def mock_resource_session_get(*args, **kwargs):
+            sleep(1)
+            return mock_response_sequence.pop(0)
+
+        mock_resource_session = MagicMock(Session)
+        mock_resource_session.get.side_effect = mock_resource_session_get
+
+        # ##### Initiate the test #####
+        test_http_session = HttpSession(authenticators=[mock_authenticator], session=mock_resource_session,
+                                        suppress_error=False)
+        # Expected a "not implemented" error.
+        # NOTE: We use this error type as the indicator that the refre
+        with self.assertRaisesRegex(RuntimeError, 'refresh triggered'):
+            test_http_session.get('https://juliet.november')
+
+    def _make_mock_session_info(self, ttl: int) -> SessionInfo:
+        return SessionInfo(access_token='at',
+                           refresh_token='rt',
+                           issued_at=time(),
+                           valid_until=time() + ttl,
+                           token_type='faux')
+
+    def _make_mock_response(self, status_code: int, headers: Optional[Dict] = None, text: Any = None,
+                            json: Any = None) -> Response:
+        mock_response = MagicMock(Response)
+        mock_response.headers = headers or dict()
+        mock_response.status_code = status_code
+        mock_response.ok = 200 <= status_code < 300
+
+        if text:
+            mock_response.text = Mock(return_value=text)
+            mock_response.json = Mock(return_value=json.loads(text))
+        elif json:
+            mock_response.text = Mock(return_value=json.dumps(json))
+            mock_response.json = Mock(return_value=json)
+        else:
+            mock_response.text = ''
+
+        return mock_response
 
     def test_submit_403_status_code(self):
         # Create a mock authenticator

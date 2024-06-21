@@ -161,7 +161,7 @@ class HttpSession(AbstractContextManager):
 
         logger = trace_context.create_span_logger(self.__logger)
         params = kwargs.get('params', None)
-        logger.debug(f'{method.upper()} {url} {params} (AUTH: {"Enabled" if self.__enable_auth else "Disabled"})')
+        logger.debug(f'{method.upper()} {url} {params or "(no params)"} (AUTH: {"Enabled" if self.__enable_auth else "Disabled"})')
 
         authenticator: Optional[Authenticator] = None
 
@@ -226,7 +226,7 @@ class HttpSession(AbstractContextManager):
                 fallback_logger.debug(f'HTTP {status_code}: {method} {url}\n{response.text}')
 
                 if status_code == 401 and authenticator:
-                    authenticator.revoke()
+                    authenticator.clear_access_token()
 
                     retry = RetryHistoryEntry(url=url,
                                               authenticator_index=authenticator_index,
