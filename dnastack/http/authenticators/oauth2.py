@@ -251,13 +251,13 @@ class OAuth2Authenticator(Authenticator):
     def clear_access_token(self):
         session_id = self.session_id
 
-        # Clear the local cache
-        self._session_info.access_token = None
-        self._session_manager.save(session_id, self._session_info)
-
-        self._logger.debug(f'Cleared the access token from Session {session_id}')
-
-        self.events.dispatch('session-revoked', dict(session_id=session_id))
+        if self._session_info:
+            # Clear the access token only
+            self._session_info.access_token = None
+            self._session_manager.save(session_id, self._session_info)
+            self._logger.debug(f'Cleared the access token from Session {session_id}')
+        else:
+            pass  # Do nothing
 
     def restore_session(self) -> Optional[SessionInfo]:
         logger = self._logger
