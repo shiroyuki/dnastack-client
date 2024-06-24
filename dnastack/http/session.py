@@ -13,7 +13,7 @@ from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.constants import __version__
 from dnastack.http.authenticators.abstract import Authenticator
-from dnastack.http.authenticators.constants import authenticator_log_level
+from dnastack.http.authenticators.constants import get_authenticator_log_level
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
 from dnastack.http.client_factory import HttpClientFactory
 
@@ -222,7 +222,7 @@ class HttpSession(AbstractContextManager):
             status_code = response.status_code
 
             if self.__enable_auth:
-                fallback_logger = trace_context.create_span_logger(logger, authenticator_log_level)
+                fallback_logger = trace_context.create_span_logger(logger, get_authenticator_log_level())
                 fallback_logger.debug(f'HTTP {status_code}: {method} {url}\n{response.text}')
 
                 if status_code == 401 and authenticator:

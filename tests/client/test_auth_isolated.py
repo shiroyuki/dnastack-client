@@ -1,10 +1,11 @@
+import json
 import time
+from math import floor
 from typing import Optional, Any, Dict
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import MagicMock, Mock
 from urllib.parse import urljoin
 from uuid import uuid4
 
-from math import floor
 from requests import Response, Request, Session
 
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
@@ -20,7 +21,8 @@ from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFac
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.http.client_factory import HttpClientFactory
 from dnastack.http.session_info import SessionInfo, InMemorySessionStorage, SessionManager, SessionInfoHandler
-from tests.exam_helper import token_endpoint, publisher_client_secret, publisher_client_id, BasePublisherTestCase
+from tests.exam_helper import token_endpoint, publisher_client_secret, publisher_client_id, BasePublisherTestCase, \
+    make_mock_response
 
 
 class FauxSessionCreator:
@@ -81,7 +83,8 @@ class TestOAuth2AuthenticatorUnitTest(BaseAuthTest):
     def automatically_authenticate() -> bool:
         return False
 
-    def _mock_adapter_factory(self, token_exchange_response: Dict[str, Any]):
+    @staticmethod
+    def _mock_adapter_factory(token_exchange_response: Dict[str, Any]):
         mock_adapter = MagicMock(OAuth2Adapter)
         mock_adapter.check_config_readiness.return_value = True
         mock_adapter.exchange_tokens.return_value = token_exchange_response
@@ -190,16 +193,16 @@ class TestOAuth2AuthenticatorUnitTest(BaseAuthTest):
                                                 'faux_refresh_token_1')
 
         session_storage = InMemorySessionStorage()
-        session_storage[OAuth2Authentication(**self.auth_info).get_content_hash()] = stale_session
+        session_storage[OAuth2Authentication(**self.auth_info).get_content_hash()] = stale_session.copy()
 
         session_manager = SessionManager(session_storage)
 
-        mock_adapter_factory = self._mock_adapter_factory(dict(
-            access_token='test_access_token',
-            refresh_token='test_refresh_token',
-            token_type='test_token_type',
-            expires_in=60,
-        ))
+        # mock_adapter_factory = self._mock_adapter_factory(dict(
+        #     access_token='test_access_token',
+        #     refresh_token='test_refresh_token',
+        #     token_type='test_token_type',
+        #     expires_in=60,
+        # ))
 
         mock_http_session = Mock(spec=Session)
         http_client_factory = Mock(spec=HttpClientFactory)
@@ -214,24 +217,36 @@ class TestOAuth2AuthenticatorUnitTest(BaseAuthTest):
             # noinspection PyStatementEffect
             auth.restore_session()
 
-        mock_response = MagicMock(Response)
-        mock_response.ok = True
-        mock_response.status_code = 200
-        mock_response.json.return_value = dict(
-            access_token='fake_access_token',
-            refresh_token='fake_refresh_token',
-            token_type='fake_token_type',
-            expires_in=100,
-        )
+        mock_response = make_mock_response(status_code=200,
+                                           json_data=dict(
+                                               access_token='fake_access_token_2',
+                                               token_type='fake_token_type',
+                                               expires_in=100,
+                                           ))
 
         mock_http_session.post.return_value = mock_response
 
+        self._logger.info('Mock setup is ready.')
+
         auth.refresh()
+
+        self._logger.info('Auth refreshed')
 
         current_session = auth.restore_session()
 
-        self.assertIsNotNone(current_session)
-        self.assertNotEqual(current_session, stale_session)
+        self._logger.info('Session restored')
+
+        self.assertIsNotNone(current_session, 'The session should still be registered.')
+
+        try:
+            self.assertNotEqual(current_session, stale_session)
+        except AssertionError as assertion_failure:
+            for p_name in current_session.dict():
+                a = getattr(stale_session, p_name)
+                b = getattr(current_session, p_name)
+                self._logger.error(f'Compare two sessions: {p_name}: {"✅" if a == b else "❌"} {a} → {b}')
+            raise assertion_failure
+
         self.assertGreater(current_session.valid_until, stale_session.valid_until)
         self.assertTrue(current_session.is_valid())
         self.assertFalse(stale_session.is_valid())
