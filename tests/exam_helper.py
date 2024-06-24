@@ -27,9 +27,9 @@ from dnastack.common.environments import env, flag
 from dnastack.common.events import Event
 from dnastack.common.logger import get_logger
 from dnastack.context.manager import BaseContextManager, InMemoryContextManager
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
-from tests.cli.auth_utils import handle_device_code_flow, confirm_device_code
+from tests.cli.auth_utils import confirm_device_code
 from tests.wallet_hellper import WalletHelper, Policy, TestUser
 
 _logger = get_logger('exam_helper')
@@ -111,7 +111,7 @@ class BaseTestCase(TestCase):
     _session_dir_path = env(key='DNASTACK_SESSION_DIR', default=f"{default_temp.name}/session.auto_testing")
     _config_file_path = env(key='DNASTACK_CONFIG_FILE', default=f"{default_temp.name}/config.auto_testing.yml")
     _config_overriding_allowed = flag('E2E_CONFIG_OVERRIDING_ALLOWED')
-    _base_logger = get_logger('BaseTestCase', logging.DEBUG if in_global_debug_mode else logging.INFO)
+    _base_logger = get_logger('BaseTestCase', logging.DEBUG if currently_in_debug_mode() else logging.INFO)
     _states: Dict[str, Any] = dict(email=None, token=None)
 
     _user_verification_thread: Optional[Thread] = None
@@ -133,7 +133,7 @@ class BaseTestCase(TestCase):
 
     @staticmethod
     def log_level():
-        return logging.DEBUG if in_global_debug_mode else logging.INFO
+        return logging.DEBUG if currently_in_debug_mode() else logging.INFO
 
     @classmethod
     def set_default_event_interceptors_for_factory(cls, factory: EndpointRepository) -> None:
@@ -225,7 +225,7 @@ class BaseTestCase(TestCase):
     def reset_session(cls):
         if os.path.exists(cls._session_dir_path):
             cls._base_logger.debug("Removing the test session directory...")
-            cls.execute(f'rm -r{"v" if in_global_debug_mode else ""} {cls._session_dir_path}')
+            cls.execute(f'rm -r{"v" if currently_in_debug_mode() else ""} {cls._session_dir_path}')
             cls._base_logger.debug("Removed the test session directory.")
 
     def assert_not_empty(self, obj, message: Optional[str] = None):

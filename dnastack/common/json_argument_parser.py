@@ -6,7 +6,7 @@ from typing import List, Dict, Union, Tuple
 
 # from dnastack.cli.workbench.utils import UnableToDecodeFileError, UnableToDecodeJSONDataError
 from dnastack.common.logger import get_logger
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 
 logger = get_logger('json_argument_parser')
 
@@ -17,7 +17,7 @@ try:
 except UnsupportedOperation as e:
     # NOTE This is just to bypass the error raised by Colab's Jupyter Notebook.
     # FIXME Fix the issue where ncurses raises io.UnsupportedOperation.
-    if in_global_debug_mode:
+    if currently_in_debug_mode():
         logger.warning("Could start importing httpie modules but failed to finish it.")
         traceback.print_exc()
         logger.warning(

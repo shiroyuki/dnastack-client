@@ -6,7 +6,7 @@ from traceback import print_stack
 from typing import Optional
 
 from dnastack.common.environments import env
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode, on_debug_mode_change
 
 
 def get_log_level(level_name: str) -> int:
@@ -15,25 +15,37 @@ def get_log_level(level_name: str) -> int:
         else logging.WARNING
 
 
+def reconfigure_logger_on_debug_mode_change(in_debug_mode):
+    global default_logging_level
+    global default_logging_level_in_non_debugging_mode
+
+    if in_debug_mode:
+        default_logging_level = logging.DEBUG
+        HTTPConnection.debuglevel = 1
+    else:
+        default_logging_level = default_logging_level_in_non_debugging_mode
+        HTTPConnection.debuglevel = 0
+
+    logging.basicConfig(level=default_logging_level)
+
+    # Configure the logger of HTTP client (global settings)
+    requests_log = logging.getLogger("urllib3")
+    requests_log.setLevel(default_logging_level)
+    requests_log.propagate = in_debug_mode
+
 logging_format = '[ %(asctime)s | %(levelname)s ] %(name)s: %(message)s'
+logging.basicConfig(format=logging_format)
+
 overriding_logging_level_name = env(
     'DNASTACK_LOG_LEVEL',
     description='Default CLI/library log level. In the debug mode, the log level will be overridden to DEBUG',
     required=False
 )
-default_logging_level = get_log_level(overriding_logging_level_name)
+default_logging_level_in_non_debugging_mode = get_log_level(overriding_logging_level_name)
+default_logging_level = default_logging_level_in_non_debugging_mode
 
-if in_global_debug_mode:
-    default_logging_level = logging.DEBUG
-    HTTPConnection.debuglevel = 1
-
-logging.basicConfig(format=logging_format,
-                    level=default_logging_level)
-
-# Configure the logger of HTTP client (global settings)
-requests_log = logging.getLogger("urllib3")
-requests_log.setLevel(default_logging_level)
-requests_log.propagate = True
+reconfigure_logger_on_debug_mode_change(currently_in_debug_mode())
+on_debug_mode_change(reconfigure_logger_on_debug_mode_change)
 
 
 class TraceableLogger(logging.Logger):
@@ -50,6 +62,19 @@ class TraceableLogger(logging.Logger):
 
     def fork(self, level: Optional[int] = None, trace_id: Optional[str] = None, span_id: Optional[str] = None):
         return self.make(self.actual_name, level or self.level, trace_id, span_id)
+
+    def reconfigure(self):
+        """
+        Reconfigure itself
+
+        Please note that this method is intentionally left out of the on_debug_mode_change hook to avoid the case where
+        the object that owns the logger is destroyed but the hook is not unhooked.
+        """
+        global default_logging_level
+
+        self.setLevel(default_logging_level)
+        for handler in self.handlers:
+            handler.setLevel(default_logging_level)
 
     @classmethod
     def make(cls, name, level: Optional[int] = None, trace_id: Optional[str] = None, span_id: Optional[str] = None):

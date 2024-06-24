@@ -1,4 +1,3 @@
-from pprint import pformat
 from time import time, sleep
 from typing import Dict, Any, List
 
@@ -7,7 +6,6 @@ from imagination import container
 from dnastack.common.console import Console
 from dnastack.common.environments import env
 from dnastack.common.tracing import Span
-from dnastack.feature_flags import in_global_debug_mode
 from dnastack.http.authenticators.oauth2_adapter.abstract import OAuth2Adapter, AuthException
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.http.client_factory import HttpClientFactory

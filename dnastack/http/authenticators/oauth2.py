@@ -9,7 +9,7 @@ from requests import Request, Session, Response
 from dnastack.client.models import ServiceEndpoint
 from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired, ReauthenticationRequired, \
     RefreshRequired, InvalidStateError, NoRefreshToken, AuthState, ReauthenticationRequiredDueToConfigChange, \
     AuthStateStatus
@@ -223,7 +223,7 @@ class OAuth2Authenticator(Authenticator):
                     self.events.dispatch('refresh-failure', event_details)
 
                 exception_details = {
-                    'debug_mode': in_global_debug_mode,
+                    'debug_mode': currently_in_debug_mode(),
                     'request': {
                         'url': auth_info.token_endpoint,
                     },
@@ -234,7 +234,7 @@ class OAuth2Authenticator(Authenticator):
                     'reason': f'Unable to refresh tokens: {error_msg}',
                 }
 
-                if in_global_debug_mode:
+                if currently_in_debug_mode():
                     exception_details['_internal'] = {
                         'session_info': session_info.dict(),
                         'session_manager': str(self._session_manager),
@@ -358,7 +358,7 @@ class OAuth2Authenticator(Authenticator):
     def update_request(self, session: SessionInfo, r: Union[Request, Session]) -> Union[Request, Session]:
         r.headers["Authorization"] = f"Bearer {session.access_token}"
 
-        if in_global_debug_mode:
+        if currently_in_debug_mode():
             self._logger.debug(f'Bearer Token Claims: {session.access_token.split(".")[1]}')
 
         return r

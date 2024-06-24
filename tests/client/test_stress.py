@@ -1,13 +1,12 @@
 import logging
-
 import math
 from unittest import TestCase
 
 from dnastack import CollectionServiceClient
 from dnastack.client.models import ServiceEndpoint
-from dnastack.feature_flags import in_global_debug_mode
 from dnastack.common.environments import flag
 from dnastack.common.logger import get_logger
+from dnastack.feature_flags import currently_in_debug_mode
 
 try:
     import psutil
@@ -17,7 +16,7 @@ except ImportError:
 
 
 class TestStress(TestCase):
-    _logger = get_logger('lib/stress_test', logging.DEBUG if in_global_debug_mode else logging.INFO)
+    _logger = get_logger('lib/stress_test', logging.DEBUG if currently_in_debug_mode() else logging.INFO)
     _proc_info = psutil.Process() if _psutil_installed else None
 
     def setUp(self) -> None:
