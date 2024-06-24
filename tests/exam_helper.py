@@ -99,7 +99,9 @@ def assert_equal(expected: Any, given: Any):
     assert expected == given, f'Expected {pformat(expected)}, given {pformat(given)}'
 
 
-def make_mock_response(status_code: int, headers: Optional[Dict] = None, text: Any = None,
+def make_mock_response(status_code: int,
+                       headers: Optional[Dict] = None,
+                       text: Any = None,
                        json_data: Any = None) -> Response:
     mock_response = MagicMock(Response)
     mock_response.headers = headers or dict()

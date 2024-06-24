@@ -1,7 +1,9 @@
+import re
 from copy import deepcopy
 from json import JSONDecodeError
 from time import time
 from typing import Optional, Any, Dict, Union
+from urllib.parse import urlparse
 
 from imagination import container
 from requests import Request, Session, Response
@@ -35,16 +37,33 @@ class OAuth2Authenticator(Authenticator):
 
         self._endpoint = endpoint
         self._auth_info = auth_info
-        self._logger_name = (
-            f'{type(self).__name__}: E/T:{endpoint.type}/ID:{endpoint.id}'
-            if endpoint
-            else f'{type(self).__name__}: A/SID:{self.session_id}'
-        )
+        self._logger_name = self._get_logger_name()
         self._logger = get_logger(self._logger_name, get_authenticator_log_level())
         self._adapter_factory: OAuth2AdapterFactory = adapter_factory or container.get(OAuth2AdapterFactory)
         self._http_client_factory: HttpClientFactory = http_client_factory or container.get(HttpClientFactory)
         self._session_manager: SessionManager = session_manager or container.get(SessionManager)
         self._session_info: Optional[SessionInfo] = None
+
+    def _get_logger_name(self):
+        metadata = dict()
+
+        if self._auth_info:
+            auth_info = OAuth2Authentication(**self._auth_info)
+
+            sample_server_url = auth_info.device_code_endpoint or auth_info.token_endpoint
+            if sample_server_url:
+                metadata['S'] = urlparse(sample_server_url).hostname
+
+            metadata['C'] = auth_info.client_id
+
+            if auth_info.resource_url:
+                metadata['R'] = urlparse(re.split(r'(,| )', auth_info.resource_url)[0]).hostname
+        elif self._endpoint:
+            metadata['E/ID'] = self._endpoint.id
+        else:
+            metadata['S/ID'] = self.session_id
+
+        return f"""{type(self).__name__}/{'/'.join([f'{k}={v}' for k, v in metadata.items()])}"""
 
     @property
     def session_id(self):
