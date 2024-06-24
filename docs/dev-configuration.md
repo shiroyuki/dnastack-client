@@ -6,58 +6,51 @@ This documentation is NOT intended for regular users, such as researchers or dat
 
 These are designed to override configurations specifically related to how the CLI/library operates.
 
-| Variable Name                   | Type   | Usage                                                                                                                                                                                                                                                      | Default Value (if optional)     | 
-|---------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
-| `DNASTACK_CONFIG_FILE`          | `str`  | Override the default location of the configuration file. For testing, please define this variable.                                                                                                                                                         | `${HOME}/.dnastack/config.yaml` |
-| `DNASTACK_SESSION_DIR`          | `str`  | Override the default location of the session files. For testing, please define this variable.                                                                                                                                                              | `${HOME}/.dnastack/sessions/`   |
-| `DNASTACK_DEBUG`                | `bool` | Enable the global debug mode for the CLI/library. When the debug mode is enabled, the library will override the default log level (`DNASTACK_LOG_LEVEL`) to `DEBUG`. The debug mode of the library/CLI will also enable the debug mode of the HTTP client. | `false`                         |
-| `DNASTACK_LOG_LEVEL`            | `str`  | The default log level. You can choose either `DEBUG`, `INFO`, `WARNING`, or `ERROR`. Please note that setting to `DEBUG` WILL NOT enable the debug mode (`DNASTACK_DEBUG`).                                                                                | `WARNING`                         |
-| `DNASTACK_AUTH_LOG_LEVEL`       | `str`  | The default log level for authenticators. You can choose either `DEBUG`, `INFO`, `WARNING`, or `ERROR`. This will overrides the default log level or the log level defined by `DNASTACK_LOG_LEVEL` or the log level as the result of the debug mode.       | `WARNING`                       |
-| `DNASTACK_SHOW_LIST_ITEM_INDEX` | `bool` | Allow the CLI to show the index number of the list items in the output. This feature is automatically disabled when the CLI runs in the non-interactive shell.                                                                                             | `false`                         |
+### `DNASTACK_AUTH_LOG_LEVEL`       
+| Interpreted Type | Default Value |
+|------------------|---------------|
+| `str`            | `WARNING`     |
 
-## Troubleshooting
+The default log level for authenticators. You can choose either `DEBUG`, `INFO`, `WARNING`, or `ERROR`. This will overrides the default log level or the log level defined by `DNASTACK_LOG_LEVEL` or the log level as the result of the debug mode.       |
 
-#### Configure for an explorer service
+### `DNASTACK_CONFIG_FILE`          
+| Interpreted Type | Default Value                    |
+|------------------|----------------------------------|
+| `str`            | `${HOME}/.dnastack/config .yaml` |
 
-Here is the example.
+Override the default location of the configuration file. For testing, please define this variable.                                                                                                                                                         |
 
-```python
-# Python code
-from dnastack import CollectionServiceClient
-from dnastack.configuration.models import ServiceEndpoint
+### `DNASTACK_DEBUG`                
+| Interpreted Type | Default Value |
+|------------------|---------------|
+| `bool`           | `false`       |
 
-endpoint = ServiceEndpoint(url='https://viral.ai/api/')
-# Alternative: endpoint = ServiceEndpoint(url='https://viral.ai/api/', mode='explorer')
+Enable the global debug mode for the CLI/library. When the debug mode is enabled, the library will override the default log level (`DNASTACK_LOG_LEVEL`) to `DEBUG`. The debug mode of the library/CLI will also enable the debug mode of the HTTP client. |
 
-client = CollectionServiceClient.make(endpoint)
-```
+### `DNASTACK_DEV`                  
+| Interpreted Type | Default Value |
+|------------------|---------------|
+| `bool`           | `false`       |
 
-or
+Display hidden command lines, e.g., low-level commands                                                                                                                                                                                                     |
 
-```bash
-# Shell script
-dnastack config set collections.url https://viral.ai/api/
-# ↓ You don't need this unless you just change the URL to an explorer service, like Viral.ai.
-#dnastack config set collections.mode explorer
-```
+### `DNASTACK_LOG_LEVEL`            
+| Interpreted Type | Default Value |
+|------------------|---------------|
+| `str`            | `WARNING`     |
 
-#### Configure for a collection service
+The default log level. You can choose either `DEBUG`, `INFO`, `WARNING`, or `ERROR`. Please note that setting to `DEBUG` WILL NOT enable the debug mode (`DNASTACK_DEBUG`).                                                                                |
 
-Here is the example.
+### `DNASTACK_SESSION_DIR`          
+| Interpreted Type | Default Value                 |
+|------------------|-------------------------------|
+| `str`            | `${HOME}/.dnastack/sessions/` |
 
-```python
-# Python code
-from dnastack import CollectionServiceClient
-from dnastack.client.models import ServiceEndpoint
+Override the default location of the session files. For testing, please define this variable.                                                                                                                                                              |
 
-endpoint = ServiceEndpoint(url='https://collection-service.red-panda.com', mode='standard')
-client = CollectionServiceClient.make(endpoint)
-```
+### `DNASTACK_SHOW_LIST_ITEM_INDEX` 
+| Interpreted Type | Default Value |
+|------------------|---------------|
+| `bool`           | `false`       |
 
-or
-
-```bash
-# Shell script
-dnastack config set collections.url https://collection-service.red-panda.com
-dnastack config set collections.mode standard
-```
+Allow the CLI to show the index number of the list items in the output. This feature is automatically disabled when the CLI runs in the non-interactive shell.                                                                                             |

@@ -1,25 +1,20 @@
 ########################################
 # Command and Specification Definition #
 ########################################
-import re
-
+import inspect
 import logging
-
+import re
 import sys
-from click import Group
-
 from traceback import print_exc
-
 from typing import List, Union, Callable, Dict, Any, Optional
 
-import inspect
-
 import click
+from click import Group
 
 from dnastack.cli.helpers.command.spec import ArgumentSpec, SINGLE_ENDPOINT_ID_SPEC
 from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
-from dnastack.feature_flags import in_global_debug_mode, show_distributed_trace_stack_on_error
+from dnastack.feature_flags import show_distributed_trace_stack_on_error, currently_in_debug_mode
 
 DEFAULT_SPECS = [
     ArgumentSpec(
@@ -83,7 +78,7 @@ def command(command_group: Group,
         handler_signature = inspect.signature(handler)
 
         def handle_invocation(*args, **kwargs):
-            if in_global_debug_mode:
+            if currently_in_debug_mode():
                 # In the debug mode, no error will be handled gracefully so that the developers can see the full detail.
                 try:
                     handler(*args, **kwargs)

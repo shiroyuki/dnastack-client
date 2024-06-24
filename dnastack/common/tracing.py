@@ -4,7 +4,7 @@ from abc import ABC
 from typing import Dict, Optional, List, Any, Callable
 
 from dnastack.common.logger import TraceableLogger
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 
 
 def _generate_random_64bit_string() -> str:
@@ -103,7 +103,7 @@ class _SpanInterface(ABC):
 
         self._logger.debug('End')
 
-        if in_global_debug_mode and not self.parent:
+        if currently_in_debug_mode() and not self.parent:
             self.print_tree(use_logger=True)
 
     def print_tree(self,

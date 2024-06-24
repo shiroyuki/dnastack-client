@@ -8,7 +8,7 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.common.events import EventSource
 from dnastack.common.logger import get_logger
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.http.authenticators.factory import HttpAuthenticatorFactory
 from dnastack.http.session import HttpSession
 
@@ -23,7 +23,7 @@ class BaseServiceClient(ABC):
         self._uuid = str(uuid4())
         self._endpoint = endpoint
         self._logger = get_logger(f'{type(self).__name__}/{self._endpoint.id}'
-                                  if in_global_debug_mode
+                                  if currently_in_debug_mode()
                                   else type(self).__name__)
         self._current_authenticator: Optional[AuthBase] = None
         self._events = EventSource(['authentication-before',

@@ -1,11 +1,6 @@
 import sys
 from typing import List, Optional
 
-from dnastack import CollectionServiceClient, DataConnectClient, DrsClient
-from dnastack.client.collections.client import EXPLORER_COLLECTION_SERVICE_TYPE_V1_0, \
-    STANDARD_COLLECTION_SERVICE_TYPE_V1_0
-from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
-from dnastack.client.drs import DRS_TYPE_V1_1
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.common.logger import get_logger
@@ -13,7 +8,7 @@ from dnastack.common.simple_stream import SimpleStream
 from dnastack.configuration.exceptions import MissingEndpointError
 from dnastack.configuration.models import Configuration, DEFAULT_CONTEXT
 from dnastack.context.models import Context
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 
 
 class UnsupportedModelVersionError(RuntimeError):
@@ -109,7 +104,7 @@ class ConfigurationWrapper:
         return endpoint
 
     def __debug_message(self, msg: str):
-        if in_global_debug_mode and 'unittest' in sys.modules:
+        if currently_in_debug_mode() and 'unittest' in sys.modules:
             sys.stderr.write(msg + '\n')
             sys.stderr.flush()
         else:

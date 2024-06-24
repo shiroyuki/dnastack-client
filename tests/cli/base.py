@@ -13,7 +13,7 @@ from dnastack.__main__ import dnastack as cli_app
 from dnastack.common.logger import get_logger
 from dnastack.configuration.models import Configuration
 from dnastack.context.manager import ContextManager, BaseContextManager
-from dnastack.feature_flags import in_global_debug_mode
+from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.json_path import JsonPath
 from ..exam_helper import BasePublisherTestCase, BaseTestCase
 from ..exam_helper_for_workbench import BaseWorkbenchTestCase
@@ -46,7 +46,7 @@ class CliTestCase(BaseTestCase):
         cls._temporarily_remove_existing_config()
 
     def show_output(self) -> bool:
-        return in_global_debug_mode
+        return currently_in_debug_mode()
 
     def _invoke(self,
                 *cli_blocks: str,

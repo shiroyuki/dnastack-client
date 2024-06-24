@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
 
-from dnastack.feature_flags import detailed_error, in_global_debug_mode
+from dnastack.feature_flags import detailed_error, currently_in_debug_mode
 
 
 class AmbiguousArgumentsError(AssertionError):
@@ -90,7 +90,7 @@ class DataConnectError(RuntimeError):
     def __str__(self):
         blocks = [f'HTTP {self.status}: {self.summary}' if self.summary else f'HTTP {self.status}']
 
-        if in_global_debug_mode or detailed_error:
+        if currently_in_debug_mode() or detailed_error:
             if self.details:
                 blocks.append(f'\nResponse Body:\n{self.details}')
 
