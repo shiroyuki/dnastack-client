@@ -8,11 +8,10 @@ from requests import Request, Session
 from requests.auth import AuthBase
 
 from dnastack.client.models import ServiceEndpoint
-from dnastack.common.environments import env
 from dnastack.common.events import EventSource
-from dnastack.common.logger import get_logger, get_logger_for, get_log_level, default_logging_level
+from dnastack.common.logger import get_logger_for
 from dnastack.common.tracing import Span
-from dnastack.http.authenticators.constants import authenticator_log_level
+from dnastack.http.authenticators.constants import get_authenticator_log_level
 from dnastack.http.session_info import SessionInfo
 
 
@@ -114,7 +113,7 @@ class Authenticator(AuthBase, ABC):
                                     'session-not-restored',
                                     'session-revoked'],
                                    origin=self)
-        self._logger = get_logger_for(self, authenticator_log_level)
+        self._logger = get_logger_for(self, get_authenticator_log_level())
 
         # This is for caching and debugging.
         self._last_known_session_info: Optional[SessionInfo] = None

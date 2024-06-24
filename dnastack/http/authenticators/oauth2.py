@@ -13,7 +13,7 @@ from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.http.authenticators.abstract import Authenticator, AuthenticationRequired, ReauthenticationRequired, \
     RefreshRequired, InvalidStateError, NoRefreshToken, AuthState, ReauthenticationRequiredDueToConfigChange, \
     AuthStateStatus
-from dnastack.http.authenticators.constants import authenticator_log_level
+from dnastack.http.authenticators.constants import get_authenticator_log_level
 from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFactory
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.http.client_factory import HttpClientFactory
@@ -40,7 +40,7 @@ class OAuth2Authenticator(Authenticator):
             if endpoint
             else f'{type(self).__name__}: A/SID:{self.session_id}'
         )
-        self._logger = get_logger(self._logger_name, authenticator_log_level)
+        self._logger = get_logger(self._logger_name, get_authenticator_log_level())
         self._adapter_factory: OAuth2AdapterFactory = adapter_factory or container.get(OAuth2AdapterFactory)
         self._http_client_factory: HttpClientFactory = http_client_factory or container.get(HttpClientFactory)
         self._session_manager: SessionManager = session_manager or container.get(SessionManager)

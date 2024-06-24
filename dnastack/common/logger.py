@@ -8,6 +8,8 @@ from typing import Optional
 from dnastack.common.environments import env
 from dnastack.feature_flags import currently_in_debug_mode, on_debug_mode_change
 
+__DEBUG_LOG_ACTIVATION_NOTIFIED = False
+
 
 def get_log_level(level_name: str) -> int:
     return getattr(logging, level_name.upper()) \
@@ -18,8 +20,16 @@ def get_log_level(level_name: str) -> int:
 def reconfigure_logger_on_debug_mode_change(in_debug_mode):
     global default_logging_level
     global default_logging_level_in_non_debugging_mode
+    global __DEBUG_LOG_ACTIVATION_NOTIFIED
 
     if in_debug_mode:
+        if not __DEBUG_LOG_ACTIVATION_NOTIFIED:
+            logging.warning('🚨 WARNING: The DEFAULT log level is set to DEBUG. At this level, it may display highly '
+                            'sensitive information, such as an access token, a refresh token, a JWT. You can set the '
+                            'environment variable "DNASTACK_LOG_LEVEL" to "INFO", "WARNING", or "ERROR".')
+
+            __DEBUG_LOG_ACTIVATION_NOTIFIED = True
+
         default_logging_level = logging.DEBUG
         HTTPConnection.debuglevel = 1
     else:
@@ -32,6 +42,7 @@ def reconfigure_logger_on_debug_mode_change(in_debug_mode):
     requests_log = logging.getLogger("urllib3")
     requests_log.setLevel(default_logging_level)
     requests_log.propagate = in_debug_mode
+
 
 logging_format = '[ %(asctime)s | %(levelname)s ] %(name)s: %(message)s'
 logging.basicConfig(format=logging_format)

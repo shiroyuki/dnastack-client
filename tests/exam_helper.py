@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import shutil
@@ -12,10 +13,12 @@ from subprocess import call
 from threading import Lock, Thread
 from typing import Callable, List, Optional, Any, Dict, Type, Iterable
 from unittest import TestCase, SkipTest
+from unittest.mock import MagicMock, Mock
 from urllib.parse import urljoin, urlparse
 from uuid import uuid4
 
 from imagination import container
+from requests import Response
 
 from dnastack import CollectionServiceClient, DataConnectClient
 from dnastack.client.base_client import BaseServiceClient
@@ -94,6 +97,25 @@ def measure_runtime(description: str, log_level: str = None):
 def assert_equal(expected: Any, given: Any):
     """Assert equality (to be used outside unittest.TestCase)"""
     assert expected == given, f'Expected {pformat(expected)}, given {pformat(given)}'
+
+
+def make_mock_response(status_code: int, headers: Optional[Dict] = None, text: Any = None,
+                       json_data: Any = None) -> Response:
+    mock_response = MagicMock(Response)
+    mock_response.headers = headers or dict()
+    mock_response.status_code = status_code
+    mock_response.ok = 200 <= status_code < 300
+
+    if text:
+        mock_response.text = Mock(return_value=text)
+        mock_response.json = Mock(return_value=json.loads(text))
+    elif json_data:
+        mock_response.text = Mock(return_value=json.dumps(json_data))
+        mock_response.json = Mock(return_value=json_data)
+    else:
+        mock_response.text = ''
+
+    return mock_response
 
 
 class CallableProxy():

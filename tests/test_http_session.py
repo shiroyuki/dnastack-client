@@ -16,6 +16,8 @@ from dnastack.http.session_info import InMemorySessionStorage, SessionManager, S
 from requests import Session, Response, Request
 from pydantic import BaseModel, Field
 
+from tests.exam_helper import make_mock_response
+
 
 class HandledRequest(BaseModel):
     path: str
@@ -128,8 +130,8 @@ class TestHttpSession(TestCase):
 
         # ##### Mock response sequence #####
         mock_response_sequence = [
-            self._make_mock_response(401),
-            self._make_mock_response(200),
+            make_mock_response(401),
+            make_mock_response(200),
         ]
 
         def mock_resource_session_get(*args, **kwargs):
