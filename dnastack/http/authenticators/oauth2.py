@@ -57,7 +57,7 @@ class OAuth2Authenticator(Authenticator):
             metadata['C'] = auth_info.client_id
 
             if auth_info.resource_url:
-                metadata['R'] = urlparse(re.split(r'(,| )', auth_info.resource_url)[0]).hostname
+                metadata['R'] = urlparse(re.split(r'(,|\s+)', auth_info.resource_url)[0]).hostname
         elif self._endpoint:
             metadata['E/ID'] = self._endpoint.id
         else:
