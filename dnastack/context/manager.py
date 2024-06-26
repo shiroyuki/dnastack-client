@@ -272,22 +272,24 @@ class BaseContextManager:
             if exact_url_requested:
                 registry_url = self._check_if_root_url_and_sanitize_url(registry_hostname_or_url)
                 if registry_url:
-                    registry = ServiceRegistry.make(self._create_registry_endpoint_definition(context_name,
-                                                                                              registry_url))
+                    registry = ServiceRegistry.make(
+                        self._create_registry_endpoint_definition(context_name, registry_url)
+                    )
                 else:
                     raise InvalidServiceRegistryError(
-                        f'The given URL ({registry_hostname_or_url}) is not the root URL of the service registry.')
+                        f'The given URL ({registry_hostname_or_url}) is not the root URL of the service registry.'
+                    )
             else:
                 registry = self._scan_for_registry_endpoint(target_hostname)
                 if not registry:
                     raise InvalidServiceRegistryError(
-                        f'The given hostname ({registry_hostname_or_url}) is not a hostname of the service registry service.')
+                        f'The given hostname ({registry_hostname_or_url}) is not a hostname '
+                        'of the service registry service.'
+                    )
 
             context = Context()
             self._contexts.set(context_name, context)
-
             context.endpoints.append(registry.endpoint)
-
             self._contexts.set(context_name, context)
         else:
             pass  # NOOP
