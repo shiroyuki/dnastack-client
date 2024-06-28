@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager
 from datetime import datetime
 from enum import Enum
 from io import TextIOWrapper
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict
 from urllib.parse import urlparse, urljoin
 
 import urllib3
