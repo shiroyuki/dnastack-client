@@ -1,8 +1,10 @@
 import os
+from datetime import datetime
 from typing import Dict, List, Optional, Any
+from unittest import TestCase
 from urllib.parse import urlparse
 
-from dnastack.client.drs import DrsApiError, Blob, DrsClient
+from dnastack.client.drs import DrsApiError, Blob, DrsClient, DrsObject
 from dnastack.client.factory import EndpointRepository
 from tests.exam_helper import BasePublisherTestCase
 
@@ -133,3 +135,23 @@ class TestDrsClient(BasePublisherTestCase):
                 self.assertEqual(blob_by_id.drs_object, blob_by_url.drs_object)
             except DrsApiError:
                 pass
+
+
+class TestDrsModels(TestCase):
+
+    def test_drs_model_loads_with_nulls_in_checksum(self):
+        args = {
+            "id": "id",
+            "name": "name",
+            "created_time": datetime.now(),
+            "updated_time": datetime.now(),
+            "size": 1,
+        }
+
+        ## Test with no checksum set
+        DrsObject(**args)
+
+        ## Test with checksum set to None
+        args["checksums"] = [None]
+        DrsObject(**args)
+
