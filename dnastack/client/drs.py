@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager
 from datetime import datetime
 from enum import Enum
 from io import TextIOWrapper
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from urllib.parse import urlparse, urljoin
 
 import urllib3
@@ -141,8 +141,8 @@ class DrsObjectAccessMethod(BaseModel):
 
 
 class DrsObjectChecksum(BaseModel):
-    checksum: str
-    type: str
+    checksum: Optional[str]
+    type: Optional[str]
 
 
 class DrsObject(BaseModel):
@@ -159,6 +159,13 @@ class DrsObject(BaseModel):
     updated_time: datetime
     size: int
     version: Optional[str] = None
+
+    def __init__(self, **kwargs):
+        # There is an issue in the API where a `[null]` value can be returned in place of the checksums list
+        # This is a workaround to remove the `[null]` value
+        kwargs['checksums'] = [checksum for checksum in kwargs.get('checksums', []) if checksum]
+        super().__init__(**kwargs)
+
 
 
 class DownloadOkEvent(Event):
