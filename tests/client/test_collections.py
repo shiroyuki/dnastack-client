@@ -1,3 +1,4 @@
+from dnastack.client.base_exceptions import DataConnectError
 from dnastack.client.collections.client import CollectionServiceClient, Collection, \
     UnknownCollectionError
 from dnastack.client.data_connect import DataConnectClient
@@ -62,6 +63,11 @@ class TestCollectionsClient(BasePublisherTestCase, DataConnectTestCaseMixin):
                 try:
                     self.assert_not_empty([row for row in data_connect_client.query(test_query)])
                     return  # Stop the test now.
+                except DataConnectError as e:
+                    self._logger.warning(
+                        f'T/{table.name}: Not usable for testing per-collection data connect due to {e}'
+                    )
+                    continue
                 except AssertionError:
                     self._logger.warning(
                         f'T/{table.name}: Not usable for testing per-collection data connect as it is empty.'

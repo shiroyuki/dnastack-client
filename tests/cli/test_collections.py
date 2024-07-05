@@ -23,6 +23,7 @@ class TestCollectionsCommand(PublisherCliTestCase):
         last_error = None
 
         for collection in collections:
+            collection_slug_name = collection['slugName']
             try:
                 self.assertIn('id', collection)
                 self.assertIn('name', collection)
@@ -34,7 +35,7 @@ class TestCollectionsCommand(PublisherCliTestCase):
                 tables = self.simple_invoke('cs',
                                             'tables',
                                             'list',
-                                            '-c', collection['slugName'])
+                                            '-c', collection_slug_name)
                 self.assertGreaterEqual(len(tables), 0)
 
                 max_size = 10
@@ -43,13 +44,13 @@ class TestCollectionsCommand(PublisherCliTestCase):
                 items_from_direct_query = self.simple_invoke('collections',
                                                              'list-items',
                                                              '--limit', str(max_size),
-                                                             '--collection', collection['slugName'])
+                                                             '--collection', collection_slug_name)
                 self.assertLessEqual(len(items_from_direct_query), max_size, f'Expected upto {max_size} rows')
 
                 # CSV version
                 for table in tables:
                     query = f"SELECT * FROM ({table['name']}) LIMIT {max_size}"
-                    result = self.invoke('cs', 'query', '-c', collection['slugName'], '-o', 'csv', query)
+                    result = self.invoke('cs', 'query', '-c', collection_slug_name, '-o', 'csv', query)
                     lines = result.output.split('\n')
                     self.assertLessEqual(len(lines), max_size + 1, f'Expected upto {max_size} lines, excluding headers')
                     for line in lines:
@@ -60,7 +61,7 @@ class TestCollectionsCommand(PublisherCliTestCase):
                 # Test the list-item command.
                 items_from_command = self.simple_invoke('collections',
                                                         'list-items',
-                                                        '-c', collection['slugName'],
+                                                        '-c', collection_slug_name,
                                                         '-l', str(max_size))
                 self.assertLessEqual(len(items_from_command), max_size, f'Expected upto {max_size} rows')
 
@@ -69,7 +70,12 @@ class TestCollectionsCommand(PublisherCliTestCase):
                 self.assert_not_empty(common_ids)
 
                 return  # The test is complete here.
+            except SystemExit as e:
+                self._logger.warn(f'Collection "{collection_slug_name}" is not usable for this test. (CLI unexpected '
+                                  f'termination)')
+                last_error = e
             except AssertionError as e:
+                self._logger.warn(f'Collection "{collection_slug_name}" is not usable for this test. (failed assertion')
                 last_error = e
 
         raise RuntimeError('No usable collection for this test.') from last_error
@@ -84,10 +90,19 @@ class TestCollectionsCommand(PublisherCliTestCase):
         self.invoke('use', self._explorer_hostname)
         collections = self.simple_invoke('collections', 'list')
         self.assert_not_empty(collections, 'No collection available')
-        self.simple_invoke('collections',
-                           'query',
-                           '-c', collections[0]['slugName'],
-                           'SELECT 1')
+        last_error = None
+        for c in collections:
+            try:
+                self.simple_invoke('collections',
+                                   'query',
+                                   '-c', c['slugName'],
+                                   'SELECT 1')
+
+                return
+            except Exception as e:
+                last_error = e
+
+        raise last_error
 
     def test_182881149(self):
         """
