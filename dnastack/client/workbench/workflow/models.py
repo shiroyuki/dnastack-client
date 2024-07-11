@@ -86,7 +86,7 @@ class WorkflowListOptions(BaseListOptions):
     source: Optional[WorkflowSource]
     deleted: Optional[bool]
     sort: Optional[str]
-    order: Optional[str] = Field(..., deprecated=True)
+    order: Optional[str] = Field(default=None, deprecated=True)
     direction: Optional[str]
 
 
