@@ -1,5 +1,8 @@
 from copy import deepcopy
 from typing import Optional, Any, Dict
+from urllib.parse import urljoin
+
+from pydantic import BaseModel
 
 from dnastack.alpha.app.publisher_helper.collection_service import BlobApiMixin, RootCollectionApiMixin, \
     PerCollectionApiMixin
@@ -7,12 +10,21 @@ from dnastack.alpha.app.publisher_helper.data_connect import SearchOperation
 from dnastack.alpha.app.publisher_helper.models import BaseItemInfo, ItemType, TableInfo, BlobInfo
 from dnastack.client.collections.client import CollectionServiceClient
 from dnastack.client.collections.model import Collection as CollectionModel
-from dnastack.client.data_connect import DataConnectClient
+from dnastack.client.data_connect import DataConnectClient, QueryLoader
 from dnastack.client.drs import DrsClient, Blob
 from dnastack.client.factory import EndpointRepository
 from dnastack.client.models import ServiceEndpoint
 from dnastack.common.logger import get_logger_for
 from dnastack.context.helper import use
+from dnastack.http.authenticators.factory import HttpAuthenticatorFactory
+from dnastack.http.session import HttpSession
+
+
+class FilterInfo(BaseModel):
+    sql: str
+    cli: str
+    python: str
+    sharedQueryUrl: str
 
 
 class Collection(PerCollectionApiMixin, BlobApiMixin):
@@ -36,6 +48,16 @@ class Collection(PerCollectionApiMixin, BlobApiMixin):
 
     def query(self, query: str):
         return SearchOperation(self._dc, self._no_auth, query)
+
+    def get_filter_info(self, table_name: str) -> FilterInfo:
+        endpoint = self._cs.endpoint
+        session = HttpSession(endpoint,
+                              HttpAuthenticatorFactory.create_multiple_from(endpoint=endpoint),
+                              suppress_error=False,
+                              enable_auth=(not self._no_auth))
+        url = urljoin(endpoint.url, f'collections/{self._collection.slugName}/tables/{table_name}/filter/query'
+                                    '?includeSharedQueryUrl=true')
+        return FilterInfo(**session.post(url).json())
 
     def data_connect(self):
         default_no_auth_properties = {'authentication': None, 'fallback_authentications': None}
