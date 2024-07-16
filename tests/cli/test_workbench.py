@@ -77,17 +77,23 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 'workbench', 'runs', 'list',
                 '--order', 'start_time ASC',
             )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+            self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
             desc_runs = self.simple_invoke(
                 'workbench', 'runs', 'list',
                 '--order', 'start_time DESC',
             )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+            self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
             run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
             run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
             self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
                                 f'Expected two different runs when ordered. '
                                 f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
+            
+            # Test without order flag
+            runs = self.simple_invoke(
+                'workbench', 'runs', 'list',
+            )
+            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
 
         test_order()
 
@@ -96,12 +102,12 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 'workbench', 'runs', 'list',
                 '--sort', 'workflow_name:ASC;state:DESC',
             )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+            self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
             desc_runs = self.simple_invoke(
                 'workbench', 'runs', 'list',
                 '--sort', 'workflow_name:DESC;state',
             )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+            self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
             run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
             run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
             self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,

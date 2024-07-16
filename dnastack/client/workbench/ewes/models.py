@@ -224,7 +224,7 @@ class ExecutionEngine(BaseModel):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     state: Optional[str]
-    health: Optional[str] = Field(..., deprecated=True)
+    health: Optional[str] = Field(default=None, deprecated=True)
     engine_adapter_configuration: Optional[Dict[str, JSONType]]
 
 
