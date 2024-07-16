@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from dnastack.alpha.app.publisher_helper.collection_service import BlobApiMixin, RootCollectionApiMixin, \
     PerCollectionApiMixin
 from dnastack.alpha.app.publisher_helper.data_connect import SearchOperation
+from dnastack.alpha.app.publisher_helper.filter import FilterOperation
 from dnastack.alpha.app.publisher_helper.models import BaseItemInfo, ItemType, TableInfo, BlobInfo
 from dnastack.client.collections.client import CollectionServiceClient
 from dnastack.client.collections.model import Collection as CollectionModel
@@ -18,7 +19,7 @@ from dnastack.common.logger import get_logger_for
 from dnastack.context.helper import use
 from dnastack.http.authenticators.factory import HttpAuthenticatorFactory
 from dnastack.http.session import HttpSession
-
+import json
 
 class FilterInfo(BaseModel):
     sql: str
@@ -49,7 +50,7 @@ class Collection(PerCollectionApiMixin, BlobApiMixin):
     def query(self, query: str):
         return SearchOperation(self._dc, self._no_auth, query)
 
-    def get_filter_info(self, table_name: str) -> FilterInfo:
+    def get_filter_info(self, table_name: str, filters={}) -> FilterInfo:
         endpoint = self._cs.endpoint
         session = HttpSession(endpoint,
                               HttpAuthenticatorFactory.create_multiple_from(endpoint=endpoint),
@@ -57,7 +58,8 @@ class Collection(PerCollectionApiMixin, BlobApiMixin):
                               enable_auth=(not self._no_auth))
         url = urljoin(endpoint.url, f'collections/{self._collection.slugName}/tables/{table_name}/filter/query'
                                     '?includeSharedQueryUrl=true')
-        return FilterInfo(**session.post(url).json())
+        headers = {'Content-Type': 'application/json'}
+        return FilterInfo(**session.post(url, data=json.dumps(filters), headers=headers).json())
 
     def data_connect(self):
         default_no_auth_properties = {'authentication': None, 'fallback_authentications': None}
@@ -132,3 +134,6 @@ class Explorer(RootCollectionApiMixin):
                           self._cs,
                           self.get_collection_info(id_or_slug_name=id_or_slug_name, name=name),
                           no_auth=self._no_auth)
+
+    def get_filtered_data(self, signed_url):
+        return FilterOperation(signed_url)
