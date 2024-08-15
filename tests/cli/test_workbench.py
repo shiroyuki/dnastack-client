@@ -10,9 +10,9 @@ import zipfile
 from datetime import date
 
 from dnastack.alpha.client.workflow.models import Workflow, WorkflowVersion
-from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
+from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
     MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
-    BatchRunRequest, EngineHealthCheck
+    BatchRunRequest, EngineHealthCheck, RunEvent, State
 from .base import WorkbenchCliTestCase
 
 
@@ -448,6 +448,25 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                              f'Found {described_runs[0].request.workflow_engine_parameters}')
 
         test_submit_batch_with_engine_mixed_param_types()
+
+    def test_run_events_list(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 2
+        )
+        self.assertEqual(len(runs), 2, f'Expected exactly two runs. Found {runs}')
+        first_run_id = ExtendedRunStatus(**runs[0]).run_id
+
+        events_result = [RunEvent(**run_event) for run_event in self.simple_invoke(
+            'workbench', 'runs', 'events', 'list', '--run-id', first_run_id
+        )]
+        self.assertGreater(len(events_result), 0, f'Expected run events. Found {events_result}')
+
+        self.assertIsNotNone(events_result[0].id, f'Expected event to have an id. Found {events_result[0].id}')
+        self.assertEqual(EventType.RUN_SUBMITTED, events_result[0].event_type, f'Expected event to be of type RUN_SUBMITTED. Got {events_result[0].event_type}')
+        self.assertIsNone(events_result[0].metadata.message, f'Expected first event not to have message. Got {events_result[0].metadata.message}')
+        self.assertIsNone(events_result[0].metadata.old_state, f'Expected first event to not have old state. Got {events_result[0].metadata.old_state}')
+        self.assertEqual(State.QUEUED, events_result[0].metadata.new_state, f'Expected first event\'s new state to be QUEUED. Got {events_result[0].metadata.new_state}')
 
     def test_workflows_list(self):
         result = [Workflow(**workflow) for workflow in self.simple_invoke(
