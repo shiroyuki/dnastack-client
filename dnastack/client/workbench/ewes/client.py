@@ -5,7 +5,7 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
-from dnastack.client.workbench.ewes.models import WesServiceInfo, ExtendedRunStatus, ExtendedRunListOptions, \
+from dnastack.client.workbench.ewes.models import ExtendedRunEvents, WesServiceInfo, ExtendedRunStatus, ExtendedRunListOptions, \
     ExtendedRunListResponse, ExtendedRun, RunId, WorkbenchApiError, BatchActionResult, MinimalExtendedRun, \
     BatchRunResponse, BatchRunRequest, ExtendedRunRequest, Log, TaskListOptions, \
     TaskListResponse, LogType, ExecutionEngineListOptions, ExecutionEngineListResponse, ExecutionEngine, \
@@ -270,6 +270,14 @@ class EWesClient(BaseWorkbenchClient):
             max_results=max_results,
             trace=trace,
         ))
+    
+    def list_events(self, run_id: str, include_tasks: bool = False, trace: Optional[Span] = None) -> ExtendedRunEvents:
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            response = session.get(urljoin(self.endpoint.url, f'{self.namespace}/ga4gh/wes/v1/runs/{run_id}'
+                                                              f'?exclude_tasks={not include_tasks}'),
+                                   trace_context=trace)
+            return ExtendedRunEvents(**response.json())
 
     def list_engines(self,
                      list_options: ExecutionEngineListOptions,

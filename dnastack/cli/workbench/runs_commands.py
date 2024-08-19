@@ -7,7 +7,7 @@ from click import style
 
 from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
     UnableToFindParameterError
-from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
+from dnastack.client.workbench.ewes.models import ExtendedRun, ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
     MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, RunEventListOptions, TaskListOptions, State, ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.cli.helpers.command.decorator import command
@@ -190,7 +190,11 @@ def list_runs(context: Optional[str],
         search=search,
         tag=tags
     )
-    show_iterator(output_format=OutputFormat.JSON, iterator=client.list_runs(list_options, max_results))
+    runs_list = client.list_runs(list_options, max_results)
+    # for run in runs_list:
+    #     if isinstance(run, ExtendedRun):
+    #         run.events = None
+    show_iterator(output_format=OutputFormat.JSON, iterator=runs_list)
 
 
 @command(runs_command_group,
@@ -258,6 +262,10 @@ def describe_runs(context: Optional[str],
                 run_id=described_run.run_id,
                 outputs=described_run.outputs
             ) for described_run in described_runs]
+        # else:
+        #     for described_run in described_runs:
+        #         if isinstance(described_run, ExtendedRun):
+        #             described_run.events = None
     click.echo(to_json(normalize(described_runs)))
 
 
@@ -672,6 +680,6 @@ def list_run_events(context: Optional[str],
     """
     
     client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
-    show_iterator(output_format=OutputFormat.JSON, iterator=client.get_run(run_id).events)
+    show_iterator(output_format=OutputFormat.JSON, iterator=client.list_events(run_id).events)
 
 runs_command_group.add_command(events_command_group)

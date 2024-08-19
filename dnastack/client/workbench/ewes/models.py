@@ -131,6 +131,9 @@ class ExtendedRun(BaseModel):
     task_logs: Optional[List[Log]]
     task_logs_url: Optional[str]
     outputs: Optional[Dict]
+
+
+class ExtendedRunEvents(BaseModel):
     events: Optional[List[RunEvent]]
 
 
