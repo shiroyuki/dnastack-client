@@ -7,8 +7,8 @@ from click import style
 
 from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
     UnableToFindParameterError
-from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
-    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, TaskListOptions, State, ExecutionEngineListOptions
+from dnastack.client.workbench.ewes.models import ExtendedRun, ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
+    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, RunEventListOptions, TaskListOptions, State, ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
@@ -26,6 +26,11 @@ def runs_command_group():
 @click.group('tasks')
 def tasks_command_group():
     """Interact with a run's tasks"""
+
+
+@click.group('events')
+def events_command_group():
+    """Interact with a run's events"""
 
 
 @command(runs_command_group,
@@ -185,7 +190,11 @@ def list_runs(context: Optional[str],
         search=search,
         tag=tags
     )
-    show_iterator(output_format=OutputFormat.JSON, iterator=client.list_runs(list_options, max_results))
+    runs_list = client.list_runs(list_options, max_results)
+    # for run in runs_list:
+    #     if isinstance(run, ExtendedRun):
+    #         run.events = None
+    show_iterator(output_format=OutputFormat.JSON, iterator=runs_list)
 
 
 @command(runs_command_group,
@@ -253,6 +262,10 @@ def describe_runs(context: Optional[str],
                 run_id=described_run.run_id,
                 outputs=described_run.outputs
             ) for described_run in described_runs]
+        # else:
+        #     for described_run in described_runs:
+        #         if isinstance(described_run, ExtendedRun):
+        #             described_run.events = None
     click.echo(to_json(normalize(described_runs)))
 
 
@@ -638,3 +651,35 @@ def list_tasks(context: Optional[str],
 
 
 runs_command_group.add_command(tasks_command_group)
+
+
+@command(events_command_group,
+         'list',
+         specs=[
+             ArgumentSpec(
+                 name='run_id',
+                 arg_names=['--run-id'],
+                 help='A required flag to specify the run whose events should be listed.',
+                 required=True,
+                 as_option=True,
+             ),
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True,
+             ),
+         ])
+def list_run_events(context: Optional[str],
+                    endpoint_id: Optional[str],
+                    namespace: Optional[str],
+                    run_id: str):
+    """
+    Lists run events
+    """
+    
+    client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    show_iterator(output_format=OutputFormat.JSON, iterator=client.list_events(run_id).events)
+
+runs_command_group.add_command(events_command_group)

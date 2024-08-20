@@ -100,6 +100,26 @@ class ExtendedRunRequest(BaseModel):
     tags: Optional[Dict]
 
 
+class EventType(str, Enum):
+    RUN_SUBMITTED = "RUN_SUBMITTED"
+    RUN_SUBMITTED_TO_ENGINE = "RUN_SUBMITTED_TO_ENGINE"
+    ERROR_OCCURRED = "ERROR_OCCURRED"
+    STATE_TRANSITION = "STATE_TRANSITION"
+
+
+class RunEventMetadata(BaseModel):
+    message: Optional[str]
+    old_state: Optional[State]
+    new_state: Optional[State]
+
+
+class RunEvent(BaseModel):
+    id: str
+    event_type: EventType
+    created_at: datetime
+    metadata: RunEventMetadata
+
+
 class ExtendedRun(BaseModel):
     run_id: str
     external_id: Optional[str]
@@ -111,6 +131,10 @@ class ExtendedRun(BaseModel):
     task_logs: Optional[List[Log]]
     task_logs_url: Optional[str]
     outputs: Optional[Dict]
+
+
+class ExtendedRunEvents(BaseModel):
+    events: Optional[List[RunEvent]]
 
 
 class MinimalExtendedRun(BaseModel):
@@ -205,6 +229,10 @@ class ExtendedRunListOptions(BaseListOptions):
 
 class TaskListOptions(BaseListOptions):
     pass
+
+
+class RunEventListOptions(BaseListOptions):
+    run_id: str
 
 
 class ExecutionEngineProviderType(str, Enum):
