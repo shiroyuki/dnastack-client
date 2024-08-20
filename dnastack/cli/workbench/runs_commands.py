@@ -191,9 +191,6 @@ def list_runs(context: Optional[str],
         tag=tags
     )
     runs_list = client.list_runs(list_options, max_results)
-    # for run in runs_list:
-    #     if isinstance(run, ExtendedRun):
-    #         run.events = None
     show_iterator(output_format=OutputFormat.JSON, iterator=runs_list)
 
 
@@ -262,10 +259,6 @@ def describe_runs(context: Optional[str],
                 run_id=described_run.run_id,
                 outputs=described_run.outputs
             ) for described_run in described_runs]
-        # else:
-        #     for described_run in described_runs:
-        #         if isinstance(described_run, ExtendedRun):
-        #             described_run.events = None
     click.echo(to_json(normalize(described_runs)))
 
 
