@@ -86,6 +86,7 @@ class WorkflowSourceLoader(object):
 
             self._entrypoint = Path(os.path.abspath(self.entrypoint)).relative_to(common_path)
         else:
+            self._entrypoint = Path(os.path.basename(self.entrypoint))
             self._loaded_files = [LoadedFile(file[0], Path(file[0].name), file[1]) for file in path_and_contents]
 
 
