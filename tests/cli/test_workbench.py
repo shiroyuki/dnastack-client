@@ -449,6 +449,21 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         test_submit_batch_with_engine_mixed_param_types()
 
+        def test_submit_batch_with_dry_run_option():
+            submitted_batch_request = BatchRunRequest(**self.simple_invoke(
+                'workbench', 'runs', 'submit',
+                '--dry-run',
+                '--url', hello_world_workflow_url,
+                '--workflow-params', 'test.hello.name=foo',
+                '--tags', 'foo=bar',
+            ))
+            self.assertEqual(len(submitted_batch_request.run_requests), 1, 'Expected exactly one run request submitted.')
+            self.assertEqual(submitted_batch_request.run_requests[0].workflow_params, {'test.hello.name': 'foo'}, "Expected workflow params to be the same.")
+            self.assertEqual(submitted_batch_request.workflow_url, hello_world_workflow_url, "Expected workflow url to be the same.")
+            self.assertEqual(submitted_batch_request.default_tags, {'foo': 'bar'}, "Expected tags to be the same.")
+
+        test_submit_batch_with_dry_run_option()
+
     def test_run_events_list(self):
         runs = self.simple_invoke(
             'workbench', 'runs', 'list',

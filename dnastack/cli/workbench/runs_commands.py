@@ -509,6 +509,14 @@ def get_run_logs(context: Optional[str],
                  type=JsonLike,
                  required=False
              ),
+             ArgumentSpec(
+                 name='dry_run',
+                 arg_names=['--dry-run'],
+                 help='If specified, the command will print the request without actually submitting the workflow.',
+                 as_option=True,
+                 default=False,
+                 required=False
+             ),
          ])
 def submit_batch(context: Optional[str],
                  endpoint_id: Optional[str],
@@ -519,7 +527,8 @@ def submit_batch(context: Optional[str],
                  default_workflow_params: JsonLike,
                  tags: JsonLike,
                  workflow_params,
-                 overrides):
+                 overrides,
+                 dry_run: bool):
     """
     Submit one or more workflows for execution
 
@@ -584,8 +593,11 @@ def submit_batch(context: Optional[str],
                 run_request.workflow_params = dict()
             merge(run_request.workflow_params, override_data)
 
-    minimal_batch = ewes_client.submit_batch(batch_request)
-    click.echo(to_json(normalize(minimal_batch)))
+    if dry_run:
+        click.echo(to_json(normalize(batch_request)))
+    else:
+        minimal_batch = ewes_client.submit_batch(batch_request)
+        click.echo(to_json(normalize(minimal_batch)))
 
 
 @command(tasks_command_group,
