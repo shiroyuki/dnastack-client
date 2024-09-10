@@ -3,12 +3,13 @@ from typing import Optional
 from imagination import container
 
 from dnastack.client.workbench.ewes.client import EWesClient
+from dnastack.client.workbench.storage.client import StorageClient
 from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workbench_user_service.client import WorkbenchUserClient
 from dnastack.cli.config.context import ContextCommandHandler
 from dnastack.cli.helpers.client_factory import ConfigurationBasedClientFactory
 
-DEFAULT_WORKBENCH_DESTINATION = "workbench.omics.ai"
+DEFAULT_WORKBENCH_DESTINATION = "http://localhost:9191/api/service-registry"
 
 
 def _populate_workbench_endpoint():
@@ -56,6 +57,21 @@ def get_workflow_client(context_name: Optional[str] = None,
         return factory.get(WorkflowClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
 
 
+def get_storage_client(context_name: Optional[str] = None,
+                       endpoint_id: Optional[str] = None,
+                       namespace: Optional[str] = None) -> StorageClient:
+    if not namespace:
+        user_client = get_user_client(context_name=context_name, endpoint_id=endpoint_id)
+        namespace = user_client.get_user_config().default_namespace
+
+    factory: ConfigurationBasedClientFactory = container.get(ConfigurationBasedClientFactory)
+    try:
+        return factory.get(StorageClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
+    except AssertionError:
+        _populate_workbench_endpoint()
+        return factory.get(StorageClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
+
+
 class UnableToMergeJsonError(RuntimeError):
     def __init__(self, key):
         super().__init__(f'Unable to merge key {key}. The value for {key} must be of type dict, str, int or float')
@@ -96,5 +112,9 @@ class UnableToFindParameterError(Exception):
         super().__init__(message)
 
 class NoDefaultEngineError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+class UnsupportedCloudProviderError(Exception):
     def __init__(self, message: str):
         super().__init__(message)

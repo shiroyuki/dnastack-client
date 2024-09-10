@@ -1020,3 +1020,22 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             self.assert_not_empty(result)
 
         test_get_default_namespace()
+
+    def test_samples(self):
+        def test_register_repository():
+            cloud_provider = "AWS"
+            access_key_id = ""
+            secret_access_key = ""
+            region = ""
+            bucket = ""
+            result = self.simple_invoke(
+                'workbench', 'storage', 'add',
+                '--cloud', f'{cloud_provider}',
+                '--region', f'{region}',
+                '--access-key-id ', f'{access_key_id}',
+                '--secret-access-key', f'{secret_access_key}',
+                '--bucket', f'{bucket}',
+            )
+            self.assert_not_empty(result)
+
+        test_register_repository()

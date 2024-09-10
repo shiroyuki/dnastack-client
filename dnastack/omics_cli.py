@@ -21,7 +21,7 @@ from dnastack.common.logger import get_logger
 import dnastack.cli.workbench.utils as workbench_utils
 
 # Set the global command info
-workbench_utils.DEFAULT_WORKBENCH_DESTINATION = "workbench.omics.ai"
+workbench_utils.DEFAULT_WORKBENCH_DESTINATION = "http://localhost:9191/api/service-registry"
 APP_NAME = sys.argv[0]
 
 __library_version = __version__
