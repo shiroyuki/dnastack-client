@@ -57,7 +57,7 @@ class PerCollectionApiMixin:
         # NOTE: We opt for an enum on item types (kind/kinds) in this case to avoid SQL-injection attempts.
         assert limit >= 0, 'The limit has to be ZERO (no limit) or at least 1 (to impose the limit).'
 
-        if kinds is None:
+        if kinds is None and kind is not None:
             kinds = [kind]
 
         items: List[BaseItemInfo] = []
