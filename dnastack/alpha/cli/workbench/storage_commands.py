@@ -178,7 +178,7 @@ def delete_storage_account(context: Optional[str],
                       'The value should be in the form `column(:direction)?(;(column(:direction)?)*`'
                       'If no directions are specified, the results are returned in ascending order'
                       'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
-                      'e.g.: --sort "end_time:ASC", --sort "workflow_id;end_time:DESC;"',
+                      'e.g.: --sort "name:ASC", --sort "name;provider:DESC;"',
 
                  as_option=True
              ),
