@@ -11,6 +11,10 @@ class SampleListOptions(BaseListOptions):
     pass
 
 
+class SampleFile(BaseModel):
+    path: str
+
+
 class Sample(BaseModel):
     id: str
 
@@ -21,10 +25,6 @@ class Sample(BaseModel):
     created_at: Optional[datetime]
 
     files: List[SampleFile]
-
-
-class SampleFile(BaseModel):
-    path: str
 
 
 class SampleListResponse(BaseModel):

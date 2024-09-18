@@ -43,7 +43,6 @@ class SamplesClient(BaseWorkbenchClient):
             ServiceType(group='com.dnastack.workbench', artifact='sample-service', version='1.0.0'),
         ]
 
-    # noinspection PyMethodOverriding
     @classmethod
     def make(cls, endpoint: ServiceEndpoint, namespace: str):
         """Create this class with the given `endpoint` and `namespace`."""
