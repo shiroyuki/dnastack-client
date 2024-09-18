@@ -1,5 +1,6 @@
 import click
 
+from dnastack.alpha.cli.workbench.sample_commands import alpha_samples_command_group
 from dnastack.alpha.cli.workbench.storage_commands import alpha_storage_command_group
 
 
@@ -9,3 +10,4 @@ def alpha_workbench_command_group():
 
 
 alpha_workbench_command_group.add_command(alpha_storage_command_group)
+alpha_workbench_command_group.add_command(alpha_samples_command_group)
