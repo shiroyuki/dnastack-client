@@ -1,16 +1,11 @@
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Optional, Any
-import re
+from pydantic import BaseModel
+from typing import List, Optional
 
-from pydantic import BaseModel, Field
-
-from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
-from dnastack.client.service_registry.models import Service
-from dnastack.common.json_argument_parser import JSONType
+from dnastack.client.workbench.models import BaseListOptions
 
 
-class SamplesListOptions(BaseListOptions):
+class SampleListOptions(BaseListOptions):
     pass
 
 
@@ -24,3 +19,8 @@ class Sample(BaseModel):
 
 class SampleFile(BaseModel):
     path: str
+
+
+class SampleListResponse(BaseModel):
+    samples: List[Sample]
+    next_page_token: Optional[str] = None
