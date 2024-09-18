@@ -1,24 +1,30 @@
 from pickle import FALSE
-from typing import Optional
+from typing import Optional, List
 
 import click
+from click import style
 
 from dnastack.alpha.cli.workbench.utils import get_storage_client
-from dnastack.alpha.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider
+from dnastack.alpha.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
+    StorageListOptions
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
+from dnastack.cli.helpers.iterator_printer import OutputFormat, show_iterator
 
 
 @click.group('storage')
 def alpha_storage_command_group():
     """Interact with Storage accounts"""
 
+
 @click.group("aws")
 def alpha_aws_storage_create_group():
     """Interact with AWS storage"""
 
+
 alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
+
 
 @command(alpha_aws_storage_create_group,
          'create',
@@ -30,7 +36,7 @@ alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
                       'extracted from the users credentials.',
                  as_option=True
              ),
-            ArgumentSpec(
+             ArgumentSpec(
                  name='storage_id',
                  help='The storage account id',
                  as_option=False
@@ -97,8 +103,8 @@ def create_storage_account(context: Optional[str],
 
 ## Add a command to delete a storage account
 @command(alpha_storage_command_group,
-            'delete',
-            specs=[
+         'delete',
+         specs=[
              ArgumentSpec(
                  name='namespace',
                  arg_names=['--namespace', '-n'],
@@ -107,9 +113,9 @@ def create_storage_account(context: Optional[str],
                  as_option=True
              ),
              ArgumentSpec(
-                    name='storage_id',
-                    help='The storage account id',
-                    as_option=False
+                 name='storage_id',
+                 help='The storage account id',
+                 as_option=False
              ),
              ArgumentSpec(
                  name='force',
@@ -119,7 +125,7 @@ def create_storage_account(context: Optional[str],
                  default=False
              )
 
-            ],
+         ],
          )
 def delete_storage_account(context: Optional[str],
                            endpoint_id: Optional[str],
@@ -129,8 +135,103 @@ def delete_storage_account(context: Optional[str],
     """Delete a storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
 
-    if not force and not click.confirm(f'Confirm deletion of storage account {storage_id}. This action cannot be undone.'):
+    if not force and not click.confirm(
+            f'Confirm deletion of storage account {storage_id}. This action cannot be undone.'):
         return
 
     client.delete_storage_account(storage_id)
     click.echo(f"Storage account {storage_id} deleted successfully")
+
+
+@command(alpha_storage_command_group,
+         'list',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='max_results',
+                 arg_names=['--max-results'],
+                 help='An optional flag to limit the total number of results.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='page',
+                 arg_names=['--page'],
+                 help='An optional flag to set the offset page number. This allows for jumping into an arbitrary page of results. Zero-based.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='page_size',
+                 arg_names=['--page-size'],
+                 help='An optional flag to set the page size returned by the server.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='sort',
+                 arg_names=['--sort'],
+                 help='An optional flag to define how results are sorted. '
+                      'The value should be in the form `column(:direction)?(;(column(:direction)?)*`'
+                      'If no directions are specified, the results are returned in ascending order'
+                      'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
+                      'e.g.: --sort "name:ASC", --sort "name;provider:DESC;"',
+
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='provider',
+                 arg_names=['--provider'],
+                 help='An optional flag to filter results by provider.',
+                 as_option=True
+             )
+         ]
+         )
+def list_storage_accounts(context: Optional[str],
+                          endpoint_id: Optional[str],
+                          namespace: Optional[str],
+                          max_results: Optional[int],
+                          page: Optional[int],
+                          page_size: Optional[int],
+                          sort: Optional[str],
+                          provider: Optional[str]):
+    """List storage accounts"""
+    client = get_storage_client(context, endpoint_id, namespace)
+    list_options = StorageListOptions(
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        provider=provider
+    )
+    show_iterator(output_format=OutputFormat.JSON,
+                  iterator=client.list_storage_accounts(list_options, max_results))
+
+
+@command(alpha_storage_command_group,
+         'describe',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             )
+         ]
+         )
+def get_storage_accounts(context: Optional[str],
+                         endpoint_id: Optional[str],
+                         namespace: Optional[str],
+                         storage_account_ids: List[str]):
+    """Get a storage account"""
+
+    if not storage_account_ids:
+        click.echo(style("You must specify at least one run ID", fg='red'), err=True, color=True)
+        exit(1)
+
+    client = get_storage_client(context, endpoint_id, namespace)
+    storage_accounts = [client.get_storage_account(storage_account_id) for storage_account_id in storage_account_ids]
+    click.echo(to_json(normalize(storage_accounts)))
