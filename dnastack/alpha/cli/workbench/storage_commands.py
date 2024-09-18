@@ -12,7 +12,7 @@ from dnastack.cli.helpers.exporter import to_json, normalize
 
 @click.group('storage')
 def alpha_storage_command_group():
-    """Interact with execution engines"""
+    """Interact with Storage accounts"""
 
 @click.group("aws")
 def alpha_aws_storage_create_group():
@@ -23,14 +23,6 @@ alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
 @command(alpha_aws_storage_create_group,
          'create',
          specs=[
-             ArgumentSpec(
-                 name='entrypoint',
-                 arg_names=['--entrypoint'],
-                 help='A required flag to set the entrypoint for the workflow. '
-                      'Needs to be a path of a file in a context of the workflow. E.g. main.wdl',
-                 as_option=True,
-                 required=True,
-             ),
              ArgumentSpec(
                  name='namespace',
                  arg_names=['--namespace', '-n'],
@@ -75,14 +67,14 @@ alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
              ),
          ]
          )
-def create_workflow(context: Optional[str],
-                    endpoint_id: Optional[str],
-                    namespace: Optional[str],
-                    storage_id: str,
-                    name: str,
-                    access_key_id: str,
-                    secret_access_key: str,
-                    region: str):
+def create_storage_account(context: Optional[str],
+                           endpoint_id: Optional[str],
+                           namespace: Optional[str],
+                           storage_id: str,
+                           name: str,
+                           access_key_id: str,
+                           secret_access_key: str,
+                           region: str):
     """Create a new storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
 
@@ -107,14 +99,6 @@ def create_workflow(context: Optional[str],
 @command(alpha_storage_command_group,
             'delete',
             specs=[
-ArgumentSpec(
-                 name='entrypoint',
-                 arg_names=['--entrypoint'],
-                 help='A required flag to set the entrypoint for the workflow. '
-                      'Needs to be a path of a file in a context of the workflow. E.g. main.wdl',
-                 as_option=True,
-                 required=True,
-             ),
              ArgumentSpec(
                  name='namespace',
                  arg_names=['--namespace', '-n'],
