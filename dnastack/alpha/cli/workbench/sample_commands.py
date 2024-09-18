@@ -56,7 +56,7 @@ def list_samples(context: Optional[str],
                  as_option=False
              )
          ])
-def describe_engines(context: Optional[str],
+def describe_samples(context: Optional[str],
                      endpoint_id: Optional[str],
                      namespace: Optional[str],
                      sample_id: str):
