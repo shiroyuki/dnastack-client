@@ -6,7 +6,7 @@ from click import style
 
 from dnastack.alpha.cli.workbench.utils import get_storage_client
 from dnastack.alpha.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
-    StorageListOptions, Platform
+    StorageListOptions, Platform, PlatformListOptions
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
@@ -229,7 +229,7 @@ def get_storage_accounts(context: Optional[str],
     """Get a storage account"""
 
     if not storage_account_ids:
-        click.echo(style("You must specify at least one run ID", fg='red'), err=True, color=True)
+        click.echo(style("You must specify at least one storage account ID", fg='red'), err=True, color=True)
         exit(1)
 
     client = get_storage_client(context, endpoint_id, namespace)
@@ -362,3 +362,106 @@ def delete_platform(context: Optional[str],
     client = get_storage_client(context, endpoint_id, namespace)
     client.delete_platform(platform_id, storage_id)
     click.echo(f"Platform {platform_id} deleted successfully")
+
+
+@command(alpha_platforms_storage_group,
+         'describe',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='storage_account_id',
+                 arg_names=['--storage-id'],
+                 help='The ID of the storage account associated with the platforms.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+         ]
+         )
+def describe_platform(context: Optional[str],
+                  endpoint_id: Optional[str],
+                  namespace: Optional[str],
+                  platform_ids: List[str],
+                  storage_account_id: str):
+    """Describe a Platform of storage account"""
+
+    if not platform_ids:
+        click.echo(style("You must specify at least one platform ID", fg='red'), err=True, color=True)
+        exit(1)
+
+    client = get_storage_client(context, endpoint_id, namespace)
+    platforms = [client.get_platform(platform_id, storage_account_id) for platform_id in platform_ids]
+    click.echo(to_json(normalize(platforms)))
+
+
+@command(alpha_platforms_storage_group,
+         'list',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='max_results',
+                 arg_names=['--max-results'],
+                 help='An optional flag to limit the total number of results.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='page',
+                 arg_names=['--page'],
+                 help='An optional flag to set the offset page number. This allows for jumping into an arbitrary page of results. Zero-based.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='page_size',
+                 arg_names=['--page-size'],
+                 help='An optional flag to set the page size returned by the server.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='sort',
+                 arg_names=['--sort'],
+                 help='An optional flag to define how results are sorted. '
+                      'The value should be in the form `column(:direction)?(;(column(:direction)?)*`'
+                      'If no directions are specified, the results are returned in ascending order'
+                      'To change the direction of ordering include the "ASC" or "DESC" string after the column. '
+                      'e.g.: --sort "name:ASC", --sort "name;provider:DESC;"',
+
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='storage_account_id',
+                 arg_names=['--storage-id'],
+                 help='An optional flag to define the ID of the storage account to retrieve platforms from.',
+                 as_option=True
+             ),
+         ]
+         )
+def list_platforms(context: Optional[str],
+                   endpoint_id: Optional[str],
+                   namespace: Optional[str],
+                   max_results: Optional[int],
+                   page: Optional[int],
+                   page_size: Optional[int],
+                   sort: Optional[str],
+                   storage_account_id: Optional[str]):
+    """List Platforms"""
+    client = get_storage_client(context, endpoint_id, namespace)
+    list_options = PlatformListOptions(
+        page=page,
+        page_size=page_size,
+        sort=sort,
+        storage_account_id=storage_account_id
+    )
+    show_iterator(output_format=OutputFormat.JSON,
+                  iterator=client.list_platforms(list_options, max_results))
