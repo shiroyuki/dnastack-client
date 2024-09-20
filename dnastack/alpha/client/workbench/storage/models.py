@@ -8,9 +8,9 @@ from dnastack.client.workbench.models import PaginatedResource
 
 
 class Provider(str, Enum):
-    aws = "aws"
-    gcp = "gcp"
-    azure = "azure"
+    aws = "AWS"
+    gcp = "GCP"
+    azure = "AZURE"
 
 
 class AwsStorageAccountCredentials(BaseModel):
@@ -40,3 +40,14 @@ class StorageListResponse(PaginatedResource):
 
     def items(self) -> List[Any]:
         return self.accounts
+
+
+class Platform(BaseModel):
+    id: Optional[str]
+    namespace: Optional[str]
+    storage_account_id: Optional[str]
+    name: Optional[str]
+    path: Optional[str]
+    type: Optional[str]
+    created_at: Optional[str]
+    last_updated_at: Optional[str]
