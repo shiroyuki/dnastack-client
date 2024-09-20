@@ -2,7 +2,8 @@ from typing import List, Optional, Iterator
 from urllib.parse import urljoin
 
 from dnastack import ServiceEndpoint
-from dnastack.alpha.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse
+from dnastack.alpha.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse, \
+    Platform
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
@@ -79,3 +80,18 @@ class StorageClient(BaseWorkbenchClient):
             list_options=list_options,
             trace=None,
             max_results=max_results))
+
+    def create_platform(self, platform: Platform) -> Platform:
+        """Create a new platform."""
+        with self.create_http_session() as session:
+            response = session.post(
+                urljoin(self.endpoint.url, f'{self.namespace}/storage/{platform.storage_account_id}/platforms'),
+                json=platform.dict()
+            )
+        return Platform(**response.json())
+
+    def delete_platform(self, platform_id: str, storage_account_id: str) -> None:
+        """Delete a platform."""
+        with self.create_http_session() as session:
+            session.delete(urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}/platforms/{platform_id}'))
+        return None

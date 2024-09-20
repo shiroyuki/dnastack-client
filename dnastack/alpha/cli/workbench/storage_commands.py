@@ -6,7 +6,7 @@ from click import style
 
 from dnastack.alpha.cli.workbench.utils import get_storage_client
 from dnastack.alpha.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
-    StorageListOptions
+    StorageListOptions, Platform
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
@@ -235,3 +235,130 @@ def get_storage_accounts(context: Optional[str],
     client = get_storage_client(context, endpoint_id, namespace)
     storage_accounts = [client.get_storage_account(storage_account_id) for storage_account_id in storage_account_ids]
     click.echo(to_json(normalize(storage_accounts)))
+
+
+@click.group("platforms")
+def alpha_platforms_storage_group():
+    """Interact with Platforms"""
+
+
+alpha_storage_command_group.add_command(alpha_platforms_storage_group)
+
+
+@command(alpha_platforms_storage_group,
+         'add',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='platform_id',
+                 help='The platform id',
+                 as_option=False
+             ),
+             ArgumentSpec(
+                 name='name',
+                 arg_names=['--name'],
+                 help='An human readable name for the platform',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='storage_id',
+                 arg_names=['--storage-id'],
+                 help='The ID of the storage account associated with the platform.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='platform_type',
+                 arg_names=['--platform'],
+                 help='The sequencing platform associated with the platform.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='path',
+                 arg_names=['--path'],
+                 help='The path in the storage account where platform data is located.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+         ]
+         )
+def add_platform(context: Optional[str],
+                 endpoint_id: Optional[str],
+                 namespace: Optional[str],
+                 platform_id: str,
+                 name: str,
+                 storage_id: str,
+                 platform_type: str,
+                 path: str):
+    """Create a new platform"""
+    client = get_storage_client(context, endpoint_id, namespace)
+    platform = Platform(
+        id=platform_id,
+        storage_account_id=storage_id,
+        name=name,
+        path=path,
+        type=platform_type.upper()
+    )
+
+    response = client.create_platform(platform)
+    click.echo(to_json(normalize(response)))
+
+
+@command(alpha_platforms_storage_group,
+         'delete',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='platform_id',
+                 help='The platform id',
+                 as_option=False
+             ),
+             ArgumentSpec(
+                 name='storage_id',
+                 arg_names=['--storage-id'],
+                 help='The ID of the storage account associated with the platform.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='force',
+                 arg_names=['--force'],
+                 help='Force the deletion without prompting for confirmation.',
+                 as_option=True,
+                 default=False
+             )
+         ]
+         )
+def delete_platform(context: Optional[str],
+                    endpoint_id: Optional[str],
+                    namespace: Optional[str],
+                    platform_id: str,
+                    storage_id: str,
+                    force: Optional[bool]):
+    """Delete a platform"""
+    if not force and not click.confirm(
+            f'Confirm deletion of platform {platform_id}. This action cannot be undone.'):
+        return
+
+    client = get_storage_client(context, endpoint_id, namespace)
+    client.delete_platform(platform_id, storage_id)
+    click.echo(f"Platform {platform_id} deleted successfully")
