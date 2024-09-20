@@ -51,3 +51,15 @@ class Platform(BaseModel):
     type: Optional[str]
     created_at: Optional[str]
     last_updated_at: Optional[str]
+
+
+class PlatformListOptions(BaseListOptions):
+    storage_account_id: Optional[str]
+    sort: Optional[str]
+
+
+class PlatformListResponse(PaginatedResource):
+    platforms: List[Platform]
+
+    def items(self) -> List[Any]:
+        return self.platforms
