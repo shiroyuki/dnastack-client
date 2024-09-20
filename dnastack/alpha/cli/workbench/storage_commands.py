@@ -18,16 +18,16 @@ def alpha_storage_command_group():
     """Interact with Storage accounts"""
 
 
-@click.group("aws")
-def alpha_aws_storage_create_group():
-    """Interact with AWS storage"""
+@click.group("add")
+def alpha_add_storage_group():
+    """Add storage account"""
 
 
-alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
+alpha_storage_command_group.add_command(alpha_add_storage_group)
 
 
-@command(alpha_aws_storage_create_group,
-         'create',
+@command(alpha_add_storage_group,
+         'aws',
          specs=[
              ArgumentSpec(
                  name='namespace',
@@ -73,15 +73,15 @@ alpha_storage_command_group.add_command(alpha_aws_storage_create_group)
              ),
          ]
          )
-def create_storage_account(context: Optional[str],
-                           endpoint_id: Optional[str],
-                           namespace: Optional[str],
-                           storage_id: str,
-                           name: str,
-                           access_key_id: str,
-                           secret_access_key: str,
-                           region: str):
-    """Create a new storage account"""
+def add_aws_storage_account(context: Optional[str],
+                            endpoint_id: Optional[str],
+                            namespace: Optional[str],
+                            storage_id: str,
+                            name: str,
+                            access_key_id: str,
+                            secret_access_key: str,
+                            region: str):
+    """Create a new aws storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
 
     credentials = AwsStorageAccountCredentials(
