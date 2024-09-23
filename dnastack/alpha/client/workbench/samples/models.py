@@ -2,9 +2,9 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from typing import List, Optional
+from typing import List, Optional, Any
 
-from dnastack.client.workbench.models import BaseListOptions
+from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 
 
 class SampleListOptions(BaseListOptions):
@@ -18,16 +18,15 @@ class SampleFile(BaseModel):
 class Sample(BaseModel):
     id: str
 
-    repository_id: str
-
-    instrument_id: str
-
     created_at: Optional[datetime]
 
-    files: List[SampleFile]
+    last_updated_at: Optional[datetime]
+
+    files: Optional[List[SampleFile]]
 
 
-class SampleListResponse(BaseModel):
+class SampleListResponse(PaginatedResource):
     samples: List[Sample]
 
-    next_page_token: Optional[str] = None
+    def items(self) -> List[Any]:
+        return self.samples

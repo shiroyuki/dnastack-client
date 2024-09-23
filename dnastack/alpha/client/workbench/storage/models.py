@@ -7,10 +7,18 @@ from dnastack.client.workbench.models import BaseListOptions
 from dnastack.client.workbench.models import PaginatedResource
 
 
-class Provider(str, Enum):
-    aws = "AWS"
-    gcp = "GCP"
-    azure = "AZURE"
+class CaseInsensitiveEnum(Enum):
+    @classmethod
+    def _missing_(cls, value):
+        for member in cls:
+            if member.value.lower() == value.lower():
+                return member
+        raise ValueError(f"{value} is not a valid {cls.__name__}")
+
+class Provider(str, CaseInsensitiveEnum):
+    aws = "aws"
+    gcp = "gcp"
+    azure = "azure"
 
 
 class AwsStorageAccountCredentials(BaseModel):

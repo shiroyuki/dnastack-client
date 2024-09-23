@@ -158,7 +158,7 @@ class WorkbenchResultLoader(ResultLoader):
 
             self.logger.debug(f'Response:\n{pformat(response_body, indent=2)}')
 
-            self.__next_page_url = api_response.pagination.next_page_url or None
+            self.__next_page_url = api_response.pagination.next_page_url if api_response.pagination and api_response.pagination.next_page_url else None
             if not self.__next_page_url:
                 self.__active = False
 
