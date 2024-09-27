@@ -4,6 +4,7 @@ from typing import Optional, Iterable
 
 import click
 from click import style
+from dnastack.alpha.client.workbench.samples.models import Sample
 
 from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
     UnableToFindParameterError
@@ -517,6 +518,13 @@ def get_run_logs(context: Optional[str],
                  default=False,
                  required=False
              ),
+             ArgumentSpec(
+                 name='sample_ids',
+                 arg_names=['--samples'],
+                 help='An optional flag that accepts a comma separated list of Sample IDs to use in the given workflow.',
+                 as_option=True,
+                 required=False,
+             ),
          ])
 def submit_batch(context: Optional[str],
                  endpoint_id: Optional[str],
@@ -528,7 +536,8 @@ def submit_batch(context: Optional[str],
                  tags: JsonLike,
                  workflow_params,
                  overrides,
-                 dry_run: bool):
+                 dry_run: bool,
+                 sample_ids: Optional[str]):
     """
     Submit one or more workflows for execution
 
@@ -573,7 +582,8 @@ def submit_batch(context: Optional[str],
         default_workflow_engine_parameters=default_workflow_engine_parameters,
         default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
         default_tags=tags.parsed_value() if tags else None,
-        run_requests=list()
+        run_requests=list(),
+        samples=[Sample(id=sample_id) for sample_id in sample_ids.split(',')] if sample_ids else None
     )
 
     for workflow_param in workflow_params:

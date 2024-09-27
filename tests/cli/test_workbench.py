@@ -1,18 +1,17 @@
 import datetime
-import io
 import json
-import logging
 import os
 import shutil
-import sys
 import tempfile
 import zipfile
 from datetime import date
 
-from dnastack.alpha.client.workflow.models import Workflow, WorkflowVersion
+from dnastack.alpha.client.workbench.samples.models import Sample
+
 from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
     MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
     BatchRunRequest, EngineHealthCheck, RunEvent, State
+from dnastack.client.workbench.workflow.models import Workflow, WorkflowVersion
 from .base import WorkbenchCliTestCase
 
 
@@ -456,11 +455,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 '--url', hello_world_workflow_url,
                 '--workflow-params', 'test.hello.name=foo',
                 '--tags', 'foo=bar',
+                '--samples', 'HG001,HG002',
             ))
             self.assertEqual(len(submitted_batch_request.run_requests), 1, 'Expected exactly one run request submitted.')
             self.assertEqual(submitted_batch_request.run_requests[0].workflow_params, {'test.hello.name': 'foo'}, "Expected workflow params to be the same.")
             self.assertEqual(submitted_batch_request.workflow_url, hello_world_workflow_url, "Expected workflow url to be the same.")
             self.assertEqual(submitted_batch_request.default_tags, {'foo': 'bar'}, "Expected tags to be the same.")
+            self.assertEqual(submitted_batch_request.samples, [Sample(id='HG001'),Sample(id='HG002')], "Expected created samples classes with the same ids.")
 
         test_submit_batch_with_dry_run_option()
 
