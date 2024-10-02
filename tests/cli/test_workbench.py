@@ -455,13 +455,17 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 '--url', hello_world_workflow_url,
                 '--workflow-params', 'test.hello.name=foo',
                 '--tags', 'foo=bar',
-                '--samples', 'HG001,HG002',
+                '--samples', 'HG001,HG002,father:HG003,mother:HG004',
             ))
             self.assertEqual(len(submitted_batch_request.run_requests), 1, 'Expected exactly one run request submitted.')
             self.assertEqual(submitted_batch_request.run_requests[0].workflow_params, {'test.hello.name': 'foo'}, "Expected workflow params to be the same.")
             self.assertEqual(submitted_batch_request.workflow_url, hello_world_workflow_url, "Expected workflow url to be the same.")
             self.assertEqual(submitted_batch_request.default_tags, {'foo': 'bar'}, "Expected tags to be the same.")
-            self.assertEqual(submitted_batch_request.samples, [Sample(id='HG001'),Sample(id='HG002')], "Expected created samples classes with the same ids.")
+            self.assertEqual(submitted_batch_request.samples, [
+                Sample(id='HG001',father_id='HG003',mother_id='HG004'),
+                Sample(id='HG002',father_id='HG003',mother_id='HG004'),
+                Sample(id='HG003'),
+                Sample(id='HG004')], "Expected created samples classes with the same ids and correctly set father and mother relationships.")
 
         test_submit_batch_with_dry_run_option()
 
