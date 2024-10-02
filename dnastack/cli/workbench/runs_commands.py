@@ -546,6 +546,29 @@ def submit_batch(context: Optional[str],
 
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
+    def parse_samples():
+        if not sample_ids:
+            return None
+
+        sample_list = sample_ids.split(',')
+        father_id = None
+        mother_id = None
+        samples = []
+        for sample_id in sample_list:
+            if sample_id.startswith('father:'):
+                father_id = sample_id.split('father:', 1)[1]
+            elif sample_id.startswith('mother:'):
+                mother_id = sample_id.split('mother:', 1)[1]
+
+        for sample_id in sample_list:
+            if sample_id.startswith('father:'):
+                samples.append(Sample(id=father_id))
+            elif sample_id.startswith('mother:'):
+                samples.append(Sample(id=mother_id))
+            else:
+                samples.append(Sample(id=sample_id, father_id=father_id, mother_id=mother_id))
+        return samples
+
     def get_default_engine_id():
         list_options = ExecutionEngineListOptions()
         engines = ewes_client.list_engines(list_options)
@@ -583,7 +606,7 @@ def submit_batch(context: Optional[str],
         default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
         default_tags=tags.parsed_value() if tags else None,
         run_requests=list(),
-        samples=[Sample(id=sample_id) for sample_id in sample_ids.split(',')] if sample_ids else None
+        samples=parse_samples()
     )
 
     for workflow_param in workflow_params:

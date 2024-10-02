@@ -17,12 +17,11 @@ class SampleFile(BaseModel):
 
 class Sample(BaseModel):
     id: str
-
     created_at: Optional[datetime]
-
     last_updated_at: Optional[datetime]
-
     files: Optional[List[SampleFile]]
+    father_id: Optional[str]
+    mother_id: Optional[str]
 
 
 class SampleListResponse(PaginatedResource):
