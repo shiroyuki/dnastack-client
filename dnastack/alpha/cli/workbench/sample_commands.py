@@ -11,7 +11,7 @@ from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 
 @click.group('samples')
 def alpha_samples_command_group():
-    """ Interact with samples """
+    """ Interact with samples   """
 
 
 @command(alpha_samples_command_group,
