@@ -148,23 +148,7 @@ def submit_batch(context: Optional[str],
             return None
 
         sample_list = sample_ids.split(',')
-        father_id = None
-        mother_id = None
-        samples = []
-        for sample_id in sample_list:
-            if sample_id.startswith('father:'):
-                father_id = sample_id.split('father:', 1)[1]
-            elif sample_id.startswith('mother:'):
-                mother_id = sample_id.split('mother:', 1)[1]
-
-        for sample_id in sample_list:
-            if sample_id.startswith('father:'):
-                samples.append(Sample(id=father_id))
-            elif sample_id.startswith('mother:'):
-                samples.append(Sample(id=mother_id))
-            else:
-                samples.append(Sample(id=sample_id, father_id=father_id, mother_id=mother_id))
-        return samples
+        return [Sample(id=sample_id) for sample_id in sample_list]
 
     def get_default_engine_id():
         list_options = ExecutionEngineListOptions()
