@@ -1,12 +1,12 @@
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Any
-import re
 
 from pydantic import BaseModel, Field
 
-from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
+from dnastack.alpha.client.workbench.samples.models import Sample
 from dnastack.client.service_registry.models import Service
+from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 from dnastack.common.json_argument_parser import JSONType
 
 
@@ -165,6 +165,7 @@ class BatchRunRequest(BaseModel):
     default_workflow_engine_parameters: Optional[Dict]
     default_tags: Optional[Dict]
     run_requests: Optional[List[ExtendedRunRequest]]
+    samples: Optional[List[Sample]]
 
 
 class BatchRunResponse(BaseModel):

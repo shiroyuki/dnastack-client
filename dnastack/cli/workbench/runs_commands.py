@@ -4,6 +4,7 @@ from typing import Optional, Iterable
 
 import click
 from click import style
+from dnastack.alpha.client.workbench.samples.models import Sample
 
 from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
     UnableToFindParameterError

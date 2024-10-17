@@ -77,6 +77,7 @@ class WorkbenchResultLoader(ResultLoader):
         self.__active = True
         self.__visited_urls: List[str] = list()
         self.__trace = trace
+        self.__next_page_url = None
 
         if not self.__list_options:
             self.__list_options = self.get_new_list_options()
@@ -104,9 +105,15 @@ class WorkbenchResultLoader(ResultLoader):
             current_url = self.__service_url
 
             try:
-                response = session.get(current_url,
-                                       params=self.__list_options,
-                                       trace_context=self.__trace)
+
+                if not self.__next_page_url:
+                    response = session.get(current_url,
+                                           params=self.__list_options,
+                                           trace_context=self.__trace)
+                else:
+                    current_url = self.__next_page_url
+                    response = session.get(self.__next_page_url,
+                                           trace_context=self.__trace)
             except HttpError as e:
                 status_code = e.response.status_code
                 response_text = e.response.text
@@ -151,8 +158,8 @@ class WorkbenchResultLoader(ResultLoader):
 
             self.logger.debug(f'Response:\n{pformat(response_body, indent=2)}')
 
-            self.__list_options.page_token = api_response.next_page_token or None
-            if not self.__list_options.page_token:
+            self.__next_page_url = api_response.pagination.next_page_url if api_response.pagination and api_response.pagination.next_page_url else None
+            if not self.__next_page_url:
                 self.__active = False
 
             items = api_response.items()
