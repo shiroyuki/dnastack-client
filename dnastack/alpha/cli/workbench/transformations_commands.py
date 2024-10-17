@@ -1,3 +1,6 @@
+import os
+import re
+
 import click
 from typing import Optional, List
 
@@ -8,6 +11,25 @@ from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
+
+
+def is_file_path(script: str) -> bool:
+    return os.path.isfile(script)
+
+
+class JavaScriptFunctionExtractor:
+    FUNCTION_PATTERN = re.compile(r'(?:let|const)\s*\w+\s*=\s*(\(.*\)\s*=>\s*\{.*\})', re.DOTALL)
+
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+
+    def extract_first_function(self) -> Optional[str]:
+        with open(self.file_path, 'r') as file:
+            content = file.read()
+        match = self.FUNCTION_PATTERN.search(content)
+        if match:
+            return match.group(1)
+        return None
 
 
 @click.group('transformations')
@@ -202,12 +224,19 @@ def add_workflow_transformation(context: Optional[str],
     """Create a new workflow transformation"""
     client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
+    if script.startswith("@"):
+        extractor = JavaScriptFunctionExtractor(script.split("@")[1])
+        script_content = extractor.extract_first_function()
+    else:
+        script_content = script
+
     workflow_transformation = WorkflowTransformationCreate(
         id=transformation_id,
         next_transformation_id=next_transformation_id,
-        script=script,
+        script=script_content,
         labels=labels
     )
 
     response = client.create_workflow_transformation(workflow_id=workflow_id, workflow_version_id=version_id, workflow_transformation_create_request=workflow_transformation)
     click.echo(to_json(normalize(response)))
+
