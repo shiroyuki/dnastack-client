@@ -4,8 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional, Union
 
-from dnastack.alpha.client.workflow.models import WorkflowFile, WorkflowFileType
-from dnastack.alpha.client.workflow.utils import WorkflowSourceLoader, WorkflowSourceLoaderError
+from dnastack.client.workbench.workflow.models import WorkflowFile, WorkflowFileType
+from dnastack.client.workbench.workflow.utils import WorkflowSourceLoader, WorkflowSourceLoaderError
 
 
 class TestWorkflowFile(WorkflowFile):
