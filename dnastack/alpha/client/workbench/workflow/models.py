@@ -2,6 +2,7 @@ from typing import Optional, List, Dict
 
 from pydantic import BaseModel
 
+from dnastack.client.workbench.models import PaginatedResource, BaseListOptions
 from dnastack.client.workbench.workflow.models import WorkflowVersion
 
 
@@ -17,7 +18,6 @@ class ResolvedWorkflow(BaseModel):
     authors: Optional[List[str]]
     etag: Optional[str]
 
-
 class WorkflowDefaultsSelector(BaseModel):
     engine: Optional[str]
     provider: Optional[str]
@@ -32,3 +32,25 @@ class WorkflowDefaults(BaseModel):
     updated_at: Optional[str]
     selector: Optional[WorkflowDefaultsSelector]
     values: Optional[Dict]
+    etag: Optional[str]
+
+
+class WorkflowDefaultsCreateRequest(BaseModel):
+    id: Optional[str]
+    name: Optional[str]
+    selector: Optional[WorkflowDefaultsSelector]
+    values: Optional[Dict]
+
+class WorkflowDefaultsUpdateRequest(BaseModel):
+    name: Optional[str]
+    selector: Optional[WorkflowDefaultsSelector]
+    values: Optional[Dict]
+
+class WorkflowDefaultsListResponse(PaginatedResource):
+    defaults: List[WorkflowDefaults]
+
+    def items(self) -> List[WorkflowDefaults]:
+        return self.defaults
+
+class WorkflowDefaultsListOptions(BaseListOptions):
+    sort: Optional[str]

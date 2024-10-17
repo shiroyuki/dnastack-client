@@ -8,7 +8,7 @@ from dnastack.alpha.client.workbench.workflow.client import AlphaWorkflowClient
 from dnastack.cli.helpers.client_factory import ConfigurationBasedClientFactory
 from dnastack.cli.workbench.utils import _populate_workbench_endpoint, get_user_client
 
-WORKBENCH_HOSTNAME = "workbench.dnastack.com"
+WORKBENCH_HOSTNAME = "workbench.omics.ai"
 
 
 def get_storage_client(context_name: Optional[str] = None,
@@ -51,3 +51,4 @@ def get_alpha_workflow_client(context_name: Optional[str] = None,
     except AssertionError:
         _populate_workbench_endpoint()
         return factory.get(AlphaWorkflowClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
+
