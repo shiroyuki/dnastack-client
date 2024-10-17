@@ -19,7 +19,7 @@ class WorkflowSourceLoaderError(Exception):
 
 
 class WorkflowSourceLoader(object):
-    def __init__(self, entrypoint, source_files: List[Path]):
+    def __init__(self, entrypoint=None, source_files: List[Path]=None):
         if not source_files:
             raise WorkflowSourceLoaderError("Cannot load workflow source files. At least one file must be specified")
         self.source_files = source_files

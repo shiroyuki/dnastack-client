@@ -61,7 +61,7 @@ class WorkflowFile(BaseModel):
     path: str
     file_type: WorkflowFileType
     base64_content: Optional[str] = None
-    # content: Optional[str] = None
+    content: Optional[str] = None
     file_url: Optional[str] = None
     content_type: Optional[str] = None
 

@@ -42,6 +42,9 @@ def get_samples_client(context_name: Optional[str] = None,
 def get_alpha_workflow_client(context_name: Optional[str] = None,
                                endpoint_id: Optional[str] = None,
                                namespace: Optional[str] = None) -> AlphaWorkflowClient:
+    if not namespace:
+        user_client = get_user_client(context_name=context_name, endpoint_id=endpoint_id)
+        namespace = user_client.get_user_config().default_namespace
     factory: ConfigurationBasedClientFactory = container.get(ConfigurationBasedClientFactory)
     try:
         return factory.get(AlphaWorkflowClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
