@@ -162,6 +162,7 @@ o.txt
 tmp/
 test.py
 download_input_file.txt
+*.iml
 
 # DOWNLOAD FILES FROM TESTS
 *.fasta

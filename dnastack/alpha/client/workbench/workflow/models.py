@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 from pydantic import BaseModel
 
@@ -23,6 +23,7 @@ class WorkflowDefaultsSelector(BaseModel):
     provider: Optional[str]
     region: Optional[str]
 
+
 class WorkflowDefaults(BaseModel):
     id: Optional[str]
     name: Optional[str]
@@ -41,10 +42,12 @@ class WorkflowDefaultsCreateRequest(BaseModel):
     selector: Optional[WorkflowDefaultsSelector]
     values: Optional[Dict]
 
+
 class WorkflowDefaultsUpdateRequest(BaseModel):
     name: Optional[str]
     selector: Optional[WorkflowDefaultsSelector]
     values: Optional[Dict]
+
 
 class WorkflowDefaultsListResponse(PaginatedResource):
     defaults: List[WorkflowDefaults]
@@ -52,5 +55,34 @@ class WorkflowDefaultsListResponse(PaginatedResource):
     def items(self) -> List[WorkflowDefaults]:
         return self.defaults
 
+
 class WorkflowDefaultsListOptions(BaseListOptions):
     sort: Optional[str]
+
+
+class WorkflowTransformationCreate(BaseModel):
+    id: Optional[str]
+    next_transformation_id: Optional[str]
+    script: Optional[str]
+    labels: Optional[List[str]]
+
+
+class WorkflowTransformation(BaseModel):
+    id: Optional[str]
+    workflow_id: Optional[str]
+    workflow_version_id: Optional[str]
+    next_transformation_id: Optional[str]
+    script: Optional[str]
+    labels: Optional[List[str]]
+    created_at: Optional[str]
+
+
+class WorkflowTransformationListOptions(BaseListOptions):
+    pass
+
+
+class WorkflowTransformationListResponse(PaginatedResource):
+    transformations: List[WorkflowTransformation]
+
+    def items(self) -> List[Any]:
+        return self.transformations
