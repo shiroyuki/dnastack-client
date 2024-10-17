@@ -7,6 +7,7 @@ import tempfile
 import zipfile
 from datetime import date
 
+from build.lib.dnastack.alpha.client.workbench.workflow.models import WorkflowDefaults
 from dnastack.alpha.client.workbench.samples.models import Sample
 from dnastack.alpha.client.workbench.storage.models import StorageAccount, Provider, Platform
 from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, \
@@ -27,6 +28,55 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         super().setUp()
         self.invoke('use', f'{self.workbench_base_url}/api/service-registry')
         self.submit_hello_world_workflow_batch()
+
+    def _create_workflow_files(self):
+        main_wdl_filename = "main.wdl"
+        with open(main_wdl_filename, 'w') as main_wdl_file:
+            main_wdl_file.write("""
+            version 1.0
+
+            workflow no_task_workflow {
+                input {
+                    String first_name
+                    String? last_name
+                }
+            }
+            """)
+        with zipfile.ZipFile('workflow.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(main_wdl_filename)
+
+    def _create_description_file(self):
+        with open('description.md', 'w') as description_file:
+            description_file.write("""
+            TITLE
+            DESCRIPTION
+            """)
+
+    def _create_workflow(self, use_zip_file: bool = False) -> Workflow:
+        return Workflow(**self.simple_invoke(
+            'workbench', 'workflows', 'create',
+            '--entrypoint', "main.wdl",
+            'workflow.zip' if use_zip_file else "main.wdl",
+        ))
+
+    def _create_workflow_version(self, workflow_id, name, use_zip_file: bool = False) -> WorkflowVersion:
+        return WorkflowVersion(**self.simple_invoke(
+            'workbench', 'workflows', 'versions', 'create',
+            '--workflow', workflow_id,
+            '--name', name,
+            '--entrypoint', "main.wdl",
+            'workflow.zip' if use_zip_file else "main.wdl",
+        ))
+
+    def _create_inputs_json_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as inputs_json_file:
+            inputs_json_file.write(b'{"test.hello.name": "bar"}')
+            return inputs_json_file.name
+
+    def _create_inputs_text_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
+            input_text_fp.write(b'bar')
+            return input_text_fp.name
 
     def test_runs_list(self):
         runs = self.simple_invoke('workbench', 'runs', 'list')
@@ -90,7 +140,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
                                 f'Expected two different runs when ordered. '
                                 f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
-            
+
             # Test without order flag
             runs = self.simple_invoke(
                 'workbench', 'runs', 'list',
@@ -266,19 +316,10 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         ))
 
     def test_runs_submit(self):
-        def _create_inputs_json_file():
-            with tempfile.NamedTemporaryFile(delete=False) as inputs_json_file:
-                inputs_json_file.write(b'{"test.hello.name": "bar"}')
-                return inputs_json_file.name
-
-        def _create_inputs_text_file():
-            with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
-                input_text_fp.write(b'bar')
-                return input_text_fp.name
 
         hello_world_workflow_url = self.get_hello_world_workflow_url()
-        input_json_file = _create_inputs_json_file()
-        input_text_file = _create_inputs_text_file()
+        input_json_file = self._create_inputs_json_file()
+        input_text_file = self._create_inputs_text_file()
 
         def test_submit_batch_with_single_key_value_params():
             submitted_batch = BatchRunResponse(**self.simple_invoke(
@@ -428,7 +469,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 '--engine-params', f'goodbye=moon,'
                                    f'hello=world,'
                                    f'{self.engine_params.id},'
-                                   f'{json.dumps({"hello":"world"})},'
+                                   f'{json.dumps({"hello": "world"})},'
                                    f'@{input_json_file}',
             ))
             self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
@@ -550,49 +591,11 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         test_multiple_workflows()
 
     def test_workflows_create_and_add_version(self):
-        def _create_workflow_files():
-            main_wdl_filename = "main.wdl"
-            with open(main_wdl_filename, 'w') as main_wdl_file:
-                main_wdl_file.write("""
-                version 1.0
 
-                workflow no_task_workflow {
-                    input {
-                        String first_name
-                        String? last_name
-                    }
-                }
-                """)
-            with zipfile.ZipFile('workflow.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
-                zipf.write(main_wdl_filename)
-
-        def _create_description_file():
-            with open('description.md', 'w') as description_file:
-                description_file.write("""
-                TITLE
-                DESCRIPTION
-                """)
-
-        def _create_workflow(use_zip_file: bool = False) -> Workflow:
-            return Workflow(**self.simple_invoke(
-                'workbench', 'workflows', 'create',
-                '--entrypoint', "main.wdl",
-                'workflow.zip' if use_zip_file else "main.wdl",
-            ))
-
-        def _create_workflow_version(workflow_id, name, use_zip_file: bool = False) -> WorkflowVersion:
-            return WorkflowVersion(**self.simple_invoke(
-                'workbench', 'workflows', 'versions', 'create',
-                '--workflow', workflow_id,
-                '--name', name,
-                '--entrypoint', "main.wdl",
-                'workflow.zip' if use_zip_file else "main.wdl",
-            ))
-
-        _create_workflow_files()
-        _create_description_file()
+        self._create_workflow_files()
+        self._create_description_file()
         # Used in other tests
-        created_workflow = _create_workflow()
+        created_workflow = self._create_workflow()
 
         def test_create_workflow():
             created_workflow_from_file = Workflow(**self.simple_invoke(
@@ -739,7 +742,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         test_edit_version()
 
         def test_delete_version():
-            version_to_delete = _create_workflow_version(created_workflow.internalId, "to-delete")
+            version_to_delete = self._create_workflow_version(created_workflow.internalId, "to-delete")
             output = self.simple_invoke(
                 'workbench', 'workflows', 'versions', 'delete',
                 '--force', '--workflow', created_workflow.internalId,
@@ -779,7 +782,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         test_delete_version()
 
         def test_delete_workflow():
-            workflow_to_delete = _create_workflow()
+            workflow_to_delete = self._create_workflow()
             output = self.simple_invoke(
                 'workbench', 'workflows', 'delete',
                 '--force', workflow_to_delete.internalId,
@@ -836,6 +839,140 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue(len(result) == 1, "Expected the number of workflow versions to be exactly 1")
         self.assertEqual(result[0].id, workflow.versions[0].id)
 
+    def test_create_workflow_defaults(self):
+        self._create_workflow_files()
+        self._create_description_file()
+        created_workflow = self._create_workflow()
+
+        ## JSON inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
+        ))
+
+        self.assertEqual(created_default.name, "foo")
+        self.assertIsNotNone(created_default.id)
+        self.assertEqual(created_default.values, {"foo": "bar"})
+        ## JSON File inputs
+        input_json = self._create_inputs_json_file()
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "foo", "--values",
+            f"@{input_json}"))
+        self.assertEqual(created_default.name, "foo2")
+        self.assertIsNotNone(created_default.id)
+        self.assert_not_empty(created_default.values)
+        ## JSON Key inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo3", "--engine", "foo3", "--values",
+            "foo=bar"
+        ))
+        self.assertEqual(created_default.name, "foo3")
+        self.assertIsNotNone(created_default.id)
+        self.assertEqual(created_default.values, {"foo": "bar"})
+
+    def test_list_workflow_defaults(self):
+        self._create_workflow_files()
+        self._create_description_file()
+        created_workflow = self._create_workflow()
+
+        ## JSON inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
+        ))
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "2", "--values",
+            '{"foo": "bar"}'
+        ))
+
+        list_result = [WorkflowDefaults(**workflow_default) for workflow_default in self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "list", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id)]
+
+        self.assert_not_empty(list_result)
+        self.assertTrue(any(default.id == created_default.id for default in list_result))
+
+    def test_describe_workflow_defaults(self):
+        self._create_workflow_files()
+        self._create_description_file()
+        created_workflow = self._create_workflow()
+
+        ## JSON inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
+        ))
+
+        describe_result = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "describe",
+            "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
+            created_default.id
+        )[0])
+
+        self.assertEqual(describe_result.id, created_default.id)
+        self.assertEqual(describe_result.name, created_default.name)
+        self.assertEqual(describe_result.values, created_default.values)
+
+    def test_update_workflow_defaults(self):
+        self._create_workflow_files()
+        self._create_description_file()
+        created_workflow = self._create_workflow()
+
+        ## JSON inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
+        ))
+
+        updated_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "update", created_default.id, "--name", "foo2",
+            "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
+            "--values", '{"foo": "bar2"}'
+        ))
+
+        self.assertEqual(updated_default.name, "foo2")
+        self.assertEqual(updated_default.values, {"foo": "bar2"})
+
+    def test_delete_workflow_defaults(self):
+        self._create_workflow_files()
+        self._create_description_file()
+        created_workflow = self._create_workflow()
+
+        ## JSON inputs
+        created_default = WorkflowDefaults(**self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            created_workflow.internalId,
+            "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
+        ))
+
+        message = self.simple_invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "delete",
+            "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
+            created_default.id, "--force"
+        )
+
+        self.assertTrue("Deleted" in message)
+
+        result = self.invoke(
+            "alpha", "workbench", "workflows", "versions", "defaults", "describe",
+            "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
+            created_default.id,
+            bypass_error=True
+        )
+
+        self.assertNotEqual(result.exit_code, 0)
+
     def test_engine_list(self):
         engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
             'workbench', 'engines', 'list'
@@ -877,10 +1014,12 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         )]
 
         self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
-        self.assertTrue(any(health_check.outcome == self.health_checks["outcome"] for health_check in engine_health_checks_result))
+        self.assertTrue(
+            any(health_check.outcome == self.health_checks["outcome"] for health_check in engine_health_checks_result))
 
         engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
-            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id, '--outcome', 'SUCCESS', '--check-type', 'PERMISSIONS'
+            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id, '--outcome',
+            'SUCCESS', '--check-type', 'PERMISSIONS'
         )]
 
         self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
@@ -1023,6 +1162,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 _delete_files()
             finally:
                 os.chdir(original_dir)
+
     def test_namespaces(self):
         def test_get_default_namespace():
             result = self.simple_invoke('workbench', 'namespaces', 'get-default')
@@ -1063,7 +1203,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
                 'alpha', 'workbench', 'storage', 'describe', created_storage_account.id
             )]
-            self.assertEqual(len(storage_accounts), 1, f'Expected exactly one storage account. Found {storage_accounts}')
+            self.assertEqual(len(storage_accounts), 1,
+                             f'Expected exactly one storage account. Found {storage_accounts}')
             self.assertEqual(storage_accounts[0].id, created_storage_account.id)
             self.assertEqual(storage_accounts[0].name, created_storage_account.name)
             self.assertEqual(storage_accounts[0].provider, Provider.aws)
@@ -1078,7 +1219,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                     '--name', 'Test Platform',
                     '--storage-id', created_storage_account.id,
                     '--platform', 'PACBIO',
-                    '--path', env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
+                    '--path',
+                    env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
                 ))
 
             created_platform = _create_platform()
@@ -1176,7 +1318,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
                 'alpha', 'workbench', 'storage', 'list'
             )]
-            self.assertTrue(created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
+            self.assertTrue(
+                created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
 
             result = self.invoke(
                 'alpha', 'workbench', 'storage', 'describe', created_storage_account.id,
