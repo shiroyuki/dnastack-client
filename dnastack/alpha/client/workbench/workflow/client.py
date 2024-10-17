@@ -58,7 +58,6 @@ class AlphaWorkflowClient(WorkflowClient):
     def list_workflow_defaults(self, workflow_id: str, version_id: str, max_results: int,
                                list_options: WorkflowDefaultsListOptions) -> Iterator[
         WorkflowDefaults]:
-        """List storage accounts."""
         return ResultIterator(WorkflowDefaultsListResultLoader(
             service_url=urljoin(self.endpoint.url,
                                 f'{self.namespace}/workflows/{workflow_id}/versions/{version_id}/defaults'),
