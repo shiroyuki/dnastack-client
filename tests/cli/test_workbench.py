@@ -7,10 +7,9 @@ import tempfile
 import zipfile
 from datetime import date
 
-from build.lib.dnastack.alpha.client.workbench.workflow.models import WorkflowDefaults
 from dnastack.alpha.client.workbench.samples.models import Sample
 from dnastack.alpha.client.workbench.storage.models import StorageAccount, Provider, Platform
-from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformation
+from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformation, WorkflowDefaults
 from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, \
     BatchRunResponse, \
     MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
@@ -78,6 +77,26 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
             input_text_fp.write(b'bar')
             return input_text_fp.name
+
+    def _create_transformation_script_file(self):
+        main_wdl_filename = "transformation.js"
+        with open(main_wdl_filename, 'w') as main_wdl_file:
+            main_wdl_file.write("""
+                            const myTransformation = (context) => { 
+                                return { 'baz': 'waz' } 
+                            }
+                            """)
+
+    def _create_workflow_transformation(self, workflow_id, version_id, script_from_file: bool = False) -> WorkflowTransformation:
+        return WorkflowTransformation(**self.simple_invoke(
+            'alpha', 'workbench', 'transformations', 'create',
+            '--workflow', workflow_id,
+            '--version', version_id,
+            '--label', "test",
+            '--label', "can-be-deleted",
+            "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
+        ))
+
 
     def test_runs_list(self):
         runs = self.simple_invoke('workbench', 'runs', 'list')
@@ -1332,120 +1351,99 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         test_storage_delete()
 
-    def test_workflow_transformations(self):
-        def _create_workflow_files():
-            main_wdl_filename = "main.wdl"
-            with open(main_wdl_filename, 'w') as main_wdl_file:
-                main_wdl_file.write("""
-                        version 1.0
-        
-                        workflow no_task_workflow {
-                            input {
-                                String first_name
-                                String? last_name
-                            }
-                        }
-                        """)
+    def test_workflow_transformation_create(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
 
-        def _create_workflow() -> Workflow:
-            return Workflow(**self.simple_invoke(
-                'workbench', 'workflows', 'create',
-                '--entrypoint', "main.wdl",
-                "main.wdl",
-            ))
+        created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
-        def _create_workflow_version(workflow_id, name) -> WorkflowVersion:
-            return WorkflowVersion(**self.simple_invoke(
-                'workbench', 'workflows', 'versions', 'create',
-                '--workflow', workflow_id,
-                '--name', name,
-                '--entrypoint', "main.wdl",
-                "main.wdl",
-            ))
+        self.assertIsNotNone(created_workflow_transformation.id)
+        self.assertEqual(created_workflow_transformation.workflow_id, workflow.internalId)
+        self.assertEqual(created_workflow_transformation.workflow_version_id, workflow_version.id)
+        self.assertEqual(created_workflow_transformation.script, "(context) => { return { 'foo': 'bar' } }")
+        self.assertIn("test", created_workflow_transformation.labels)
+        self.assertIn("can-be-deleted", created_workflow_transformation.labels)
 
-        def _create_transformation_script_file():
-            main_wdl_filename = "transformation.js"
-            with open(main_wdl_filename, 'w') as main_wdl_file:
-                main_wdl_file.write("""
-                            const myTransformation = (context) => { 
-                                return { 'baz': 'waz' } 
-                            }
-                            """)
+    def test_workflow_transformation_create_with_file(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
 
-        def _create_workflow_transformation(workflow_id, version_id, script_from_file: bool = False) -> WorkflowTransformation:
-            return WorkflowTransformation(**self.simple_invoke(
-                'alpha', 'workbench', 'transformations', 'create',
-                '--workflow', workflow_id,
-                '--version', version_id,
-                '--label', "test",
-                '--label', "can-be-deleted",
-                "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
-            ))
+        workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id, True)
 
-        _create_transformation_script_file()
-        _create_workflow_files()
-        workflow = _create_workflow()
-        workflow_version = _create_workflow_version(workflow.internalId, "v1")
-        created_workflow_transformation = _create_workflow_transformation(workflow.internalId, workflow_version.id)
+        self.assertIsNotNone(workflow_transformation.id)
+        self.assertEqual(workflow_transformation.workflow_id, workflow.internalId)
+        self.assertEqual(workflow_transformation.workflow_version_id, workflow_version.id)
+        self.assertMultiLineEqual(workflow_transformation.script.replace(" ", "").replace("\n", ""), "(context)=>{return{'baz':'waz'}}")
+        self.assertIn("test", workflow_transformation.labels)
+        self.assertIn("can-be-deleted", workflow_transformation.labels)
 
-        def test_workflow_transformation_create():
-            self.assertIsNotNone(created_workflow_transformation.id)
-            self.assertEqual(created_workflow_transformation.workflow_id, workflow.internalId)
-            self.assertEqual(created_workflow_transformation.workflow_version_id, workflow_version.id)
-            self.assertEqual(created_workflow_transformation.script, "(context) => { return { 'foo': 'bar' } }")
-            self.assertIn("test", created_workflow_transformation.labels)
-            self.assertIn("can-be-deleted", created_workflow_transformation.labels)
+    def test_workflow_transformation_list(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
+        created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
-        test_workflow_transformation_create()
+        transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
+            'alpha', 'workbench', 'transformations', 'list',
+            '--workflow', workflow.internalId,
+            '--version', workflow_version.id,
+        )]
 
-        def test_workflow_transformation_create_with_file():
-            workflow_transformation = _create_workflow_transformation(workflow.internalId, workflow_version.id, True)
-            self.assertIsNotNone(workflow_transformation.id)
-            self.assertEqual(workflow_transformation.workflow_id, workflow.internalId)
-            self.assertEqual(workflow_transformation.workflow_version_id, workflow_version.id)
-            self.assertMultiLineEqual(workflow_transformation.script.replace(" ", "").replace("\n", ""), "(context)=>{return{'baz':'waz'}}")
-            self.assertIn("test", workflow_transformation.labels)
-            self.assertIn("can-be-deleted", workflow_transformation.labels)
+        self.assert_not_empty(transformations, f'Expected at least one workflow transformation. Found {transformations}')
+        self.assertTrue(created_workflow_transformation.id in [transformation.id for transformation in transformations])
 
-        test_workflow_transformation_create_with_file()
+    def test_workflow_transformation_describe(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
+        created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
-        def test_workflow_transformation_list():
-            transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-                'alpha', 'workbench', 'transformations', 'list',
-                '--workflow', workflow.internalId,
-                '--version', workflow_version.id,
-            )]
-            self.assert_not_empty(transformations, f'Expected at least one workflow transformation. Found {transformations}')
-            self.assertTrue(created_workflow_transformation.id in [transformation.id for transformation in transformations])
+        transformation = WorkflowTransformation(**self.simple_invoke(
+            'alpha', 'workbench', 'transformations', 'describe',
+            '--workflow', workflow.internalId,
+            '--version', workflow_version.id,
+            created_workflow_transformation.id
+        ))
 
-        test_workflow_transformation_list()
+        self.assertEqual(transformation.id, created_workflow_transformation.id)
+        self.assertEqual(created_workflow_transformation.workflow_id, workflow.internalId)
+        self.assertEqual(created_workflow_transformation.workflow_version_id, workflow_version.id)
+        self.assertEqual(created_workflow_transformation.script, "(context) => { return { 'foo': 'bar' } }")
+        self.assertIn("test", created_workflow_transformation.labels)
+        self.assertIn("can-be-deleted", created_workflow_transformation.labels)
 
-        def test_workflow_transformation_describe():
-            transformation = WorkflowTransformation(**self.simple_invoke(
-                'alpha', 'workbench', 'transformations', 'describe',
-                '--workflow', workflow.internalId,
-                '--version', workflow_version.id,
-                created_workflow_transformation.id
-            ))
-            self.assertEqual(transformation.id, created_workflow_transformation.id)
-            self.assertEqual(created_workflow_transformation.workflow_id, workflow.internalId)
-            self.assertEqual(created_workflow_transformation.workflow_version_id, workflow_version.id)
-            self.assertEqual(created_workflow_transformation.script, "(context) => { return { 'foo': 'bar' } }")
-            self.assertIn("test", created_workflow_transformation.labels)
-            self.assertIn("can-be-deleted", created_workflow_transformation.labels)
+    def test_workflow_transformation_describe_with_multiple_ids(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
+        workflow_transformation_1 = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
+        workflow_transformation_2 = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
-        test_workflow_transformation_describe()
+        transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
+            'alpha', 'workbench', 'transformations', 'describe',
+            '--workflow', workflow.internalId,
+            '--version', workflow_version.id,
+            workflow_transformation_1.id,
+            workflow_transformation_2.id,
+        )]
 
-        def test_workflow_transformation_delete():
-            workflow_transformation_to_be_deleted = _create_workflow_transformation(workflow.internalId, workflow_version.id)
-            output = self.simple_invoke(
-                'alpha', 'workbench', 'transformations', 'delete',
-                '--workflow', workflow.internalId,
-                '--version', workflow_version.id,
-                '--force',
-                workflow_transformation_to_be_deleted.id,
-                parse_output=False
-            )
-            self.assertTrue("Deleted..." in output)
+        self.assertTrue(any(workflow_transformation_1.id in transformation.id for transformation in transformations))
+        self.assertTrue(any(workflow_transformation_2.id in transformation.id for transformation in transformations))
 
-        test_workflow_transformation_delete()
+    def test_workflow_transformation_delete(self):
+        self._create_workflow_files()
+        workflow = self._create_workflow()
+        workflow_version = self._create_workflow_version(workflow.internalId, "v1")
+        workflow_transformation_to_be_deleted = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
+
+        output = self.simple_invoke(
+            'alpha', 'workbench', 'transformations', 'delete',
+            '--workflow', workflow.internalId,
+            '--version', workflow_version.id,
+            '--force',
+            workflow_transformation_to_be_deleted.id,
+            parse_output=False
+        )
+        self.assertTrue("Deleted..." in output)

@@ -4,6 +4,8 @@ import re
 import click
 from typing import Optional, List
 
+from click import style
+
 from dnastack.alpha.cli.workbench.utils import get_alpha_workflow_client
 from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformationListOptions, \
     WorkflowTransformationCreate
@@ -104,13 +106,18 @@ def describe_workflow_transformation(context: Optional[str],
                      namespace: Optional[str],
                      workflow_id: str,
                      version_id: str,
-                     transformation_id: str):
+                     transformation_ids: List[str]):
     """
-    Describe a workflow transformation
+    Describe one or more workflow transformations
     """
+    if not transformation_ids:
+        click.echo(style("You must specify at least one transformation ID", fg='red'), err=True, color=True)
+        exit(1)
+
     client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
-    described_transformation = client.get_workflow_transformation(workflow_id=workflow_id, workflow_version_id=version_id, transformation_id=transformation_id)
-    click.echo(to_json(normalize(described_transformation)))
+    described_transformations = [client.get_workflow_transformation(workflow_id=workflow_id, workflow_version_id=version_id, transformation_id=transformation_id)
+                                 for transformation_id in transformation_ids]
+    click.echo(to_json(normalize(described_transformations)))
 
 
 @command(alpha_transformations_command_group,
@@ -162,8 +169,8 @@ def delete_workflow_transformation(context: Optional[str],
 
     transformation = client.get_workflow_transformation(workflow_id=workflow_id, workflow_version_id=version_id, transformation_id=transformation_id)
     if any(label.lower() == "public" for label in transformation.labels):
-        click.echo("Public transformations can be deleted only by admin.")
-        return
+        click.echo("You are not allowed to delete public transformations.")
+        exit(1)
 
     client.delete_workflow_transformation(workflow_id, version_id, transformation_id)
     click.echo("Deleted...")
