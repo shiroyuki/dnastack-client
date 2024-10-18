@@ -1400,12 +1400,12 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         workflow_version = self._create_workflow_version(workflow.internalId, "v1")
         created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
-        transformation = WorkflowTransformation(**self.simple_invoke(
+        transformation = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
             'alpha', 'workbench', 'transformations', 'describe',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             created_workflow_transformation.id
-        ))
+        )][0]
 
         self.assertEqual(transformation.id, created_workflow_transformation.id)
         self.assertEqual(created_workflow_transformation.workflow_id, workflow.internalId)
