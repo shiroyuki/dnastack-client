@@ -25,6 +25,7 @@ class SampleFile(BaseModel):
 
 
 
+
 class Sample(BaseModel):
     id: str
     created_at: Optional[datetime]
@@ -43,6 +44,7 @@ class SampleFilesListOptions(BaseListOptions):
     storage_id: Optional[str]
     platform_type: Optional[PlatformType]
     instrument_id: Optional[str]
+    search: Optional[str]
 
 class SampleFileListResponse(PaginatedResource):
     files: List[SampleFile]

@@ -148,6 +148,12 @@ def describe_samples(context: Optional[str],
             type=PlatformType,
             as_option=True
         ),
+        ArgumentSpec(
+            name='search',
+            arg_names=['--search'],
+            help='Filter the files by a search term.',
+            as_option=True
+        )
     ]
 )
 def list_sample_files(
@@ -162,7 +168,8 @@ def list_sample_files(
         platform: Optional[str],
         storage: Optional[str],
         instrument_id: Optional[str],
-        platform_type: Optional[PlatformType]
+        platform_type: Optional[PlatformType],
+        search: Optional[str]
 ):
     """
     List files for a given sample.
@@ -176,7 +183,9 @@ def list_sample_files(
         storage_id=storage,
         platform_id=platform,
         platform_type=platform_type,
-        instrument_id=instrument_id)
+        instrument_id=instrument_id,
+        search=search
+    )
 
     files_list = client.list_sample_files(
         sample_id=sample_id,
