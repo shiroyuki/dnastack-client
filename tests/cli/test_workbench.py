@@ -7,7 +7,7 @@ import tempfile
 import zipfile
 from datetime import date
 
-from dnastack.alpha.client.workbench.samples.models import Sample
+from dnastack.alpha.client.workbench.samples.models import Sample, SampleFile
 from dnastack.alpha.client.workbench.storage.models import StorageAccount, Provider, Platform
 from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformation, WorkflowDefaults
 from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, \
@@ -28,6 +28,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         super().setUp()
         self.invoke('use', f'{self.workbench_base_url}/api/service-registry')
         self.submit_hello_world_workflow_batch()
+        self.storage_account = None
+        self.platform = None
 
     def _create_workflow_files(self):
         main_wdl_filename = "main.wdl"
@@ -97,6 +99,38 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
         ))
 
+
+    def _create_storage_account(self) -> StorageAccount:
+        return StorageAccount(**self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'add', 'aws',
+            'test-storage-account',
+            '--name', 'Test Storage Account',
+            '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
+            '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
+            '--region', env('E2E_AWS_REGION', default='ca-central-1')
+        ))
+
+    def _get_or_create_storage_account(self) -> StorageAccount:
+        if not self.storage_account:
+            self.storage_account = self._create_storage_account()
+        return self.storage_account
+
+    def _create_platform(self,created_storage_account: StorageAccount) -> Platform:
+        return Platform(**self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'add',
+            'test-platform',
+            '--name', 'Test Platform',
+            '--storage-id', created_storage_account.id,
+            '--platform', 'PACBIO',
+            '--path',
+            env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
+        ))
+
+    def _get_or_create_platform(self) -> Platform:
+        if not self.platform:
+            self.platform = self._create_platform(self._get_or_create_storage_account())
+
+        return self.platform
 
     def test_runs_list(self):
         runs = self.simple_invoke('workbench', 'runs', 'list')
@@ -1190,164 +1224,169 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         test_get_default_namespace()
 
-    def test_samples_storage_and_platforms(self):
-        def _create_storage_account() -> StorageAccount:
-            return StorageAccount(**self.simple_invoke(
-                'alpha', 'workbench', 'storage', 'add', 'aws',
-                'test-storage-account',
-                '--name', 'Test Storage Account',
-                '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
-                '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
-                '--region', env('E2E_AWS_REGION', default='ca-central-1')
-            ))
 
-        created_storage_account = _create_storage_account()
+    def test_storage_create(self):
+        created_storage_account = self._get_or_create_storage_account()
+        self.assertEqual(created_storage_account.id, 'test-storage-account')
+        self.assertEqual(created_storage_account.name, 'Test Storage Account')
+        self.assertEqual(created_storage_account.provider, Provider.aws)
 
-        def test_storage_create():
-            self.assertEqual(created_storage_account.id, 'test-storage-account')
-            self.assertEqual(created_storage_account.name, 'Test Storage Account')
-            self.assertEqual(created_storage_account.provider, Provider.aws)
+    def test_storage_list(self):
+        created_storage_account = self._get_or_create_storage_account()
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'list'
+        )]
+        self.assert_not_empty(storage_accounts, f'Expected at least one storage account. Found {storage_accounts}')
+        self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
 
-        test_storage_create()
 
-        def test_storage_list():
-            storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-                'alpha', 'workbench', 'storage', 'list'
+    def test_storage_describe(self):
+        created_storage_account = self._get_or_create_storage_account()
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'describe', created_storage_account.id
+        )]
+        self.assertEqual(len(storage_accounts), 1,
+                         f'Expected exactly one storage account. Found {storage_accounts}')
+        self.assertEqual(storage_accounts[0].id, created_storage_account.id)
+        self.assertEqual(storage_accounts[0].name, created_storage_account.name)
+        self.assertEqual(storage_accounts[0].provider, Provider.aws)
+
+
+    def test_platform_create(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        self.assertEqual(created_platform.id, 'test-platform')
+        self.assertEqual(created_platform.name, 'Test Platform')
+        self.assertEqual(created_platform.type, 'PACBIO')
+        self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
+
+
+    def test_platforms_list(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'list'
+        )]
+        self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
+        self.assertTrue(created_platform.id in [platform.id for platform in platforms])
+
+    def test_platform_describe(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            '--storage-id', created_storage_account.id
+        )]
+        self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
+        self.assertEqual(platforms[0].id, created_platform.id)
+        self.assertEqual(platforms[0].name, created_platform.name)
+        self.assertEqual(platforms[0].type, created_platform.type)
+        self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
+
+
+    def test_samples_list_and_describe(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        samples = self._wait_for_samples()
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        for sample in samples:
+            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
+
+        sample = Sample(**self.simple_invoke(
+            'alpha', 'workbench', 'samples', 'describe', samples[0].id
+        ))
+        self.assertEqual(sample.id, samples[0].id)
+        self.assert_not_empty(sample.files, 'Sample files should not be empty')
+        self.assert_not_empty(sample.files[0].path, 'Sample file path should not be empty')
+
+    def _wait_for_samples(self):
+        timeout = 30
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            samples = [Sample(**sample) for sample in self.simple_invoke(
+                'alpha', 'workbench', 'samples', 'list'
             )]
-            self.assert_not_empty(storage_accounts, f'Expected at least one storage account. Found {storage_accounts}')
-            self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
+            if samples:
+                break
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                raise TimeoutError("Timeout reached while waiting for samples to be created.")
+            asyncio.sleep(2)
+        return samples
 
-        test_storage_list()
+    def test_samples_files_list(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        samples = self._wait_for_samples()
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        for sample in samples:
+            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
+        samples = [Sample(**sample) for sample in self.simple_invoke(
+            'alpha', 'workbench', 'samples', 'list'
+        )]
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        sample = samples[0]
+        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
+            'alpha', 'workbench', 'samples', 'files', 'list','--sample', sample.id
+        )]
+        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
+        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
 
-        def test_storage_describe():
-            storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-                'alpha', 'workbench', 'storage', 'describe', created_storage_account.id
-            )]
-            self.assertEqual(len(storage_accounts), 1,
-                             f'Expected exactly one storage account. Found {storage_accounts}')
-            self.assertEqual(storage_accounts[0].id, created_storage_account.id)
-            self.assertEqual(storage_accounts[0].name, created_storage_account.name)
-            self.assertEqual(storage_accounts[0].provider, Provider.aws)
+        ## Add another test case where we pass the platform id
+        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
+            'alpha', 'workbench', 'samples', 'files', 'list', '--sample', sample.id, '--platform', created_platform.id
+        )]
+        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
+        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
+        self.assertTrue(all(sample_file.platform_id == created_platform.id for sample_file in sample_files))
 
-        test_storage_describe()
 
-        def test_platform():
-            def _create_platform() -> Platform:
-                return Platform(**self.simple_invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'add',
-                    'test-platform',
-                    '--name', 'Test Platform',
-                    '--storage-id', created_storage_account.id,
-                    '--platform', 'PACBIO',
-                    '--path',
-                    env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
-                ))
+    def test_platform_delete(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        output = self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'delete', created_platform.id,
+            '--storage-id', created_storage_account.id,
+            '--force',
+            parse_output=False
+        )
+        self.assertTrue("deleted successfully" in output)
 
-            created_platform = _create_platform()
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'list'
+        )]
+        self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
 
-            def test_platform_create():
-                self.assertEqual(created_platform.id, 'test-platform')
-                self.assertEqual(created_platform.name, 'Test Platform')
-                self.assertEqual(created_platform.type, 'PACBIO')
-                self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
+        result = self.invoke(
+            'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            '--storage-id', created_storage_account.id,
+            bypass_error=True
+        )
 
-            test_platform_create()
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertTrue('"error_code":404' in result.stderr)
 
-            def test_platforms_list():
-                platforms = [Platform(**platform) for platform in self.simple_invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'list'
-                )]
-                self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
-                self.assertTrue(created_platform.id in [platform.id for platform in platforms])
+    def test_storage_delete(self):
+        created_storage_account = self._create_storage_account()
+        output = self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'delete', created_storage_account.id,
+            '--force',
+            parse_output=False
+        )
+        self.assertTrue("deleted successfully" in output)
 
-            test_platforms_list()
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+            'alpha', 'workbench', 'storage', 'list'
+        )]
+        self.assertTrue(
+            created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
 
-            def test_platform_describe():
-                platforms = [Platform(**platform) for platform in self.simple_invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-                    '--storage-id', created_storage_account.id
-                )]
-                self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
-                self.assertEqual(platforms[0].id, created_platform.id)
-                self.assertEqual(platforms[0].name, created_platform.name)
-                self.assertEqual(platforms[0].type, created_platform.type)
-                self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
+        result = self.invoke(
+            'alpha', 'workbench', 'storage', 'describe', created_storage_account.id,
+            bypass_error=True
+        )
 
-            test_platform_describe()
-
-            def test_samples_list_and_describe():
-                timeout = 30
-                start_time = asyncio.get_event_loop().time()
-                while True:
-                    samples = [Sample(**sample) for sample in self.simple_invoke(
-                        'alpha', 'workbench', 'samples', 'list'
-                    )]
-                    if samples:
-                        break
-                    if asyncio.get_event_loop().time() - start_time > timeout:
-                        raise TimeoutError("Timeout reached while waiting for samples to be created.")
-                    asyncio.sleep(2)
-                self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
-                for sample in samples:
-                    self.assert_not_empty(sample.id, 'Sample ID should not be empty')
-
-                sample = Sample(**self.simple_invoke(
-                    'alpha', 'workbench', 'samples', 'describe', samples[0].id
-                ))
-                self.assertEqual(sample.id, samples[0].id)
-                self.assert_not_empty(sample.files, 'Sample files should not be empty')
-                self.assert_not_empty(sample.files[0].path, 'Sample file path should not be empty')
-
-            test_samples_list_and_describe()
-
-            def test_platform_delete():
-                output = self.simple_invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'delete', created_platform.id,
-                    '--storage-id', created_storage_account.id,
-                    '--force',
-                    parse_output=False
-                )
-                self.assertTrue("deleted successfully" in output)
-
-                platforms = [Platform(**platform) for platform in self.simple_invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'list'
-                )]
-                self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
-
-                result = self.invoke(
-                    'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-                    '--storage-id', created_storage_account.id,
-                    bypass_error=True
-                )
-
-                self.assertNotEqual(result.exit_code, 0)
-                self.assertTrue('"error_code":404' in result.stderr)
-
-            test_platform_delete()
-
-        test_platform()
-
-        def test_storage_delete():
-            output = self.simple_invoke(
-                'alpha', 'workbench', 'storage', 'delete', created_storage_account.id,
-                '--force',
-                parse_output=False
-            )
-            self.assertTrue("deleted successfully" in output)
-
-            storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-                'alpha', 'workbench', 'storage', 'list'
-            )]
-            self.assertTrue(
-                created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
-
-            result = self.invoke(
-                'alpha', 'workbench', 'storage', 'describe', created_storage_account.id,
-                bypass_error=True
-            )
-
-            self.assertNotEqual(result.exit_code, 0)
-            self.assertTrue('"error_code":404' in result.stderr)
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertTrue('"error_code":404' in result.stderr)
 
         test_storage_delete()
 

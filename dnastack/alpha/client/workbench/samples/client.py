@@ -1,7 +1,8 @@
 from typing import List, Iterator, Optional, Union, Iterable
 from urllib.parse import urljoin
 
-from dnastack.alpha.client.workbench.samples.models import SampleListOptions, SampleListResponse, Sample
+from dnastack.alpha.client.workbench.samples.models import SampleListOptions, SampleListResponse, Sample, \
+    SampleFilesListOptions, SampleFileListResponse
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
@@ -29,6 +30,27 @@ class SampleListResultLoader(WorkbenchResultLoader):
 
     def extract_api_response(self, response_body: dict) -> SampleListResponse:
         return SampleListResponse(**response_body)
+
+
+class SampleFilesListResultLoader(WorkbenchResultLoader):
+
+        def __init__(self,
+                    service_url: str,
+                    http_session: HttpSession,
+                    trace: Span,
+                    list_options: Optional[SampleFilesListOptions] = None,
+                    max_results: int = None):
+            super().__init__(service_url=service_url,
+                            http_session=http_session,
+                            list_options=list_options,
+                            max_results=max_results,
+                            trace=trace)
+
+        def get_new_list_options(self) -> SampleFilesListOptions:
+            return SampleFilesListOptions()
+
+        def extract_api_response(self, response_body: dict) -> SampleFileListResponse:
+            return SampleFileListResponse(**response_body)
 
 
 class SamplesClient(BaseWorkbenchClient):
@@ -70,3 +92,19 @@ class SamplesClient(BaseWorkbenchClient):
             response = session.get(urljoin(self.endpoint.url, f'{self.namespace}/samples/{sample_id}'),
                                    trace_context=trace)
             return Sample(**response.json())
+
+
+    def list_sample_files(self,
+                          sample_id: str,
+                          list_options: Optional[SampleFilesListOptions] = None,
+                          max_results: Optional[int] = None,
+                          trace: Optional[Span] = None
+                          ) -> Iterator[SampleFileListResponse]:
+        trace = trace or Span(origin=self)
+        return ResultIterator(SampleFilesListResultLoader(
+            service_url=urljoin(self.endpoint.url, f'{self.namespace}/samples/{sample_id}/files'),
+            http_session=self.create_http_session(),
+            list_options=list_options,
+            max_results=max_results,
+            trace=trace
+        ))

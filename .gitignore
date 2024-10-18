@@ -10,6 +10,8 @@ sandbox
 !.env.enc
 !test-env.enc
 workflows/
+workflow.zip
+.dnastack/
 
 .ipynb_checkpoints
 .venv
