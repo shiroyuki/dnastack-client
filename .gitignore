@@ -162,6 +162,7 @@ o.txt
 tmp/
 test.py
 download_input_file.txt
+*.iml
 
 # DOWNLOAD FILES FROM TESTS
 *.fasta
@@ -172,3 +173,4 @@ download_input_file.txt
 main.wdl
 workflow.zip
 description.md
+transformation.js
