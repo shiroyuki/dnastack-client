@@ -20,6 +20,8 @@ class Provider(str, CaseInsensitiveEnum):
     gcp = "gcp"
     azure = "azure"
 
+class PlatformType(str, CaseInsensitiveEnum):
+    pacbio = "pacbio"
 
 class AwsStorageAccountCredentials(BaseModel):
     access_key_id: Optional[str]
@@ -56,7 +58,7 @@ class Platform(BaseModel):
     storage_account_id: Optional[str]
     name: Optional[str]
     path: Optional[str]
-    type: Optional[str]
+    type: Optional[PlatformType]
     created_at: Optional[str]
     last_updated_at: Optional[str]
 
