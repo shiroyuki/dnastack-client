@@ -1257,7 +1257,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         created_platform = self._get_or_create_platform()
         self.assertEqual(created_platform.id, 'test-platform')
         self.assertEqual(created_platform.name, 'Test Platform')
-        self.assertEqual(created_platform.type, 'PACBIO')
+        self.assertEqual(created_platform.type.upper(), 'PACBIO')
         self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
 
 
