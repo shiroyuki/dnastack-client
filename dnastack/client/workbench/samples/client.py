@@ -1,4 +1,4 @@
-from typing import List, Iterator, Optional, Union, Iterable
+from typing import List, Iterator, Optional
 from urllib.parse import urljoin
 
 from dnastack.client.instruments.models import InstrumentListOptions
