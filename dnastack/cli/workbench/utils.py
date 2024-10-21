@@ -13,7 +13,6 @@ from dnastack.client.workbench.workflow.models import WorkflowFile, WorkflowFile
 from imagination import container
 import zipfile as zf
 
-from dnastack.client.instruments.client import InstrumentsClient
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.samples.client import SamplesClient
 from dnastack.client.workbench.storage.client import StorageClient
@@ -70,19 +69,6 @@ def get_workflow_client(context_name: Optional[str] = None,
         _populate_workbench_endpoint()
         return factory.get(WorkflowClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
 
-def get_instruments_client(context_name: Optional[str] = None,
-                       endpoint_id: Optional[str] = None,
-                       namespace: Optional[str] = None) -> InstrumentsClient:
-    if not namespace:
-        user_client = get_user_client(context_name=context_name, endpoint_id=endpoint_id)
-        namespace = user_client.get_user_config().default_namespace
-
-    factory: ConfigurationBasedClientFactory = container.get(ConfigurationBasedClientFactory)
-    try:
-        return factory.get(InstrumentsClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
-    except AssertionError:
-        _populate_workbench_endpoint()
-        return factory.get(InstrumentsClient, endpoint_id=endpoint_id, context_name=context_name, namespace=namespace)
 
 def get_storage_client(context_name: Optional[str] = None,
                        endpoint_id: Optional[str] = None,
@@ -151,6 +137,7 @@ class UnableToWriteToFileError(Exception):
 class UnableToFindParameterError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
+
 
 class NoDefaultEngineError(Exception):
     def __init__(self, message: str):
