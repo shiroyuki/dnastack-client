@@ -70,7 +70,7 @@ def list_instruments(
         platform_type: Optional[str],
 ):
     """
-    List instruments for a given sample.
+    List instruments.
     """
 
     client = get_instruments_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
@@ -81,9 +81,8 @@ def list_instruments(
         platform_type=platform_type
     )
 
-    files_list = client.list_sample_files(
-        sample_id=sample_id,
+    instruments_list = client.list_instruments(
         list_options=options,
         max_results=max_results
     )
-    show_iterator(output_format=OutputFormat.JSON, iterator=files_list)
+    show_iterator(output_format=OutputFormat.JSON, iterator=instruments_list)
