@@ -1,12 +1,12 @@
 from typing import Optional
 
 import click
-
 from dnastack.client.instruments.models import InstrumentListOptions
+
+from dnastack.alpha.cli.workbench.utils import get_samples_client
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
-from dnastack.cli.workbench.utils import get_instruments_client
 
 
 @click.group('instruments')
@@ -73,7 +73,7 @@ def list_instruments(
     List instruments.
     """
 
-    client = get_instruments_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_samples_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     options = InstrumentListOptions(
         page=page,
         page_size=page_size,

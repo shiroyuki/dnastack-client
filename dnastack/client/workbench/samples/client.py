@@ -1,6 +1,7 @@
-from typing import List, Iterator, Optional
+from typing import List, Iterator, Optional, Union, Iterable
 from urllib.parse import urljoin
 
+from dnastack.client.instruments.models import InstrumentListOptions
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
@@ -53,6 +54,27 @@ class SampleFilesListResultLoader(WorkbenchResultLoader):
         return SampleFileListResponse(**response_body)
 
 
+class InstrumentListResultLoader(WorkbenchResultLoader):
+
+    def __init__(self,
+                 service_url: str,
+                 http_session: HttpSession,
+                 trace: Span,
+                 list_options: Optional[InstrumentListOptions] = None,
+                 max_results: int = None):
+        super().__init__(service_url=service_url,
+                         http_session=http_session,
+                         list_options=list_options,
+                         max_results=max_results,
+                         trace=trace)
+
+    def get_new_list_options(self) -> InstrumentListOptions:
+        return InstrumentListOptions()
+
+    def extract_api_response(self, response_body: dict) -> InstrumentListResponse:
+        return InstrumentListResponse(**response_body)
+
+
 class SamplesClient(BaseWorkbenchClient):
 
     @staticmethod
@@ -102,6 +124,20 @@ class SamplesClient(BaseWorkbenchClient):
         trace = trace or Span(origin=self)
         return ResultIterator(SampleFilesListResultLoader(
             service_url=urljoin(self.endpoint.url, f'{self.namespace}/samples/{sample_id}/files'),
+            http_session=self.create_http_session(),
+            list_options=list_options,
+            max_results=max_results,
+            trace=trace
+        ))
+
+    def list_instruments(self,
+                         list_options: Optional[InstrumentListOptions] = None,
+                         max_results: Optional[int] = None,
+                         trace: Optional[Span] = None
+                         ) -> Iterator[InstrumentListResponse]:
+        trace = trace or Span(origin=self)
+        return ResultIterator(InstrumentListResultLoader(
+            service_url=urljoin(self.endpoint.url, f'{self.namespace}/instruments'),
             http_session=self.create_http_session(),
             list_options=list_options,
             max_results=max_results,
