@@ -60,6 +60,10 @@ class Instrument(BaseModel):
     platform_type: PlatformType
 
 
+class InstrumentListOptions(BaseListOptions):
+    platform_type: Optional[PlatformType]
+
+
 class InstrumentListResponse(PaginatedResource):
     instruments: List[Instrument]
 
