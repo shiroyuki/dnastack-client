@@ -4,9 +4,9 @@ from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 
-from dnastack.alpha.client.workbench.samples.models import Sample
 from dnastack.client.service_registry.models import Service
 from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
+from dnastack.client.workbench.samples.models import Sample
 from dnastack.common.json_argument_parser import JSONType
 
 

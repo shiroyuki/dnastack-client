@@ -1,9 +1,9 @@
 import click
 from typing import Optional
 
-from dnastack.alpha.client.workbench.storage.models import Platform, PlatformType
-from dnastack.alpha.cli.workbench.utils import get_samples_client
-from dnastack.alpha.client.workbench.samples.models import SampleListOptions, SampleFilesListOptions
+from dnastack.client.workbench.storage.models import Platform, PlatformType
+from dnastack.cli.workbench.utils import get_samples_client
+from dnastack.client.workbench.samples.models import SampleListOptions, SampleFilesListOptions
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
@@ -11,19 +11,19 @@ from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 
 
 @click.group('samples')
-def alpha_samples_command_group():
+def samples_command_group():
     """ Interact with samples """
 
 
 @click.group("files")
-def alpha_files_command_group():
+def files_command_group():
     """ Interact with files """
 
 
-alpha_samples_command_group.add_command(alpha_files_command_group)
+samples_command_group.add_command(files_command_group)
 
 
-@command(alpha_samples_command_group,
+@command(samples_command_group,
          'list',
          specs=[
              ArgumentSpec(
@@ -49,7 +49,7 @@ def list_samples(context: Optional[str],
     show_iterator(output_format=OutputFormat.JSON, iterator=samples_list)
 
 
-@command(alpha_samples_command_group,
+@command(samples_command_group,
          'describe',
          specs=[
              ArgumentSpec(
@@ -80,7 +80,7 @@ def describe_samples(context: Optional[str],
 
 
 @command(
-    alpha_files_command_group,
+    files_command_group,
     'list',
     specs=[
         ArgumentSpec(

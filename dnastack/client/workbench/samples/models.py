@@ -1,11 +1,10 @@
 from datetime import datetime
+from typing import List, Optional, Any
 
 from pydantic import BaseModel
 
-from typing import List, Optional, Any
-
-from dnastack.alpha.client.workbench.storage.models import Platform, PlatformType
 from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
+from dnastack.client.workbench.storage.models import PlatformType
 
 
 class SampleListOptions(BaseListOptions):

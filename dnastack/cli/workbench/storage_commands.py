@@ -4,8 +4,8 @@ from typing import Optional, List
 import click
 from click import style
 
-from dnastack.alpha.cli.workbench.utils import get_storage_client
-from dnastack.alpha.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
+from dnastack.cli.workbench.utils import get_storage_client
+from dnastack.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
     StorageListOptions, Platform, PlatformListOptions
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
@@ -14,19 +14,19 @@ from dnastack.cli.helpers.iterator_printer import OutputFormat, show_iterator
 
 
 @click.group('storage')
-def alpha_storage_command_group():
+def storage_command_group():
     """Interact with Storage accounts"""
 
 
 @click.group("add")
-def alpha_add_storage_group():
+def add_storage_command_group():
     """Add storage account"""
 
 
-alpha_storage_command_group.add_command(alpha_add_storage_group)
+storage_command_group.add_command(add_storage_command_group)
 
 
-@command(alpha_add_storage_group,
+@command(add_storage_command_group,
          'aws',
          specs=[
              ArgumentSpec(
@@ -97,12 +97,12 @@ def add_aws_storage_account(context: Optional[str],
         credentials=credentials
     )
 
-    response = client.create_storage_account(storage_account)
+    response = client.add_storage_account(storage_account)
     click.echo(to_json(normalize(response)))
 
 
 ## Add a command to delete a storage account
-@command(alpha_storage_command_group,
+@command(storage_command_group,
          'delete',
          specs=[
              ArgumentSpec(
@@ -143,7 +143,7 @@ def delete_storage_account(context: Optional[str],
     click.echo(f"Storage account {storage_id} deleted successfully")
 
 
-@command(alpha_storage_command_group,
+@command(storage_command_group,
          'list',
          specs=[
              ArgumentSpec(
@@ -210,7 +210,7 @@ def list_storage_accounts(context: Optional[str],
                   iterator=client.list_storage_accounts(list_options, max_results))
 
 
-@command(alpha_storage_command_group,
+@command(storage_command_group,
          'describe',
          specs=[
              ArgumentSpec(
@@ -238,14 +238,14 @@ def get_storage_accounts(context: Optional[str],
 
 
 @click.group("platforms")
-def alpha_platforms_storage_group():
+def storage_platforms_command_group():
     """Interact with Platforms"""
 
 
-alpha_storage_command_group.add_command(alpha_platforms_storage_group)
+storage_command_group.add_command(storage_platforms_command_group)
 
 
-@command(alpha_platforms_storage_group,
+@command(storage_platforms_command_group,
          'add',
          specs=[
              ArgumentSpec(
@@ -312,11 +312,11 @@ def add_platform(context: Optional[str],
         type=platform_type.upper()
     )
 
-    response = client.create_platform(platform)
+    response = client.add_platform(platform)
     click.echo(to_json(normalize(response)))
 
 
-@command(alpha_platforms_storage_group,
+@command(storage_platforms_command_group,
          'delete',
          specs=[
              ArgumentSpec(
@@ -364,7 +364,7 @@ def delete_platform(context: Optional[str],
     click.echo(f"Platform {platform_id} deleted successfully")
 
 
-@command(alpha_platforms_storage_group,
+@command(storage_platforms_command_group,
          'describe',
          specs=[
              ArgumentSpec(
@@ -400,7 +400,7 @@ def describe_platform(context: Optional[str],
     click.echo(to_json(normalize(platforms)))
 
 
-@command(alpha_platforms_storage_group,
+@command(storage_platforms_command_group,
          'list',
          specs=[
              ArgumentSpec(

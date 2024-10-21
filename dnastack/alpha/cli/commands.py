@@ -8,7 +8,6 @@ from dnastack.alpha.cli.auth import alpha_auth_command_group
 from dnastack.alpha.cli.collections import alpha_collection_command_group
 from dnastack.alpha.cli.data_connect import alpha_data_connect_command_group
 from dnastack.alpha.cli.wes import alpha_wes_command_group
-from dnastack.alpha.cli.workbench.commands import alpha_workbench_command_group
 from dnastack.cli.collections import COLLECTION_ID_CLI_ARG_SPEC, _abort_with_collection_list
 from dnastack.cli.data_connect.commands import DECIMAL_POINT_OUTPUT_SPEC
 from dnastack.cli.data_connect.helper import handle_query
@@ -42,7 +41,6 @@ alpha_command_group.add_command(alpha_auth_command_group)
 alpha_command_group.add_command(alpha_wes_command_group)
 alpha_command_group.add_command(alpha_collection_command_group)
 alpha_command_group.add_command(alpha_data_connect_command_group)
-alpha_command_group.add_command(alpha_workbench_command_group)
 
 
 #######################

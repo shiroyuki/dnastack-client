@@ -1,7 +1,7 @@
 from typing import TypeVar
 
-from dnastack.alpha.client.workbench.storage.client import StorageClient
-from dnastack.alpha.client.workbench.workflow.client import AlphaWorkflowClient
+from dnastack.client.workbench.storage.client import StorageClient
+from dnastack.client.workbench.samples.client import SamplesClient
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.workbench_user_service.client import WorkbenchUserClient
 from dnastack.client.workbench.workflow.client import WorkflowClient
@@ -13,8 +13,9 @@ from dnastack.client.service_registry.client import ServiceRegistry
 
 # All known client classes
 ALL_SERVICE_CLIENT_CLASSES = (
-    CollectionServiceClient, DataConnectClient, DrsClient, ServiceRegistry, EWesClient, StorageClient, WorkflowClient,
-    AlphaWorkflowClient, WorkbenchUserClient)
+    CollectionServiceClient, DataConnectClient, DrsClient, ServiceRegistry, EWesClient, StorageClient, SamplesClient,
+    WorkflowClient,
+    WorkbenchUserClient)
 
 # All client classes for data access
 DATA_SERVICE_CLIENT_CLASSES = (
@@ -27,9 +28,9 @@ SERVICE_CLIENT_CLASS = TypeVar('SERVICE_CLIENT_CLASS',
                                EWesClient,
                                StorageClient,
                                WorkflowClient,
-                               AlphaWorkflowClient,
                                WorkbenchUserClient,
                                CollectionServiceClient,
                                DataConnectClient,
                                DrsClient,
+                               SamplesClient,
                                ServiceRegistry)

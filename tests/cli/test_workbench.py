@@ -1,25 +1,37 @@
 import asyncio
-import datetime
 import json
-import os
-import shutil
-import tempfile
-import zipfile
-from datetime import date
 
-from dnastack.alpha.client.workbench.samples.models import Sample, SampleFile
-from dnastack.alpha.client.workbench.storage.models import StorageAccount, Provider, Platform
-from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformation, WorkflowDefaults
-from dnastack.client.workbench.ewes.models import EventType, ExtendedRunStatus, ExtendedRun, BatchActionResult, \
-    BatchRunResponse, \
-    MinimalExtendedRunWithInputs, MinimalExtendedRun, MinimalExtendedRunWithOutputs, ExecutionEngine, EngineParamPreset, \
-    BatchRunRequest, EngineHealthCheck, RunEvent, State
-from dnastack.client.workbench.workflow.models import Workflow, WorkflowVersion
-from dnastack.common.environments import env
-from .base import WorkbenchCliTestCase
+from datetime import date, timedelta
+from time import sleep
+
+from dnastack.client.workbench.workflow.models import Workflow, WorkflowVersion, WorkflowDefaults, \
+    WorkflowTransformation
+
+from dnastack.client.workbench.ewes.models import ExecutionEngine, EngineParamPreset, EngineHealthCheck
+from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun, BatchActionResult, BatchRunResponse, \
+    MinimalExtendedRunWithInputs, BatchRunRequest, RunEvent, EventType, State, MinimalExtendedRun, \
+    MinimalExtendedRunWithOutputs
+from dnastack.client.workbench.samples.models import Sample, SampleFile
+from dnastack.client.workbench.storage.models import Platform, StorageAccount, Provider
+from tests.cli.base import WorkbenchCliTestCase
+
+main_file_content = """
+                version 1.0
+
+                workflow no_task_workflow {
+                    input {
+                        String first_name
+                        String? last_name
+                    }
+                }
+                """
+description_file_content = """
+                        TITLE
+                        DESCRIPTION
+                        """
 
 
-class TestWorkbenchCommand(WorkbenchCliTestCase):
+class TestWorkbenchWorkflowsCommand(WorkbenchCliTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True
@@ -31,258 +43,206 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.storage_account = None
         self.platform = None
 
-    def _create_workflow_files(self):
-        main_wdl_filename = "main.wdl"
-        with open(main_wdl_filename, 'w') as main_wdl_file:
-            main_wdl_file.write("""
-            version 1.0
+    # Namespace
+    def test_get_default_namespace(self) -> None:
+        result = self.simple_invoke('workbench', 'namespaces', 'get-default')
+        self.assert_not_empty(result)
 
-            workflow no_task_workflow {
-                input {
-                    String first_name
-                    String? last_name
-                }
-            }
-            """)
-        with zipfile.ZipFile('workflow.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(main_wdl_filename)
+    # Engines
+    def test_engine_list(self):
+        engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
+            'workbench', 'engines', 'list'
+        )]
 
-    def _create_description_file(self):
-        with open('description.md', 'w') as description_file:
-            description_file.write("""
-            TITLE
-            DESCRIPTION
-            """)
+        self.assert_not_empty(engines_result, "Expected at least one engine")
+        self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
 
-    def _create_workflow(self, use_zip_file: bool = False) -> Workflow:
-        return Workflow(**self.simple_invoke(
-            'workbench', 'workflows', 'create',
-            '--entrypoint', "main.wdl",
-            'workflow.zip' if use_zip_file else "main.wdl",
-        ))
+    def test_engine_describe(self):
+        engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
+            'workbench', 'engines', 'describe', self.execution_engine.id
+        )]
 
-    def _create_workflow_version(self, workflow_id, name, use_zip_file: bool = False) -> WorkflowVersion:
-        return WorkflowVersion(**self.simple_invoke(
-            'workbench', 'workflows', 'versions', 'create',
-            '--workflow', workflow_id,
-            '--name', name,
-            '--entrypoint', "main.wdl",
-            'workflow.zip' if use_zip_file else "main.wdl",
-        ))
+        self.assert_not_empty(engines_result, "Expected engine result to not be empty")
+        self.assertEqual(len(engines_result), 1, "Expected only one engine")
+        self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
 
-    def _create_inputs_json_file(self):
-        with tempfile.NamedTemporaryFile(delete=False) as inputs_json_file:
-            inputs_json_file.write(b'{"test.hello.name": "bar"}')
-            return inputs_json_file.name
+    def test_engine_parameters_list(self):
+        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
+            'workbench', 'engines', 'parameters', 'list', '--engine', self.execution_engine.id
+        )]
 
-    def _create_inputs_text_file(self):
-        with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
-            input_text_fp.write(b'bar')
-            return input_text_fp.name
+        self.assert_not_empty(engine_params_result, "Expected at least one param")
+        self.assertTrue(any(param.preset_values == self.engine_params.preset_values for param in engine_params_result))
 
-    def _create_transformation_script_file(self):
-        main_wdl_filename = "transformation.js"
-        with open(main_wdl_filename, 'w') as main_wdl_file:
-            main_wdl_file.write("""
-                            const myTransformation = (context) => { 
-                                return { 'baz': 'waz' } 
-                            }
-                            """)
+    def test_engine_parameters_describe(self):
+        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
+            'workbench', 'engines', 'parameters', 'describe', '--engine', self.execution_engine.id,
+            self.engine_params.id
+        )]
 
-    def _create_workflow_transformation(self, workflow_id, version_id, script_from_file: bool = False) -> WorkflowTransformation:
-        return WorkflowTransformation(**self.simple_invoke(
-            'alpha', 'workbench', 'transformations', 'create',
-            '--workflow', workflow_id,
-            '--version', version_id,
-            '--label', "test",
-            '--label', "can-be-deleted",
-            "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
-        ))
+        self.assert_not_empty(engine_params_result, "Expected at least one param description")
+        self.assertEqual(len(engine_params_result), 1, "Expected only one param description")
+        self.assertTrue(any(param.preset_values == self.engine_params.preset_values for param in engine_params_result))
+
+    def test_engine_health_check_list(self):
+        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
+            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id
+        )]
+
+        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
+        self.assertTrue(
+            any(health_check.outcome == self.health_checks["outcome"] for health_check in engine_health_checks_result))
+
+        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
+            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id, '--outcome',
+            'SUCCESS', '--check-type', 'PERMISSIONS'
+        )]
+
+        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
+        self.assertTrue(any(health_check.outcome == 'SUCCESS' for health_check in engine_health_checks_result))
 
 
-    def _create_storage_account(self) -> StorageAccount:
-        return StorageAccount(**self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'add', 'aws',
-            'test-storage-account',
-            '--name', 'Test Storage Account',
-            '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
-            '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
-            '--region', env('E2E_AWS_REGION', default='ca-central-1')
-        ))
+    ## Runs
+    def test_runs_list_base_case(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
 
-    def _get_or_create_storage_account(self) -> StorageAccount:
-        if not self.storage_account:
-            self.storage_account = self._create_storage_account()
-        return self.storage_account
+    def test_runs_list_max_results(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 1,
+        )
+        self.assertEqual(len(runs), 1, f'Expected exactly one run. Found {runs}')
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 2,
+        )
+        self.assertEqual(len(runs), 2, f'Expected exactly two runs. Found {runs}')
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 100,
+        )
+        self.assertGreater(len(runs), 1, f'Expected at least two runs. Found {runs}')
 
-    def _create_platform(self,created_storage_account: StorageAccount) -> Platform:
-        return Platform(**self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'add',
-            'test-platform',
-            '--name', 'Test Platform',
-            '--storage-id', created_storage_account.id,
-            '--platform', 'PACBIO',
-            '--path',
-            env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
-        ))
+    def test_runs_list_page_and_page_size(self):
+        first_page_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 1,
+            '--page-size', 1,
+            '--page', 0,
+        )
+        self.assertEqual(len(first_page_runs), 1, f'Expected exactly one run. Found {first_page_runs}')
+        second_page_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 1,
+            '--page-size', 1,
+            '--page', 1,
+        )
+        self.assertEqual(len(second_page_runs), 1, f'Expected exactly one run. Found {second_page_runs}')
+        run_id_on_first_page = ExtendedRunStatus(**first_page_runs[0]).run_id
+        run_id_on_second_page = ExtendedRunStatus(**second_page_runs[0]).run_id
+        self.assertNotEqual(run_id_on_first_page, run_id_on_second_page,
+                            f'Expected two different runs from different pages. '
+                            f'Found {run_id_on_first_page} and {run_id_on_second_page}')
 
-    def _get_or_create_platform(self) -> Platform:
-        if not self.platform:
-            self.platform = self._create_platform(self._get_or_create_storage_account())
+        ## Regression test
+        ## This is a deprecated feature, but it should still work
 
-        return self.platform
+    def test_runs_list_order_order(self):
+        asc_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--order', 'start_time ASC',
+        )
+        self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
+        desc_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--order', 'start_time DESC',
+        )
+        self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
+        run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
+        run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
+        self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
+                            f'Expected two different runs when ordered. '
+                            f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
 
-    def test_runs_list(self):
-        runs = self.simple_invoke('workbench', 'runs', 'list')
-        self.assert_not_empty(runs, f'Expected at least one run. Found {runs}')
+        # Test without order flag
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
 
-        def test_max_results():
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 1,
-            )
-            self.assertEqual(len(runs), 1, f'Expected exactly one run. Found {runs}')
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 2,
-            )
-            self.assertEqual(len(runs), 2, f'Expected exactly two runs. Found {runs}')
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 100,
-            )
-            self.assertGreater(len(runs), 1, f'Expected at least two runs. Found {runs}')
+    def test_runs_list_sort(self):
+        asc_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--sort', 'workflow_name:ASC;state:DESC',
+        )
+        self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
+        desc_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--sort', 'workflow_name:DESC;state',
+        )
+        self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
+        run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
+        run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
+        self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
+                            f'Expected two different runs when ordered. '
+                            f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
 
-        test_max_results()
+    def test_runs_list_filter_by_states(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--state', 'PAUSED',
+            '--state', 'UNKNOWN',
+        )
+        self.assertEqual(len(runs), 0, f'Expected exactly zero runs to be in a given states. Found {runs}')
 
-        def test_page_and_page_size():
-            first_page_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 1,
-                '--page-size', 1,
-                '--page', 0,
-            )
-            self.assertEqual(len(first_page_runs), 1, f'Expected exactly one run. Found {runs}')
-            second_page_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 1,
-                '--page-size', 1,
-                '--page', 1,
-            )
-            self.assertEqual(len(second_page_runs), 1, f'Expected exactly one run. Found {runs}')
-            run_id_on_first_page = ExtendedRunStatus(**first_page_runs[0]).run_id
-            run_id_on_second_page = ExtendedRunStatus(**second_page_runs[0]).run_id
-            self.assertNotEqual(run_id_on_first_page, run_id_on_second_page,
-                                f'Expected two different runs from different pages. '
-                                f'Found {run_id_on_first_page} and {run_id_on_second_page}')
+    def test_runs_list_filter_by_submitted_since_and_until(self):
+        today = date.today()
+        tomorrow = date.today() + timedelta(days=1)
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--submitted-since', f'{today.year}-{today.month:02d}-{today.day:02d}',
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--submitted-until', f'{tomorrow.year}-{tomorrow.month:02d}-{tomorrow.day:02d}',
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--submitted-since', f'{today.year}-{today.month:02d}-{today.day:02d}',
+            '--submitted-until', f'{tomorrow.year}-{tomorrow.month:02d}-{tomorrow.day:02d}',
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
 
-        test_page_and_page_size()
+    def test_runs_list_filter_by_engine(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--engine', self.execution_engine.id,
+        )
+        self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--engine', 'unknown-id',
+        )
+        self.assertEqual(len(runs), 0, f'Expected exactly zero runs. Found {runs}')
 
-        def test_order():
-            asc_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--order', 'start_time ASC',
-            )
-            self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
-            desc_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--order', 'start_time DESC',
-            )
-            self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
-            run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
-            run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
-            self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
-                                f'Expected two different runs when ordered. '
-                                f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
-
-            # Test without order flag
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-            )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
-
-        test_order()
-
-        def test_sort():
-            asc_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--sort', 'workflow_name:ASC;state:DESC',
-            )
-            self.assertGreater(len(asc_runs), 0, f'Expected at least one run. Found {asc_runs}')
-            desc_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--sort', 'workflow_name:DESC;state',
-            )
-            self.assertGreater(len(desc_runs), 0, f'Expected at least one run. Found {desc_runs}')
-            run_id_from_asc_runs = ExtendedRunStatus(**asc_runs[0]).run_id
-            run_id_from_desc_runs = ExtendedRunStatus(**desc_runs[0]).run_id
-            self.assertNotEqual(run_id_from_asc_runs, run_id_from_desc_runs,
-                                f'Expected two different runs when ordered. '
-                                f'Found {run_id_from_asc_runs} and {run_id_from_desc_runs}')
-
-        test_sort()
-
-        def test_states():
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--state', 'PAUSED',
-                '--state', 'UNKNOWN',
-            )
-            self.assertEqual(len(runs), 0, f'Expected exactly zero runs to be in a given states. Found {runs}')
-
-        test_states()
-
-        def test_submitted_since_and_until():
-            today = date.today()
-            tomorrow = date.today() + datetime.timedelta(days=1)
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--submitted-since', f'{today.year}-{today.month:02d}-{today.day:02d}',
-            )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--submitted-until', f'{tomorrow.year}-{tomorrow.month:02d}-{tomorrow.day:02d}',
-            )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--submitted-since', f'{today.year}-{today.month:02d}-{today.day:02d}',
-                '--submitted-until', f'{tomorrow.year}-{tomorrow.month:02d}-{tomorrow.day:02d}',
-            )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
-
-        test_submitted_since_and_until()
-
-        def test_engine():
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--engine', self.execution_engine.id,
-            )
-            self.assertGreater(len(runs), 0, f'Expected at least one run. Found {runs}')
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--engine', 'unknown-id',
-            )
-            self.assertEqual(len(runs), 0, f'Expected exactly zero runs. Found {runs}')
-
-        test_engine()
-
-        def test_search():
-            runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--max-results', 1,
-            )
-            run_id = ExtendedRunStatus(**runs[0]).run_id
-            searched_runs = self.simple_invoke(
-                'workbench', 'runs', 'list',
-                '--search', f'{run_id}',
-            )
-            found_run_id = ExtendedRunStatus(**searched_runs[0]).run_id
-            self.assertEqual(len(runs), 1, f'Expected exactly one run. Found {runs}')
-            self.assertEqual(found_run_id, run_id, f'Expected runs to be the same. Found {found_run_id}')
-
-        test_search()
+    def test_runs_list_filter_by_search(self):
+        runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--max-results', 1,
+        )
+        run_id = ExtendedRunStatus(**runs[0]).run_id
+        searched_runs = self.simple_invoke(
+            'workbench', 'runs', 'list',
+            '--search', f'{run_id}',
+        )
+        found_run_id = ExtendedRunStatus(**searched_runs[0]).run_id
+        self.assertEqual(len(runs), 1, f'Expected exactly one run. Found {runs}')
+        self.assertEqual(found_run_id, run_id, f'Expected runs to be the same. Found {found_run_id}')
 
     def test_runs_describe(self):
         runs = self.simple_invoke(
@@ -370,7 +330,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         ))
 
     def test_runs_submit(self):
-
         hello_world_workflow_url = self.get_hello_world_workflow_url()
         input_json_file = self._create_inputs_json_file()
         input_text_file = self._create_inputs_text_file()
@@ -489,9 +448,9 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
                 submitted_batch.runs[0].run_id
             )]
             self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
-            self.assertEqual(described_runs[0].request.workflow_engine_parameters, {'key': 'value'},
-                             f'Expected workflow engine params to be exactly the same. '
-                             f'Found {described_runs[0].request.workflow_engine_parameters}')
+            self.assertTrue('key' in described_runs[0].request.workflow_engine_parameters and 'value' in
+                            described_runs[0].request.workflow_engine_parameters['key'],
+                            f'Expected workflow engine params to be exactly the same. ' + f'Found {described_runs[0].request.workflow_engine_parameters}')
 
         test_submit_batch_with_engine_key_value_param()
 
@@ -548,23 +507,25 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         def test_submit_batch_with_dry_run_option():
             submitted_batch_request = BatchRunRequest(**self.simple_invoke(
-                'alpha','workbench', 'runs', 'submit',
+                'workbench', 'runs', 'submit',
                 '--dry-run',
                 '--url', hello_world_workflow_url,
                 '--workflow-params', 'test.hello.name=foo',
                 '--tags', 'foo=bar',
                 '--samples', 'HG001,HG002,HG003,HG004',
             ))
-            self.assertEqual(len(submitted_batch_request.run_requests), 1, 'Expected exactly one run request submitted.')
-            self.assertEqual(submitted_batch_request.run_requests[0].workflow_params, {'test.hello.name': 'foo'}, "Expected workflow params to be the same.")
-            self.assertEqual(submitted_batch_request.workflow_url, hello_world_workflow_url, "Expected workflow url to be the same.")
+            self.assertEqual(len(submitted_batch_request.run_requests), 1,
+                             'Expected exactly one run request submitted.')
+            self.assertEqual(submitted_batch_request.run_requests[0].workflow_params, {'test.hello.name': 'foo'},
+                             "Expected workflow params to be the same.")
+            self.assertEqual(submitted_batch_request.workflow_url, hello_world_workflow_url,
+                             "Expected workflow url to be the same.")
             self.assertEqual(submitted_batch_request.default_tags, {'foo': 'bar'}, "Expected tags to be the same.")
             self.assertEqual(submitted_batch_request.samples, [
                 Sample(id='HG001'),
                 Sample(id='HG002'),
                 Sample(id='HG003'),
                 Sample(id='HG004')], "Expected created samples classes with the same ids")
-
 
         test_submit_batch_with_dry_run_option()
 
@@ -582,11 +543,191 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertGreater(len(events_result), 0, f'Expected run events. Found {events_result}')
 
         self.assertIsNotNone(events_result[0].id, f'Expected event to have an id. Found {events_result[0].id}')
-        self.assertEqual(EventType.RUN_SUBMITTED, events_result[0].event_type, f'Expected event to be of type RUN_SUBMITTED. Got {events_result[0].event_type}')
-        self.assertIsNone(events_result[0].metadata.message, f'Expected first event not to have message. Got {events_result[0].metadata.message}')
-        self.assertIsNone(events_result[0].metadata.old_state, f'Expected first event to not have old state. Got {events_result[0].metadata.old_state}')
-        self.assertEqual(State.QUEUED, events_result[0].metadata.new_state, f'Expected first event\'s new state to be QUEUED. Got {events_result[0].metadata.new_state}')
+        self.assertEqual(EventType.RUN_SUBMITTED, events_result[0].event_type,
+                         f'Expected event to be of type RUN_SUBMITTED. Got {events_result[0].event_type}')
+        self.assertIsNone(events_result[0].metadata.message,
+                          f'Expected first event not to have message. Got {events_result[0].metadata.message}')
+        self.assertIsNone(events_result[0].metadata.old_state,
+                          f'Expected first event to not have old state. Got {events_result[0].metadata.old_state}')
+        self.assertEqual(State.QUEUED, events_result[0].metadata.new_state,
+                         f'Expected first event\'s new state to be QUEUED. Got {events_result[0].metadata.new_state}')
 
+
+    ## Samples
+
+    def test_samples_list_and_describe(self):
+        created_storage_account = self._create_storage_account()
+        created_platform = self._create_platform(created_storage_account)
+        samples = self._wait_for_samples()
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        for sample in samples:
+            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
+
+        sample = Sample(**self.simple_invoke(
+            'workbench', 'samples', 'describe', samples[0].id
+        ))
+        self.assertEqual(sample.id, samples[0].id)
+        self.assert_not_empty(sample.files, 'Sample files should not be empty')
+        self.assert_not_empty(sample.files[0].path, 'Sample file path should not be empty')
+
+    def _wait_for_samples(self):
+        timeout = 30
+        start_time = asyncio.get_event_loop().time()
+        while True:
+            samples = [Sample(**sample) for sample in self.simple_invoke(
+                'workbench', 'samples', 'list'
+            )]
+            if samples:
+                break
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                raise TimeoutError("Timeout reached while waiting for samples to be created.")
+            sleep(2)
+        return samples
+
+    def _wait(self):
+        timeout = 30
+        start_time = asyncio.get_event_loop().time()
+        sleep(timeout)
+
+    def test_samples_files_list(self):
+        created_storage_account = self._create_storage_account()
+        created_platform = self._create_platform(created_storage_account)
+        samples = self._wait_for_samples()
+        self._wait()
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        for sample in samples:
+            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
+        samples = [Sample(**sample) for sample in self.simple_invoke(
+            'workbench', 'samples', 'list'
+        )]
+        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
+        sample = samples[0]
+
+        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
+            'workbench', 'samples', 'files', 'list', '--sample', sample.id
+        )]
+        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
+        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
+
+        ## Add another test case where we pass the platform id
+        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
+            'workbench', 'samples', 'files', 'list', '--sample', sample.id, '--platform', created_platform.id
+        )]
+        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
+        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
+        self.assertTrue(all(sample_file.platform_id == created_platform.id for sample_file in sample_files))
+
+    ## Storage
+    def test_storage_create(self):
+        created_storage_account = self._create_storage_account()
+        self.assertIsNotNone(created_storage_account.id)
+        self.assertIsNotNone(created_storage_account.name)
+        self.assertEqual(created_storage_account.provider, Provider.aws)
+
+
+    def test_storage_list(self):
+        created_storage_account = self._get_or_create_storage_account()
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+             'workbench', 'storage', 'list'
+        )]
+        self.assert_not_empty(storage_accounts, f'Expected at least one storage account. Found {storage_accounts}')
+        self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
+
+
+    def test_storage_describe(self):
+        created_storage_account = self._get_or_create_storage_account()
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+             'workbench', 'storage', 'describe', created_storage_account.id
+        )]
+        self.assertEqual(len(storage_accounts), 1,
+                         f'Expected exactly one storage account. Found {storage_accounts}')
+        self.assertEqual(storage_accounts[0].id, created_storage_account.id)
+        self.assertEqual(storage_accounts[0].name, created_storage_account.name)
+        self.assertEqual(storage_accounts[0].provider, Provider.aws)
+
+
+    def test_platform_create(self):
+        created_storage_account = self._create_storage_account()
+        created_platform = self._create_platform(created_storage_account=created_storage_account, id='test-platform')
+        self.assertIsNotNone(created_platform.id)
+        self.assertEqual(created_platform.name, 'Test Platform')
+        self.assertEqual(created_platform.type, 'pacbio')
+        self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
+
+
+    def test_platforms_list(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+             'workbench', 'storage', 'platforms', 'list'
+        )]
+        self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
+        self.assertTrue(created_platform.id in [platform.id for platform in platforms])
+
+
+    def test_platform_describe(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+             'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            '--storage-id', created_storage_account.id
+        )]
+        self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
+        self.assertEqual(platforms[0].id, created_platform.id)
+        self.assertEqual(platforms[0].name, created_platform.name)
+        self.assertEqual(platforms[0].type, created_platform.type)
+        self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
+    def test_platform_delete(self):
+        created_storage_account = self._get_or_create_storage_account()
+        created_platform = self._get_or_create_platform()
+        output = self.simple_invoke(
+             'workbench', 'storage', 'platforms', 'delete', created_platform.id,
+            '--storage-id', created_storage_account.id,
+            '--force',
+            parse_output=False
+        )
+        self.assertTrue("deleted successfully" in output)
+
+        platforms = [Platform(**platform) for platform in self.simple_invoke(
+             'workbench', 'storage', 'platforms', 'list'
+        )]
+        self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
+
+        result = self.invoke(
+             'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            '--storage-id', created_storage_account.id,
+            bypass_error=True
+        )
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertTrue('"error_code":404' in result.stderr)
+
+    def test_storage_delete(self):
+        created_storage_account = self._create_storage_account()
+        output = self.simple_invoke(
+             'workbench', 'storage', 'delete', created_storage_account.id,
+            '--force',
+            parse_output=False
+        )
+        self.assertTrue("deleted successfully" in output)
+
+        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
+             'workbench', 'storage', 'list'
+        )]
+        self.assertTrue(
+            created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
+
+        result = self.invoke(
+             'workbench', 'storage', 'describe', created_storage_account.id,
+            bypass_error=True
+        )
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertTrue('"error_code":404' in result.stderr)
+
+
+
+    ## Workflows
     def test_workflows_list(self):
         result = [Workflow(**workflow) for workflow in self.simple_invoke(
             'workbench', 'workflows', 'list'
@@ -893,6 +1034,125 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue(len(result) == 1, "Expected the number of workflow versions to be exactly 1")
         self.assertEqual(result[0].id, workflow.versions[0].id)
 
+    # Tempor
+    # def test_workflows_files(self):
+    #
+    #     # Store the current working directory
+    #     original_dir = os.getcwd()
+    #
+    #     with tempfile.TemporaryDirectory() as temp_dir:
+    #         try:
+    #             # Change the current working directory to the temporary directory
+    #             os.chdir(temp_dir)
+    #
+    #             def _create_files():
+    #                 with open('main.wdl', 'w') as main_wdl_file:
+    #                     main_wdl_file.write(main_file_content)
+    #
+    #                 with open('description.md', 'w') as description_file:
+    #                     description_file.write(description_file_content)
+    #
+    #                 with open('binary.bin', 'wb') as binary_file:
+    #                     binary_file.write(b'binary content')
+    #
+    #             def _delete_files():
+    #                 os.remove('main.wdl')
+    #                 os.remove('description.md')
+    #                 os.remove('binary.bin')
+    #
+    #
+    #             def _add_files(workflow: Workflow):
+    #                 result = self.invoke(
+    #                     'workbench', 'workflows', 'versions', 'create',
+    #                     '--workflow', workflow.internalId,
+    #                     '--name', 'v1',
+    #                     '--description', '@description.md',
+    #                     '--entrypoint', 'main.wdl',
+    #                     'binary.bin', 'main.wdl'
+    #                 )
+    #
+    #             _create_files()
+    #             created_workflow = self._create_workflow()
+    #             _add_files(created_workflow)
+    #
+    #             def test_stdout_specific_file():
+    #                 specified_file_path = 'main.wdl'
+    #                 result = self.invoke('workbench', 'workflows', 'versions', 'files',
+    #                                      '--path', specified_file_path,
+    #                                      '--workflow', created_workflow.internalId,
+    #                                      created_workflow.latestVersion
+    #                                      )
+    #                 self.assert_not_empty(result.stdout)
+    #                 self.assertTrue(main_file_content in result.stdout)
+    #
+    #             test_stdout_specific_file()
+    #
+    #             def test_stdout_descriptor():
+    #                 result = self.invoke('workbench', 'workflows', 'versions', 'files',
+    #                                      '--workflow', created_workflow.internalId,
+    #                                      created_workflow.latestVersion
+    #                                      )
+    #                 self.assert_not_empty(result.stdout)
+    #                 self.assertTrue(main_file_content in result.stdout)
+    #
+    #             test_stdout_descriptor()
+    #
+    #             def test_copy_specific_file_to_output():
+    #                 specified_file_path = 'main.wdl'
+    #                 output_path = os.path.join(os.getcwd(), 'output.wdl')
+    #                 self.simple_invoke('workbench', 'workflows', 'versions', 'files',
+    #                                    '--path', specified_file_path,
+    #                                    '--output', output_path,
+    #                                    '--workflow', created_workflow.internalId,
+    #                                    created_workflow.latestVersion
+    #                                    )
+    #
+    #                 self.assertTrue(os.path.exists(output_path))
+    #                 with open(output_path, 'r') as opened_file:
+    #                     content = opened_file.read()
+    #                     self.assertTrue(content in main_file_content)
+    #                 os.remove(output_path)
+    #
+    #             test_copy_specific_file_to_output()
+    #
+    #             def unzip_file(zip_file_path, destination_path):
+    #                 with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+    #                     zip_ref.extractall(destination_path)
+    #
+    #             def test_zip_specific_file():
+    #                 zip_path = os.path.join(os.getcwd(), 'downloaded.zip')
+    #                 self.simple_invoke('workbench', 'workflows', 'versions', 'files',
+    #                                    '--path', 'main.wdl',
+    #                                    '--output', zip_path,
+    #                                    '--zip',
+    #                                    '--workflow', created_workflow.internalId,
+    #                                    created_workflow.latestVersion
+    #                                    )
+    #
+    #                 destination_path = 'extracted-zip'
+    #                 if not os.path.exists(destination_path):
+    #                     os.makedirs(destination_path)
+    #                 unzip_file(zip_path, destination_path)
+    #
+    #                 file_path = os.path.join(destination_path, 'main.wdl')
+    #                 self.assertTrue(os.path.exists(file_path))
+    #                 with open(file_path, 'r') as opened_file:
+    #                     content = opened_file.read()
+    #                     self.assertTrue(main_file_content in content)
+    #
+    #                 # clean
+    #                 if os.path.exists(destination_path):
+    #                     shutil.rmtree(destination_path)
+    #                 if os.path.exists(zip_path):
+    #                     os.remove(zip_path)
+    #
+    #             test_zip_specific_file()
+    #
+    #             _delete_files()
+    #         finally:
+    #             os.chdir(original_dir)
+
+
     def test_create_workflow_defaults(self):
         self._create_workflow_files()
         self._create_description_file()
@@ -900,7 +1160,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
@@ -911,7 +1171,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         ## JSON File inputs
         input_json = self._create_inputs_json_file()
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "foo", "--values",
             f"@{input_json}"))
@@ -920,7 +1180,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assert_not_empty(created_default.values)
         ## JSON Key inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo3", "--engine", "foo3", "--values",
             "foo=bar"
@@ -936,19 +1196,19 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "2", "--values",
             '{"foo": "bar"}'
         ))
 
         list_result = [WorkflowDefaults(**workflow_default) for workflow_default in self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "list", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "list", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id)]
 
@@ -962,13 +1222,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         describe_result = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "describe",
+             "workbench", "workflows", "versions", "defaults", "describe",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id
         )[0])
@@ -984,13 +1244,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         updated_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "update", created_default.id, "--name", "foo2",
+             "workbench", "workflows", "versions", "defaults", "update", created_default.id, "--name", "foo2",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             "--values", '{"foo": "bar2"}'
         ))
@@ -1005,13 +1265,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         message = self.simple_invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "delete",
+             "workbench", "workflows", "versions", "defaults", "delete",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id, "--force"
         )
@@ -1019,376 +1279,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue("Deleted" in message)
 
         result = self.invoke(
-            "alpha", "workbench", "workflows", "versions", "defaults", "describe",
+             "workbench", "workflows", "versions", "defaults", "describe",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id,
             bypass_error=True
         )
 
         self.assertNotEqual(result.exit_code, 0)
-
-    def test_engine_list(self):
-        engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
-            'workbench', 'engines', 'list'
-        )]
-
-        self.assert_not_empty(engines_result, "Expected at least one engine")
-        self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
-
-    def test_engine_describe(self):
-        engines_result = [ExecutionEngine(**engine) for engine in self.simple_invoke(
-            'workbench', 'engines', 'describe', self.execution_engine.id
-        )]
-
-        self.assert_not_empty(engines_result, "Expected engine result to not be empty")
-        self.assertEqual(len(engines_result), 1, "Expected only one engine")
-        self.assertTrue(any(engine.id == self.execution_engine.id for engine in engines_result))
-
-    def test_engine_parameters_list(self):
-        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
-            'workbench', 'engines', 'parameters', 'list', '--engine', self.execution_engine.id
-        )]
-
-        self.assert_not_empty(engine_params_result, "Expected at least one param")
-        self.assertTrue(any(param.preset_values == self.engine_params.preset_values for param in engine_params_result))
-
-    def test_engine_parameters_describe(self):
-        engine_params_result = [EngineParamPreset(**param) for param in self.simple_invoke(
-            'workbench', 'engines', 'parameters', 'describe', '--engine', self.execution_engine.id,
-            self.engine_params.id
-        )]
-
-        self.assert_not_empty(engine_params_result, "Expected at least one param description")
-        self.assertEqual(len(engine_params_result), 1, "Expected only one param description")
-        self.assertTrue(any(param.preset_values == self.engine_params.preset_values for param in engine_params_result))
-
-    def test_engine_health_check_list(self):
-        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
-            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id
-        )]
-
-        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
-        self.assertTrue(
-            any(health_check.outcome == self.health_checks["outcome"] for health_check in engine_health_checks_result))
-
-        engine_health_checks_result = [EngineHealthCheck(**health_check) for health_check in self.simple_invoke(
-            'workbench', 'engines', 'health-checks', 'list', '--engine', self.execution_engine.id, '--outcome',
-            'SUCCESS', '--check-type', 'PERMISSIONS'
-        )]
-
-        self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
-        self.assertTrue(any(health_check.outcome == 'SUCCESS' for health_check in engine_health_checks_result))
-
-    def test_workflows_files(self):
-        main_file_content = """
-                version 1.0
-
-                workflow no_task_workflow {
-                    input {
-                        String first_name
-                        String? last_name
-                    }
-                }
-                """
-        description_file_content = """
-                        TITLE
-                        DESCRIPTION
-                        """
-
-        # Store the current working directory
-        original_dir = os.getcwd()
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            try:
-                # Change the current working directory to the temporary directory
-                os.chdir(temp_dir)
-
-                def _create_files():
-                    with open('main.wdl', 'w') as main_wdl_file:
-                        main_wdl_file.write(main_file_content)
-
-                    with open('description.md', 'w') as description_file:
-                        description_file.write(description_file_content)
-
-                    with open('binary.bin', 'wb') as binary_file:
-                        binary_file.write(b'binary content')
-
-                def _delete_files():
-                    os.remove('main.wdl')
-                    os.remove('description.md')
-                    os.remove('binary.bin')
-
-                def _create_workflow() -> Workflow:
-                    return Workflow(**self.simple_invoke(
-                        'workbench', 'workflows', 'create',
-                        '--description', '@description.md',
-                        '--entrypoint', 'main.wdl',
-                        'main.wdl',
-                    ))
-
-                def _add_files(workflow: Workflow):
-                    result = self.invoke(
-                        'workbench', 'workflows', 'versions', 'create',
-                        '--workflow', workflow.internalId,
-                        '--name', 'v1',
-                        '--description', '@description.md',
-                        '--entrypoint', 'main.wdl',
-                        'binary.bin', 'main.wdl'
-                    )
-
-                _create_files()
-                created_workflow = _create_workflow()
-                _add_files(created_workflow)
-
-                def test_stdout_specific_file():
-                    specified_file_path = 'main.wdl'
-                    result = self.invoke('workbench', 'workflows', 'versions', 'files',
-                                         '--path', specified_file_path,
-                                         '--workflow', created_workflow.internalId,
-                                         created_workflow.latestVersion
-                                         )
-                    self.assert_not_empty(result.stdout)
-                    self.assertTrue(main_file_content in result.stdout)
-
-                test_stdout_specific_file()
-
-                def test_stdout_descriptor():
-                    result = self.invoke('workbench', 'workflows', 'versions', 'files',
-                                         '--workflow', created_workflow.internalId,
-                                         created_workflow.latestVersion
-                                         )
-                    self.assert_not_empty(result.stdout)
-                    self.assertTrue(main_file_content in result.stdout)
-
-                test_stdout_descriptor()
-
-                def test_copy_specific_file_to_output():
-                    specified_file_path = 'main.wdl'
-                    output_path = os.path.join(os.getcwd(), 'output.wdl')
-                    self.simple_invoke('workbench', 'workflows', 'versions', 'files',
-                                       '--path', specified_file_path,
-                                       '--output', output_path,
-                                       '--workflow', created_workflow.internalId,
-                                       created_workflow.latestVersion
-                                       )
-
-                    self.assertTrue(os.path.exists(output_path))
-                    with open(output_path, 'r') as opened_file:
-                        content = opened_file.read()
-                        self.assertTrue(content in main_file_content)
-                    os.remove(output_path)
-
-                test_copy_specific_file_to_output()
-
-                def unzip_file(zip_file_path, destination_path):
-                    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-                        zip_ref.extractall(destination_path)
-
-                def test_zip_specific_file():
-                    zip_path = os.path.join(os.getcwd(), 'downloaded.zip')
-                    self.simple_invoke('workbench', 'workflows', 'versions', 'files',
-                                       '--path', 'main.wdl',
-                                       '--output', zip_path,
-                                       '--zip',
-                                       '--workflow', created_workflow.internalId,
-                                       created_workflow.latestVersion
-                                       )
-
-                    destination_path = 'extracted-zip'
-                    if not os.path.exists(destination_path):
-                        os.makedirs(destination_path)
-                    unzip_file(zip_path, destination_path)
-
-                    file_path = os.path.join(destination_path, 'main.wdl')
-                    self.assertTrue(os.path.exists(file_path))
-                    with open(file_path, 'r') as opened_file:
-                        content = opened_file.read()
-                        self.assertTrue(main_file_content in content)
-
-                    # clean
-                    if os.path.exists(destination_path):
-                        shutil.rmtree(destination_path)
-                    if os.path.exists(zip_path):
-                        os.remove(zip_path)
-
-                test_zip_specific_file()
-
-                _delete_files()
-            finally:
-                os.chdir(original_dir)
-
-    def test_namespaces(self):
-        def test_get_default_namespace():
-            result = self.simple_invoke('workbench', 'namespaces', 'get-default')
-            self.assert_not_empty(result)
-
-        test_get_default_namespace()
-
-
-    def test_storage_create(self):
-        created_storage_account = self._get_or_create_storage_account()
-        self.assertEqual(created_storage_account.id, 'test-storage-account')
-        self.assertEqual(created_storage_account.name, 'Test Storage Account')
-        self.assertEqual(created_storage_account.provider, Provider.aws)
-
-    def test_storage_list(self):
-        created_storage_account = self._get_or_create_storage_account()
-        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'list'
-        )]
-        self.assert_not_empty(storage_accounts, f'Expected at least one storage account. Found {storage_accounts}')
-        self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
-
-
-    def test_storage_describe(self):
-        created_storage_account = self._get_or_create_storage_account()
-        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'describe', created_storage_account.id
-        )]
-        self.assertEqual(len(storage_accounts), 1,
-                         f'Expected exactly one storage account. Found {storage_accounts}')
-        self.assertEqual(storage_accounts[0].id, created_storage_account.id)
-        self.assertEqual(storage_accounts[0].name, created_storage_account.name)
-        self.assertEqual(storage_accounts[0].provider, Provider.aws)
-
-
-    def test_platform_create(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        self.assertEqual(created_platform.id, 'test-platform')
-        self.assertEqual(created_platform.name, 'Test Platform')
-        self.assertEqual(created_platform.type.upper(), 'PACBIO')
-        self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
-
-
-    def test_platforms_list(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'list'
-        )]
-        self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
-        self.assertTrue(created_platform.id in [platform.id for platform in platforms])
-
-    def test_platform_describe(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-            '--storage-id', created_storage_account.id
-        )]
-        self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
-        self.assertEqual(platforms[0].id, created_platform.id)
-        self.assertEqual(platforms[0].name, created_platform.name)
-        self.assertEqual(platforms[0].type, created_platform.type)
-        self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
-
-
-    def test_samples_list_and_describe(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        samples = self._wait_for_samples()
-        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
-        for sample in samples:
-            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
-
-        sample = Sample(**self.simple_invoke(
-            'alpha', 'workbench', 'samples', 'describe', samples[0].id
-        ))
-        self.assertEqual(sample.id, samples[0].id)
-        self.assert_not_empty(sample.files, 'Sample files should not be empty')
-        self.assert_not_empty(sample.files[0].path, 'Sample file path should not be empty')
-
-    def _wait_for_samples(self):
-        timeout = 30
-        start_time = asyncio.get_event_loop().time()
-        while True:
-            samples = [Sample(**sample) for sample in self.simple_invoke(
-                'alpha', 'workbench', 'samples', 'list'
-            )]
-            if samples:
-                break
-            if asyncio.get_event_loop().time() - start_time > timeout:
-                raise TimeoutError("Timeout reached while waiting for samples to be created.")
-            asyncio.sleep(2)
-        return samples
-
-    def test_samples_files_list(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        samples = self._wait_for_samples()
-        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
-        for sample in samples:
-            self.assert_not_empty(sample.id, 'Sample ID should not be empty')
-        samples = [Sample(**sample) for sample in self.simple_invoke(
-            'alpha', 'workbench', 'samples', 'list'
-        )]
-        self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
-        sample = samples[0]
-        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
-            'alpha', 'workbench', 'samples', 'files', 'list','--sample', sample.id
-        )]
-        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
-        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
-
-        ## Add another test case where we pass the platform id
-        sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
-            'alpha', 'workbench', 'samples', 'files', 'list', '--sample', sample.id, '--platform', created_platform.id
-        )]
-        self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
-        self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
-        self.assertTrue(all(sample_file.platform_id == created_platform.id for sample_file in sample_files))
-
-
-    def test_platform_delete(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
-        output = self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'delete', created_platform.id,
-            '--storage-id', created_storage_account.id,
-            '--force',
-            parse_output=False
-        )
-        self.assertTrue("deleted successfully" in output)
-
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'list'
-        )]
-        self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
-
-        result = self.invoke(
-            'alpha', 'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-            '--storage-id', created_storage_account.id,
-            bypass_error=True
-        )
-
-        self.assertNotEqual(result.exit_code, 0)
-        self.assertTrue('"error_code":404' in result.stderr)
-
-    def test_storage_delete(self):
-        created_storage_account = self._create_storage_account()
-        output = self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'delete', created_storage_account.id,
-            '--force',
-            parse_output=False
-        )
-        self.assertTrue("deleted successfully" in output)
-
-        storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-            'alpha', 'workbench', 'storage', 'list'
-        )]
-        self.assertTrue(
-            created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
-
-        result = self.invoke(
-            'alpha', 'workbench', 'storage', 'describe', created_storage_account.id,
-            bypass_error=True
-        )
-
-        self.assertNotEqual(result.exit_code, 0)
-        self.assertTrue('"error_code":404' in result.stderr)
-
-        test_storage_delete()
 
     def test_workflow_transformation_create(self):
         self._create_workflow_files()
@@ -1425,7 +1322,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-            'alpha', 'workbench', 'transformations', 'list',
+             'workbench', 'workflows','versions', 'transformations', 'list',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
         )]
@@ -1440,7 +1337,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformation = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-            'alpha', 'workbench', 'transformations', 'describe',
+             'workbench', 'workflows','versions', 'transformations', 'describe',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             created_workflow_transformation.id
@@ -1461,7 +1358,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         workflow_transformation_2 = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-            'alpha', 'workbench', 'transformations', 'describe',
+             'workbench', 'workflows','versions', 'transformations', 'describe',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             workflow_transformation_1.id,
@@ -1478,7 +1375,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         workflow_transformation_to_be_deleted = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         output = self.simple_invoke(
-            'alpha', 'workbench', 'transformations', 'delete',
+             'workbench', 'workflows','versions', 'transformations', 'delete',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             '--force',

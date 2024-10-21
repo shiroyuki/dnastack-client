@@ -4,17 +4,21 @@ from typing import Optional, Iterable
 
 import click
 from click import style
-from dnastack.alpha.client.workbench.samples.models import Sample
+from dnastack.client.workbench.samples.models import Sample
 
+from dnastack.cli.workbench.utils import get_workflow_client
 from dnastack.cli.workbench.utils import get_ewes_client, NoDefaultEngineError, \
     UnableToFindParameterError
-from dnastack.client.workbench.ewes.models import ExtendedRun, ExtendedRunListOptions, ExtendedRunRequest, BatchRunRequest, \
-    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, RunEventListOptions, TaskListOptions, State, ExecutionEngineListOptions
+from dnastack.client.workbench.ewes.models import ExtendedRun, ExtendedRunListOptions, ExtendedRunRequest, \
+    BatchRunRequest, \
+    MinimalExtendedRunWithOutputs, MinimalExtendedRunWithInputs, RunEventListOptions, TaskListOptions, State, \
+    ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
+from dnastack.client.workbench.workflow.models import WorkflowDefaultsSelector
 from dnastack.common.json_argument_parser import *
 from dnastack.common.tracing import Span
 
@@ -518,6 +522,21 @@ def get_run_logs(context: Optional[str],
                  default=False,
                  required=False
              ),
+             ArgumentSpec(
+                 name='no_defaults',
+                 arg_names=['--no-defaults'],
+                 help='If specified, the command will not use any default values for the workflow.',
+                 as_option=True,
+                 default=False,
+                 required=False
+             ),
+             ArgumentSpec(
+                 name='sample_ids',
+                 arg_names=['--samples'],
+                 help='An optional flag that accepts a comma separated list of Sample IDs to use in the given workflow.',
+                 as_option=True,
+                 required=False,
+             ),
          ])
 def submit_batch(context: Optional[str],
                  endpoint_id: Optional[str],
@@ -529,7 +548,9 @@ def submit_batch(context: Optional[str],
                  tags: JsonLike,
                  workflow_params,
                  overrides,
-                 dry_run: bool):
+                 dry_run: bool,
+                 no_defaults: bool,
+                 sample_ids: Optional[str]):
     """
     Submit one or more workflows for execution
 
@@ -537,6 +558,13 @@ def submit_batch(context: Optional[str],
     """
 
     ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+
+    def parse_samples():
+        if not sample_ids:
+            return None
+
+        sample_list = sample_ids.split(',')
+        return [Sample(id=sample_id) for sample_id in sample_list]
 
     def get_default_engine_id():
         list_options = ExecutionEngineListOptions()
@@ -547,6 +575,29 @@ def submit_batch(context: Optional[str],
         raise NoDefaultEngineError("No default engine found. Please specify an engine id using the --engine flag "
                                    "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
 
+    def get_workflow_defaults(engine_id_to_fetch: str):
+        workflow_client = get_workflow_client(context_name=context, endpoint_id=endpoint_id,
+                                              namespace=namespace)
+        resolved_workflow = workflow_client.resolve_workflow(workflow_url)
+        defaults_selector = WorkflowDefaultsSelector()
+        resolved_defaults = dict()
+        engine = ewes_client.get_engine(engine_id_to_fetch)
+        defaults_selector.engine = engine.id
+        defaults_selector.region = engine.region
+        defaults_selector.provider = engine.provider
+
+        try:
+            resolved_defaults = workflow_client.resolve_workflow_defaults(
+                workflow_id=resolved_workflow.internalId,
+                workflow_version_id=resolved_workflow.versionId,
+                selector=defaults_selector).values
+        except Exception as e:
+            pass
+        return resolved_defaults
+
+    if not engine_id:
+        engine_id = get_default_engine_id()
+
     if default_workflow_engine_parameters:
         [param_ids_list, kv_pairs_list, json_literals_list,
          files_list] = default_workflow_engine_parameters.extract_arguments_list()
@@ -554,8 +605,6 @@ def submit_batch(context: Optional[str],
         param_presets = merge_param_json_data(kv_pairs_list, json_literals_list, files_list)
 
         if param_ids_list:
-            if not engine_id:
-                engine_id = get_default_engine_id()
             for param_id in param_ids_list:
                 try:
                     param_preset = ewes_client.get_engine_param_preset(engine_id, param_id)
@@ -567,14 +616,20 @@ def submit_batch(context: Optional[str],
     else:
         default_workflow_engine_parameters = None
 
+    default_workflow_params = default_workflow_params.parsed_value() if default_workflow_params else {}
+    if not no_defaults:
+        workflow_defaults = get_workflow_defaults(engine_id)
+        merge(default_workflow_params, workflow_defaults)
+
     batch_request: BatchRunRequest = BatchRunRequest(
         workflow_url=workflow_url,
         workflow_type="WDL",
         engine_id=engine_id,
         default_workflow_engine_parameters=default_workflow_engine_parameters,
-        default_workflow_params=default_workflow_params.parsed_value() if default_workflow_params else None,
+        default_workflow_params=default_workflow_params,
         default_tags=tags.parsed_value() if tags else None,
-        run_requests=list()
+        run_requests=list(),
+        samples=parse_samples()
     )
 
     for workflow_param in workflow_params:
@@ -684,8 +739,9 @@ def list_run_events(context: Optional[str],
     """
     Lists run events
     """
-    
+
     client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     show_iterator(output_format=OutputFormat.JSON, iterator=client.list_events(run_id).events)
+
 
 runs_command_group.add_command(events_command_group)
