@@ -1,13 +1,12 @@
 from typing import List, Iterator, Optional
 from urllib.parse import urljoin
 
-from dnastack.client.instruments.models import InstrumentListOptions
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
 from dnastack.client.workbench.samples.models import SampleListOptions, SampleListResponse, Sample, \
-    SampleFilesListOptions, SampleFileListResponse
+    SampleFilesListOptions, SampleFileListResponse, InstrumentListResponse, InstrumentListOptions
 from dnastack.common.tracing import Span
 from dnastack.http.session import HttpSession
 
