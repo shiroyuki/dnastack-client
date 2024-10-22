@@ -1,13 +1,11 @@
-import os
-import re
-
 import click
 from typing import Optional, List
 
 from click import style
 
-from dnastack.alpha.cli.workbench.utils import get_alpha_workflow_client
-from dnastack.alpha.client.workbench.workflow.models import WorkflowTransformationListOptions, \
+from dnastack.cli.workbench.utils import get_workflow_client
+from dnastack.cli.workbench.utils import JavaScriptFunctionExtractor
+from dnastack.client.workbench.workflow.models import WorkflowTransformationListOptions, \
     WorkflowTransformationCreate
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
@@ -15,31 +13,12 @@ from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 
 
-def is_file_path(script: str) -> bool:
-    return os.path.isfile(script)
-
-
-class JavaScriptFunctionExtractor:
-    FUNCTION_PATTERN = re.compile(r'(?:let|const)\s*\w+\s*=\s*(\(.*\)\s*=>\s*\{.*\})', re.DOTALL)
-
-    def __init__(self, file_path: str):
-        self.file_path = file_path
-
-    def extract_first_function(self) -> Optional[str]:
-        with open(self.file_path, 'r') as file:
-            content = file.read()
-        match = self.FUNCTION_PATTERN.search(content)
-        if match:
-            return match.group(1)
-        return None
-
-
 @click.group('transformations')
-def alpha_transformations_command_group():
-    """ Interact with workflow transformations """
+def workflow_versions_transformations_command_group():
+    """ Interact with transformations """
 
 
-@command(alpha_transformations_command_group,
+@command(workflow_versions_transformations_command_group,
          'list',
          specs=[
              ArgumentSpec(
@@ -72,13 +51,13 @@ def list_workflow_transformations(context: Optional[str],
     List workflow transformations
     """
 
-    client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     list_options: WorkflowTransformationListOptions = WorkflowTransformationListOptions()
     transformations_list = client.list_workflow_transformations(workflow_id=workflow_id, workflow_version_id=version_id, list_options=list_options)
     show_iterator(output_format=OutputFormat.JSON, iterator=transformations_list)
 
 
-@command(alpha_transformations_command_group,
+@command(workflow_versions_transformations_command_group,
          'describe',
          specs=[
              ArgumentSpec(
@@ -114,13 +93,13 @@ def describe_workflow_transformation(context: Optional[str],
         click.echo(style("You must specify at least one transformation ID", fg='red'), err=True, color=True)
         exit(1)
 
-    client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     described_transformations = [client.get_workflow_transformation(workflow_id=workflow_id, workflow_version_id=version_id, transformation_id=transformation_id)
                                  for transformation_id in transformation_ids]
     click.echo(to_json(normalize(described_transformations)))
 
 
-@command(alpha_transformations_command_group,
+@command(workflow_versions_transformations_command_group,
          "delete",
          specs=[
              ArgumentSpec(
@@ -161,7 +140,7 @@ def delete_workflow_transformation(context: Optional[str],
     """
     Delete an existing workflow transformation
     """
-    client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     if not force and not click.confirm(
             f'Are you sure you want to delete the transformation with ID "{transformation_id}" '
             f'This action cannot be undone.'):
@@ -176,7 +155,7 @@ def delete_workflow_transformation(context: Optional[str],
     click.echo("Deleted...")
 
 
-@command(alpha_transformations_command_group,
+@command(workflow_versions_transformations_command_group,
          'create',
          specs=[
              ArgumentSpec(
@@ -229,7 +208,7 @@ def add_workflow_transformation(context: Optional[str],
                                 next_transformation_id: Optional[str],
                                 labels: List[str]):
     """Create a new workflow transformation"""
-    client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
     if script.startswith("@"):
         extractor = JavaScriptFunctionExtractor(script.split("@")[1])

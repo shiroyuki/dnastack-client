@@ -2,39 +2,22 @@ from typing import Optional, List
 
 import click
 
-from dnastack.alpha.client.workbench.workflow.models import WorkflowDefaults, WorkflowDefaultsUpdateRequest
-from dnastack.alpha.cli.workbench.utils import get_alpha_workflow_client
-from dnastack.alpha.client.workbench.workflow.models import WorkflowDefaultsSelector, WorkflowDefaultsListOptions, \
-    WorkflowDefaultsCreateRequest
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
+from dnastack.cli.workbench.utils import get_workflow_client
+from dnastack.client.workbench.workflow.models import WorkflowDefaultsSelector, WorkflowDefaultsCreateRequest, \
+    WorkflowDefaultsListOptions, WorkflowDefaultsUpdateRequest
 from dnastack.common.json_argument_parser import JsonLike
 
 
-@click.group('workflows')
-def alpha_workflows_command_group():
-    """ Interact with workflows """
-
-
-@click.group('versions')
-def alpha_workflows_versions_command_group():
-    """ Interact with workflow versions """
-
-
-alpha_workflows_command_group.add_command(alpha_workflows_versions_command_group)
-
-
 @click.group('defaults')
-def alpha_workflows_versions_defaults_command_group():
+def workflows_versions_defaults_command_group():
     """ Interact with workflow versions defaults """
 
 
-alpha_workflows_versions_command_group.add_command(alpha_workflows_versions_defaults_command_group)
-
-
-@command(alpha_workflows_versions_defaults_command_group,
+@command(workflows_versions_defaults_command_group,
          'create',
          specs=[
              ArgumentSpec(
@@ -102,15 +85,15 @@ def create_workflow_defaults(context: Optional[str],
     """
     Create a default for a workflow
     """
-    alpha_client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     parsed = values.parsed_value()
     selector = WorkflowDefaultsSelector(engine=engine, provider=provider, region=region)
     workflow_defaults = WorkflowDefaultsCreateRequest(id=id, name=name, selector=selector, values=parsed)
-    click.echo(to_json(normalize(alpha_client.create_workflow_defaults(workflow_id=workflow_id, version_id=version_id,
+    click.echo(to_json(normalize(client.create_workflow_defaults(workflow_id=workflow_id, version_id=version_id,
                                                                        workflow_defaults=workflow_defaults))))
 
 
-@command(alpha_workflows_versions_defaults_command_group,
+@command(workflows_versions_defaults_command_group,
          'list',
          specs=[
              ArgumentSpec(
@@ -175,18 +158,18 @@ def list_workflow_defaults(context: Optional[str],
     """
     List the defaults available for a workflow
     """
-    alpha_client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
     show_iterator(output_format=OutputFormat.JSON,
                   iterator=
-                  alpha_client.list_workflow_defaults(workflow_id=workflow_id, version_id=version_id,
+                  client.list_workflow_defaults(workflow_id=workflow_id, version_id=version_id,
                                                       max_results=max_results,
                                                       list_options=WorkflowDefaultsListOptions(page=page,
                                                                                                page_size=page_size,
                                                                                                sort=sort)))
 
 
-@command(alpha_workflows_versions_defaults_command_group,
+@command(workflows_versions_defaults_command_group,
          'describe',
          specs=[
              ArgumentSpec(
@@ -220,19 +203,19 @@ def describe_workflow_defaults(context: Optional[str],
     Describe one or more default values for a workflow
     """
 
-    alpha_client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
     if not default_ids:
         click.echo("You must specify at least one default id")
         exit(1)
 
     workflow_defaults = [
-        alpha_client.get_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id) for
+        client.get_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id) for
         default_id in default_ids]
     click.echo(to_json(normalize(workflow_defaults)))
 
 
-@command(alpha_workflows_versions_defaults_command_group,
+@command(workflows_versions_defaults_command_group,
          'update',
          specs=[
              ArgumentSpec(
@@ -300,18 +283,18 @@ def update_workflow_defaults(context: Optional[str],
     """
     Update a default for a workflow
     """
-    alpha_client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     parsed = values.parsed_value()
     selector = WorkflowDefaultsSelector(engine=engine, provider=provider, region=region)
     workflow_defaults = WorkflowDefaultsUpdateRequest(name=name, selector=selector, values=parsed)
-    existing = alpha_client.get_workflow_defaults(workflow_id=workflow, version_id=version, default_id=default_id)
-    click.echo(to_json(normalize(alpha_client.update_workflow_defaults(workflow_id=workflow, version_id=version,
+    existing = client.get_workflow_defaults(workflow_id=workflow, version_id=version, default_id=default_id)
+    click.echo(to_json(normalize(client.update_workflow_defaults(workflow_id=workflow, version_id=version,
                                                                        default_id=default_id,
                                                                        if_match=existing.etag,
                                                                        workflow_defaults=workflow_defaults))))
 
 
-@command(alpha_workflows_versions_defaults_command_group,
+@command(workflows_versions_defaults_command_group,
          'delete',
          specs=[
              ArgumentSpec(
@@ -350,10 +333,10 @@ def delete_workflow_defaults(context: Optional[str],
     """
     Delete a default for a workflow
     """
-    alpha_client = get_alpha_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
+    client = get_workflow_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
     if not force:
         click.confirm(f"Are you sure you want to delete the workflow defaults with id {default_id}?", abort=True)
-    existing = alpha_client.get_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id)
-    alpha_client.delete_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id,
+    existing = client.get_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id)
+    client.delete_workflow_defaults(workflow_id=workflow_id, version_id=version_id, default_id=default_id,
                                           if_match=existing.etag)
     click.echo("Deleted...")

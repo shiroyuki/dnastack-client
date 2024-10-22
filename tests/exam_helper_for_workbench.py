@@ -1,4 +1,9 @@
 import json
+import random
+import tempfile
+import zipfile
+from datetime import datetime
+import time
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
@@ -10,12 +15,12 @@ from dnastack.client.factory import EndpointRepository
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.ewes.models import MinimalExtendedRun, ExtendedRunRequest, BatchRunResponse, \
     BatchRunRequest, EngineParamPreset
+from dnastack.client.workbench.storage.models import StorageAccount, Platform
 from dnastack.client.workbench.workflow.client import WorkflowClient
-from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate
+from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate, WorkflowVersion, WorkflowTransformation
 from dnastack.common.environments import env
 from dnastack.http.session import HttpSession
 from tests.exam_helper import WithTestUserTestCase
-from tests.wallet_hellper import TestUser, Policy, Statement, Principal, Resource
 from tests.workbench_user_service_helper import WorkbenchUserServiceHelper
 
 HELLO_WORLD_WORKFLOW = """
@@ -118,6 +123,12 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         "outcome": "SUCCESS",
     }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.platform = None
+        self.storage_account = None
+
+
     @classmethod
     def get_factory(cls) -> EndpointRepository:
         return cls.get_context_manager().use(cls.get_context_urls()[0], no_auth=True)
@@ -129,23 +140,6 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
     @classmethod
     def get_app_url(cls) -> str:
         return cls.workbench_base_url
-
-    @classmethod
-    def get_access_policy(cls, test_user: TestUser) -> Policy:
-        return Policy(
-            id=f'{cls.test_policy_prefix}-{test_user.id}',
-            statements=[Statement(
-                actions=['workbench:ui'],
-                principals=[Principal(
-                    email=f'{test_user.email}',
-                    type='user'
-                )],
-                resources=[Resource(
-                    uri=f'{cls.workbench_base_url}/{test_user.id}/'
-                )]
-            )],
-            tags=['test', 'dnastack-client-library', 'workbench']
-        )
 
     @classmethod
     def do_on_setup_class_before_auth(cls) -> None:
@@ -288,3 +282,108 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                 )
             ]
         ))
+
+    def _create_workflow_files(self):
+        main_wdl_filename = "main.wdl"
+        with open(main_wdl_filename, 'w') as main_wdl_file:
+            main_wdl_file.write("""
+            version 1.0
+
+            workflow no_task_workflow {
+                input {
+                    String first_name
+                    String? last_name
+                }
+            }
+            """)
+        with zipfile.ZipFile('workflow.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(main_wdl_filename)
+
+    def _create_description_file(self):
+        with open('description.md', 'w') as description_file:
+            description_file.write("""
+            TITLE
+            DESCRIPTION
+            """)
+
+    def _create_workflow(self, use_zip_file: bool = False) -> Workflow:
+        return Workflow(**self.simple_invoke(
+            'workbench', 'workflows', 'create',
+            '--entrypoint', "main.wdl",
+            'workflow.zip' if use_zip_file else "main.wdl",
+        ))
+
+    def _create_workflow_version(self, workflow_id, name, use_zip_file: bool = False) -> WorkflowVersion:
+        return WorkflowVersion(**self.simple_invoke(
+            'workbench', 'workflows', 'versions', 'create',
+            '--workflow', workflow_id,
+            '--name', name,
+            '--entrypoint', "main.wdl",
+            'workflow.zip' if use_zip_file else "main.wdl",
+        ))
+
+    def _create_inputs_json_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as inputs_json_file:
+            inputs_json_file.write(b'{"test.hello.name": "bar"}')
+            return inputs_json_file.name
+
+    def _create_inputs_text_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
+            input_text_fp.write(b'bar')
+            return input_text_fp.name
+
+    def _create_transformation_script_file(self):
+        main_wdl_filename = "transformation.js"
+        with open(main_wdl_filename, 'w') as main_wdl_file:
+            main_wdl_file.write("""
+                            const myTransformation = (context) => { 
+                                return { 'baz': 'waz' } 
+                            }
+                            """)
+
+    def _create_workflow_transformation(self, workflow_id, version_id,
+                                        script_from_file: bool = False) -> WorkflowTransformation:
+        return WorkflowTransformation(**self.simple_invoke(
+            'workbench', 'workflows','versions', 'transformations', 'create',
+            '--workflow', workflow_id,
+            '--version', version_id,
+            '--label', "test",
+            '--label', "can-be-deleted",
+            "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
+        ))
+
+    def _create_storage_account(self, id=None) -> StorageAccount:
+        if not id:
+            id = f'test-storage-account-{random.randint(0, 100000)}'
+        return StorageAccount(**self.simple_invoke(
+            'workbench', 'storage', 'add', 'aws',
+            id,
+            '--name', 'Test Storage Account',
+            '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
+            '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
+            '--region', env('E2E_AWS_REGION', default='ca-central-1')
+        ))
+
+    def _get_or_create_storage_account(self) -> StorageAccount:
+        if not self.storage_account:
+            self.storage_account = self._create_storage_account()
+        return self.storage_account
+
+    def _create_platform(self, created_storage_account: StorageAccount, id=None) -> Platform:
+        if not id:
+            id = f'test-storage-account-{random.randint(0, 100000)}'
+        return Platform(**self.simple_invoke(
+            'workbench', 'storage', 'platforms', 'add',
+            id,
+            '--name', 'Test Platform',
+            '--storage-id', created_storage_account.id,
+            '--platform', 'PACBIO',
+            '--path',
+            env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
+        ))
+
+    def _get_or_create_platform(self) -> Platform:
+        if not self.platform:
+            self.platform = self._create_platform(self._get_or_create_storage_account())
+
+        return self.platform

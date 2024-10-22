@@ -2,11 +2,11 @@ from typing import List, Optional, Iterator
 from urllib.parse import urljoin
 
 from dnastack import ServiceEndpoint
-from dnastack.alpha.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse, \
-    Platform, PlatformListOptions, PlatformListResponse
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
+from dnastack.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse, \
+    Platform, PlatformListOptions, PlatformListResponse
 from dnastack.common.tracing import Span
 from dnastack.http.session import HttpSession
 
@@ -69,7 +69,7 @@ class StorageClient(BaseWorkbenchClient):
             endpoint.type = cls.get_default_service_type()
         return cls(endpoint, namespace)
 
-    def create_storage_account(self, storage_account: StorageAccount) -> StorageAccount:
+    def add_storage_account(self, storage_account: StorageAccount) -> StorageAccount:
         """Create a new storage account."""
         with self.create_http_session() as session:
             response = session.post(
@@ -101,7 +101,7 @@ class StorageClient(BaseWorkbenchClient):
             trace=None,
             max_results=max_results))
 
-    def create_platform(self, platform: Platform) -> Platform:
+    def add_platform(self, platform: Platform) -> Platform:
         """Create a new platform."""
         with self.create_http_session() as session:
             response = session.post(
