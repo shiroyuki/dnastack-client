@@ -51,17 +51,14 @@ class SampleFileListResponse(PaginatedResource):
     def items(self) -> List[Any]:
         return self.files
 
-    class InstrumentListOptions(BaseListOptions):
+
+class InstrumentListOptions(BaseListOptions):
         platform_type: Optional[PlatformType]
 
 
 class Instrument(BaseModel):
     id: str
     platform_type: PlatformType
-
-
-class InstrumentListOptions(BaseListOptions):
-    platform_type: Optional[PlatformType]
 
 
 class InstrumentListResponse(PaginatedResource):
