@@ -7,6 +7,7 @@ from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 from dnastack.client.workbench.samples.models import InstrumentListOptions
+from dnastack.client.workbench.storage.models import PlatformType
 
 
 @click.group('instruments')
@@ -52,11 +53,12 @@ def instruments_command_group():
             as_option=True
         ),
         ArgumentSpec(
-            name='platform',
-            arg_names=['--platform'],
-            help='Filter the instruments to show only those that originated from a specific platform.',
+            name='platform_type',
+            arg_names=['--platform-type'],
+            help='Filter the files by the platform type.',
+            type=PlatformType,
             as_option=True
-        )
+        ),
     ]
 )
 def list_instruments(
@@ -67,7 +69,7 @@ def list_instruments(
         page: Optional[int],
         page_size: Optional[int],
         sort: Optional[str],
-        platform_type: Optional[str],
+        platform_type: Optional[PlatformType],
 ):
     """
     List instruments.

@@ -53,7 +53,7 @@ class SampleFileListResponse(PaginatedResource):
 
 
 class InstrumentListOptions(BaseListOptions):
-        platform_type: Optional[PlatformType]
+    platform_type: Optional[PlatformType]
 
 
 class Instrument(BaseModel):
