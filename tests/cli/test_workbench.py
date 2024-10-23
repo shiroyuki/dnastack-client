@@ -1387,23 +1387,10 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
     def test_instruments_list(self):
         created_storage_account = self._create_storage_account()
         created_platform = self._create_platform(created_storage_account)
-        instruments = self._wait_for_instruments()
         self._wait()
+        instruments = [Instrument(**instrument) for instrument in self.simple_invoke(
+            'workbench', 'instruments', 'list'
+        )]
         self.assert_not_empty(instruments, f'Expected at least one instrument. Found {instruments}')
         for instrument in instruments:
             self.assert_not_empty(instrument.id, 'Instrument ID should not be empty')
-
-
-    def _wait_for_instruments(self):
-        timeout = 30
-        start_time = asyncio.get_event_loop().time()
-        while True:
-            instruments = [Instrument(**instrument) for instrument in self.simple_invoke(
-                'workbench', 'instruments', 'list'
-            )]
-            if instruments:
-                break
-            if asyncio.get_event_loop().time() - start_time > timeout:
-                raise TimeoutError("Timeout reached while waiting for instruments to be created.")
-            asyncio.sleep(2)
-        return instruments
