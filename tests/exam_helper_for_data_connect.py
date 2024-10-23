@@ -28,25 +28,34 @@ class DataConnectTestCaseMixin:
         logger = get_logger(f'DataConnectTestCaseMixin/table-scanner', logging.INFO)
         logger.info('Scanning for usable tables')
 
+        def get_result(future):
+            try:
+                return future.result()
+            except SystemExit:
+                return []
         worker_count = min(2, cpu_count() * 2, cls._max_approx_usable_table_count)
 
         cls._usable_table_names = []
 
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             for endpoint in cls._get_data_connect_endpoints():
-                client = DataConnectClient.make(endpoint)
+                try:
+                    client = DataConnectClient.make(endpoint)
 
-                futures: List[Future] = list()
+                    futures: List[Future] = list()
 
-                for target_table in client.list_tables():
-                    futures.append(
-                        pool.submit(cls._check_if_table_is_usable,
-                                    client=client,
-                                    target_table=target_table)
-                    )
+                    for target_table in client.list_tables():
+                        futures.append(
+                            pool.submit(cls._check_if_table_is_usable,
+                                        client=client,
+                                        target_table=target_table)
+                        )
+                except (Exception,SystemExit) as e:
+                    logger.error(f'Failed to create a client for {endpoint} ({type(e).__name__}: {e})')
+
 
             cls._usable_table_names.extend([
-                future.result()
+                get_result(future)
                 for future in as_completed(futures)
                 if future.result() is not None
             ])
@@ -70,14 +79,14 @@ class DataConnectTestCaseMixin:
 
             try:
                 table_info = table.info
-            except Exception as e:
+            except (SystemExit,Exception) as e:
                 logger.info(f'T/{table.name}: Failed to check the info ({type(e).__name__}: {e})')
                 return 0  # excluded due to error
 
             try:
                 column_name = list(table_info.data_model.get("properties").keys())[0]
                 __ = [row for row in client.query(f'SELECT {column_name} FROM {table.name} LIMIT 1')]
-            except Exception as e:
+            except (SystemExit,Exception) as e:
                 logger.info(f'T/{table.name}: Failed to check the data access ({type(e).__name__}: {e})')
                 return 0  # excluded due to error
 

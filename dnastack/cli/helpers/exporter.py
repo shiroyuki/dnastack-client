@@ -45,7 +45,7 @@ def normalize(content: Any, map_decimal: Type = str, sort_keys: bool = True) -> 
 
         return {
             p_name: normalize(content[p_name], map_decimal=map_decimal)
-            for p_name in properties if content[p_name] is not None
+            for p_name in properties
         }
     elif isinstance(content, (tuple, list, set, ResultIterator)):
         # Handle a list or tuple or set or anything iterable

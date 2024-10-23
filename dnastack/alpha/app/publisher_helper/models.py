@@ -1,7 +1,7 @@
 from abc import ABC
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field, BaseModel
 
@@ -42,7 +42,7 @@ class TableInfo(BaseItemInfo):
 
 class BlobInfo(BaseItemInfo):
     """ Simplified Library Item """
-    checksums: List[Dict[str, str]] = Field(default_factory=list)
+    checksums: Optional[List[Dict[str, str]]] = Field(default_factory=list)
 
 
     def __hash__(self):

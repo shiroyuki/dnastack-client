@@ -12,6 +12,10 @@ sandbox
 workflows/
 workflow.zip
 .dnastack/
+transformation.js
+workflow.zip
+description.md
+main.wdl
 
 .ipynb_checkpoints
 .venv

@@ -56,22 +56,27 @@ class TestCollectionsClient(BasePublisherTestCase, DataConnectTestCaseMixin):
         self.assert_not_empty(collections)
 
         for target_collection in collections:
-            data_connect_client = DataConnectClient.make(collection_client.data_connect_endpoint(target_collection))
-            for table in data_connect_client.list_tables():
-                table_name = '"' + ('"."'.join(table.name.split('.'))) + '"'
-                test_query = f'SELECT * FROM {table_name} LIMIT 10'
-                try:
-                    self.assert_not_empty([row for row in data_connect_client.query(test_query)])
-                    return  # Stop the test now.
-                except DataConnectError as e:
-                    self._logger.warning(
-                        f'T/{table.name}: Not usable for testing per-collection data connect due to {e}'
-                    )
-                    continue
-                except AssertionError:
-                    self._logger.warning(
-                        f'T/{table.name}: Not usable for testing per-collection data connect as it is empty.'
-                    )
-                    continue
+            try:
+                data_connect_client = DataConnectClient.make(collection_client.data_connect_endpoint(target_collection))
+                for table in data_connect_client.list_tables():
+                    table_name = '"' + ('"."'.join(table.name.split('.'))) + '"'
+                    test_query = f'SELECT * FROM {table_name} LIMIT 10'
+                    try:
+                        self.assert_not_empty([row for row in data_connect_client.query(test_query)])
+                        return  # Stop the test now.
+                    except (DataConnectError) as e:
+                        self._logger.warning(
+                            f'T/{table.name}: Not usable for testing per-collection data connect due to {e}'
+                        )
+                        continue
+                    except AssertionError:
+                        self._logger.warning(
+                            f'T/{table.name}: Not usable for testing per-collection data connect as it is empty.'
+                        )
+                        continue
+            except DataConnectError as e:
+                self._logger.warning(f'C/{target_collection.slugName}: Not usable for this test. {e}')
+                continue
+
 
         self.fail('No collections are usable for this test scenario.')

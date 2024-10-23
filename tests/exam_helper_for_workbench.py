@@ -9,6 +9,7 @@ from typing import List, Optional
 from urllib.parse import urljoin
 
 from pydantic import BaseModel
+from requests import delete
 
 from dnastack import ServiceEndpoint
 from dnastack.client.factory import EndpointRepository
@@ -283,7 +284,8 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
             ]
         ))
 
-    def _create_workflow_files(self):
+    @staticmethod
+    def _create_workflow_files():
         main_wdl_filename = "main.wdl"
         with open(main_wdl_filename, 'w') as main_wdl_file:
             main_wdl_file.write("""
@@ -299,7 +301,8 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         with zipfile.ZipFile('workflow.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(main_wdl_filename)
 
-    def _create_description_file(self):
+    @staticmethod
+    def _create_description_file():
         with open('description.md', 'w') as description_file:
             description_file.write("""
             TITLE
@@ -322,34 +325,41 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
             'workflow.zip' if use_zip_file else "main.wdl",
         ))
 
-    def _create_inputs_json_file(self):
+    @staticmethod
+    def _create_inputs_json_file():
         with tempfile.NamedTemporaryFile(delete=False) as inputs_json_file:
             inputs_json_file.write(b'{"test.hello.name": "bar"}')
             return inputs_json_file.name
 
-    def _create_inputs_text_file(self):
+    @staticmethod
+    def _create_inputs_text_file():
         with tempfile.NamedTemporaryFile(delete=False) as input_text_fp:
             input_text_fp.write(b'bar')
             return input_text_fp.name
 
-    def _create_transformation_script_file(self):
-        main_wdl_filename = "transformation.js"
-        with open(main_wdl_filename, 'w') as main_wdl_file:
-            main_wdl_file.write("""
+    @staticmethod
+    def _create_transformation_script_file():
+        with tempfile.NamedTemporaryFile(delete=False) as transformation_file:
+            transformation_file.write(b"""
                             const myTransformation = (context) => { 
                                 return { 'baz': 'waz' } 
                             }
                             """)
+            return transformation_file.name
 
     def _create_workflow_transformation(self, workflow_id, version_id,
                                         script_from_file: bool = False) -> WorkflowTransformation:
+
+        if script_from_file:
+            transformation_script = self._create_transformation_script_file()
+
         return WorkflowTransformation(**self.simple_invoke(
             'workbench', 'workflows','versions', 'transformations', 'create',
             '--workflow', workflow_id,
             '--version', version_id,
             '--label', "test",
             '--label', "can-be-deleted",
-            "@transformation.js" if script_from_file else "(context) => { return { 'foo': 'bar' } }"
+            f'@{transformation_script}' if script_from_file else "(context) => { return { 'foo': 'bar' } }"
         ))
 
     def _create_storage_account(self, id=None) -> StorageAccount:

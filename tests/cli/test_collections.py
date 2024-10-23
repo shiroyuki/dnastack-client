@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from dnastack.client.base_exceptions import DataConnectError
 from dnastack.client.collections.client import UnknownCollectionError
 from .base import PublisherCliTestCase
 
@@ -99,8 +100,16 @@ class TestCollectionsCommand(PublisherCliTestCase):
                                    'SELECT 1')
 
                 return
-            except Exception as e:
+            except DataConnectError as e:
+                self._logger.warn(f'Collection "{c["slugName"]}" caused a DataConnectError: {e}')
                 last_error = e
+            except Exception as e:
+                self._logger.warn(f'Collection "{c["slugName"]}" caused an unexpected error: {e}')
+                last_error = e
+            except SystemExit as e:
+                self._logger.warn(f'Collection "{c["slugName"]}" caused an unexpected exit: {e}')
+                last_error = e
+
 
         raise last_error
 

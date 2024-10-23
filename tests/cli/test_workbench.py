@@ -31,7 +31,7 @@ description_file_content = """
                         """
 
 
-class TestWorkbenchWorkflowsCommand(WorkbenchCliTestCase):
+class TestWorkbenchCommand(WorkbenchCliTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True
