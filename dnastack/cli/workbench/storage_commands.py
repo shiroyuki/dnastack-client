@@ -93,7 +93,7 @@ def add_aws_storage_account(context: Optional[str],
     # Validate bucket format
     if not re.match(r'^s3://', bucket):
         click.echo(style("Error: Bucket name must start with 's3://'", fg='red'), err=True, color=True)
-        return
+        exit(1)
 
     """Create a new aws storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
@@ -320,7 +320,7 @@ def add_platform(context: Optional[str],
     # Validate path format
     if re.match(r'^s3://', path):
         click.echo(style("Error: Path must not start with 's3://'", fg='red'), err=True, color=True)
-        return
+        exit(1)
 
     # Prefix path with a forward slash if not already present
     if path and not path.startswith('/'):
