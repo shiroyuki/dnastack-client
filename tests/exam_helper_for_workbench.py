@@ -371,7 +371,8 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
             '--name', 'Test Storage Account',
             '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
             '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
-            '--region', env('E2E_AWS_REGION', default='ca-central-1')
+            '--region', env('E2E_AWS_REGION', default='ca-central-1'),
+            '--bucket', env('E2E_AWS_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test')
         ))
 
     def _get_or_create_storage_account(self) -> StorageAccount:
@@ -382,14 +383,20 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
     def _create_platform(self, created_storage_account: StorageAccount, id=None) -> Platform:
         if not id:
             id = f'test-storage-account-{random.randint(0, 100000)}'
+
+        path = env('E2E_AWS_BUCKET', required=False, default='/dnastack-workbench-sample-service-e2e-test')
+
+        # Replace s3:// with /
+        if path.startswith('s3://'):
+            path = path.replace('s3://', '/')
+
         return Platform(**self.simple_invoke(
             'workbench', 'storage', 'platforms', 'add',
             id,
             '--name', 'Test Platform',
             '--storage-id', created_storage_account.id,
             '--platform', 'PACBIO',
-            '--path',
-            env('E2E_AWS_BUCKET', required=False, default='s3://dnastack-workbench-sample-service-e2e-test')
+            '--path', path
         ))
 
     def _get_or_create_platform(self) -> Platform:
