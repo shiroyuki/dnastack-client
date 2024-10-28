@@ -27,6 +27,7 @@ class AwsStorageAccountCredentials(BaseModel):
     access_key_id: Optional[str]
     secret_access_key: Optional[str]
     region: Optional[str]
+    bucket: Optional[str]
     type: str = 'AWS_ACCESS_KEY'
 
 

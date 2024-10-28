@@ -1,16 +1,16 @@
-from pickle import FALSE
+import re
 from typing import Optional, List
 
 import click
 from click import style
 
-from dnastack.cli.workbench.utils import get_storage_client
-from dnastack.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
-    StorageListOptions, Platform, PlatformListOptions
 from dnastack.cli.helpers.command.decorator import command
 from dnastack.cli.helpers.command.spec import ArgumentSpec
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import OutputFormat, show_iterator
+from dnastack.cli.workbench.utils import get_storage_client
+from dnastack.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
+    StorageListOptions, Platform, PlatformListOptions
 
 
 @click.group('storage')
@@ -71,6 +71,14 @@ storage_command_group.add_command(add_storage_command_group)
                  required=True,
                  default=None
              ),
+             ArgumentSpec(
+                 name='bucket',
+                 arg_names=['--bucket'],
+                 help='The name of the bucket to use for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
          ]
          )
 def add_aws_storage_account(context: Optional[str],
@@ -80,14 +88,21 @@ def add_aws_storage_account(context: Optional[str],
                             name: str,
                             access_key_id: str,
                             secret_access_key: str,
-                            region: str):
+                            region: str,
+                            bucket: str):
+    # Validate bucket format
+    if not re.match(r'^s3://', bucket):
+        click.echo(style("Error: Bucket name must start with 's3://'", fg='red'), err=True, color=True)
+        exit(1)
+
     """Create a new aws storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
 
     credentials = AwsStorageAccountCredentials(
         access_key_id=access_key_id,
         secret_access_key=secret_access_key,
-        region=region
+        region=region,
+        bucket=bucket
     )
 
     storage_account = StorageAccount(
@@ -302,6 +317,15 @@ def add_platform(context: Optional[str],
                  storage_id: str,
                  platform_type: str,
                  path: str):
+    # Validate path format
+    if re.match(r'^s3://', path):
+        click.echo(style("Error: Path must not start with 's3://'", fg='red'), err=True, color=True)
+        exit(1)
+
+    # Prefix path with a forward slash if not already present
+    if path and not path.startswith('/'):
+        path = '/' + path
+
     """Create a new platform"""
     client = get_storage_client(context, endpoint_id, namespace)
     platform = Platform(
