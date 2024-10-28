@@ -35,7 +35,6 @@ def get_user_client(context_name: Optional[str] = None,
     try:
         return factory.get(WorkbenchUserClient, endpoint_id=endpoint_id, context_name=context_name)
     except AssertionError as e:
-        raise e
         _populate_workbench_endpoint()
         return factory.get(WorkbenchUserClient, endpoint_id=endpoint_id, context_name=context_name)
 
