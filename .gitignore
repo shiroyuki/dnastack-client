@@ -16,7 +16,7 @@ transformation.js
 workflow.zip
 description.md
 main.wdl
-
+defaults.json
 .ipynb_checkpoints
 .venv
 .vscode
