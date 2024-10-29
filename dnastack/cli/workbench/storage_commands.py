@@ -1,4 +1,6 @@
+import os
 import re
+import json
 from typing import Optional, List
 
 import click
@@ -10,7 +12,7 @@ from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import OutputFormat, show_iterator
 from dnastack.cli.workbench.utils import get_storage_client
 from dnastack.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
-    StorageListOptions, Platform, PlatformListOptions
+    StorageListOptions, Platform, PlatformListOptions, GcpStorageAccountCredentials
 
 
 @click.group('storage')
@@ -23,7 +25,13 @@ def add_storage_command_group():
     """Add storage account"""
 
 
+@click.group("update")
+def update_storage_command_group():
+    """Update storage account"""
+
+
 storage_command_group.add_command(add_storage_command_group)
+storage_command_group.add_command(update_storage_command_group)
 
 
 @command(add_storage_command_group,
@@ -113,6 +121,200 @@ def add_aws_storage_account(context: Optional[str],
     )
 
     response = client.add_storage_account(storage_account)
+    click.echo(to_json(normalize(response)))
+
+
+@command(add_storage_command_group,
+         'gcp',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='storage_id',
+                 help='The storage account id',
+                 as_option=False
+             ),
+             ArgumentSpec(
+                 name='name',
+                 arg_names=['--name'],
+                 help='An human readable name for the storage account',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='service_account_json',
+                 arg_names=['--service-account-json'],
+                 help='The json file for the storage account to use when authenticating with GCP',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='region',
+                 arg_names=['--region'],
+                 help='The region for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='project_id',
+                 arg_names=['--project-id'],
+                 help='The id of the GCP project',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+         ]
+         )
+def add_gcp_storage_account(context: Optional[str],
+                            endpoint_id: Optional[str],
+                            namespace: Optional[str],
+                            storage_id: str,
+                            name: str,
+                            service_account_json: str,
+                            region: str,
+                            project_id: str):
+    # Load service account from file if necessary
+    if service_account_json.startswith('@'):
+        file_path = service_account_json[1:]
+        if not os.path.exists(file_path):
+            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
+                       color=True)
+            exit(1)
+        with open(file_path, 'r') as f:
+            service_account_json = f.read()
+
+    # Validate service account JSON
+    try:
+        service_account = json.loads(service_account_json)
+    except json.JSONDecodeError:
+        click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
+        exit(1)
+
+    # Validate project ID
+    if not project_id:
+        click.echo(style("Error: Project ID is required.", fg='red'), err=True, color=True)
+        exit(1)
+
+    """Create a new GCP storage account"""
+    client = get_storage_client(context, endpoint_id, namespace)
+
+    credentials = GcpStorageAccountCredentials(
+        service_account_json=service_account_json,
+        region=region,
+        project_id=project_id
+    )
+
+    storage_account = StorageAccount(
+        id=storage_id,
+        name=name,
+        provider=Provider.gcp,
+        credentials=credentials
+    )
+
+    response = client.add_storage_account(storage_account)
+    click.echo(to_json(normalize(response)))
+
+
+@command(update_storage_command_group,
+         'gcp',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='storage_id',
+                 help='The storage account id',
+                 as_option=False
+             ),
+             ArgumentSpec(
+                 name='name',
+                 arg_names=['--name'],
+                 help='A human readable name for the storage account',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='service_account_json',
+                 arg_names=['--service-account-json'],
+                 help='The json file for the storage account to use when authenticating with GCP. Use @<path> to load from a file.',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='region',
+                 arg_names=['--region'],
+                 help='The region for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='project_id',
+                 arg_names=['--project-id'],
+                 help='The id of the GCP project',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+         ]
+         )
+def update_gcp_storage_account(context: Optional[str],
+                               endpoint_id: Optional[str],
+                               namespace: Optional[str],
+                               storage_id: str,
+                               name: str,
+                               service_account_json: str,
+                               region: str,
+                               project_id: str):
+    # Load service account from file if necessary
+    if service_account_json.startswith('@'):
+        file_path = service_account_json[1:]
+        if not os.path.exists(file_path):
+            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
+                       color=True)
+            exit(1)
+        with open(file_path, 'r') as f:
+            service_account_json = f.read()
+
+    # Validate service account JSON
+    try:
+        service_account = json.loads(service_account_json)
+    except json.JSONDecodeError:
+        click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
+        exit(1)
+
+    # Validate project ID
+    if not project_id:
+        click.echo(style("Error: Project ID is required.", fg='red'), err=True, color=True)
+        exit(1)
+
+    """Update an existing GCP storage account"""
+    client = get_storage_client(context, endpoint_id, namespace)
+
+    credentials = GcpStorageAccountCredentials(
+        service_account_json=service_account_json,
+        region=region,
+        project_id=project_id
+    )
+
+    storage_account = StorageAccount(
+        id=storage_id,
+        name=name,
+        provider=Provider.gcp,
+        credentials=credentials
+    )
+
+    response = client.update_storage_account(storage_id, storage_account)
     click.echo(to_json(normalize(response)))
 
 
@@ -409,10 +611,10 @@ def delete_platform(context: Optional[str],
          ]
          )
 def describe_platform(context: Optional[str],
-                  endpoint_id: Optional[str],
-                  namespace: Optional[str],
-                  platform_ids: List[str],
-                  storage_account_id: str):
+                      endpoint_id: Optional[str],
+                      namespace: Optional[str],
+                      platform_ids: List[str],
+                      storage_account_id: str):
     """Describe a Platform of storage account"""
 
     if not platform_ids:
