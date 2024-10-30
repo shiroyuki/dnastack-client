@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 
 from datetime import date, timedelta
 from time import sleep
@@ -14,6 +15,7 @@ from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun
 from dnastack.client.workbench.samples.models import Sample, SampleFile, Instrument
 from dnastack.client.workbench.storage.models import Platform, StorageAccount, Provider
 from tests.cli.base import WorkbenchCliTestCase
+from dnastack.common.environments import env
 
 main_file_content = """
                 version 1.0
@@ -624,22 +626,18 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_add_and_update_gcp_storage_account(self):
         # Setup test data for adding
-        context = None
-        endpoint_id = None
-        namespace = 'test-namespace'
-        storage_id = 'test-storage-id'
+        storage_id = f'test-gcp-storage-account-{random.randint(0, 100000)}'
         name = 'Test GCP Storage Account'
-        service_account_json = '{"type": "service_account", "project_id": "test-project"}'
-        region = 'us-central1'
-        project_id = 'test-project'
+        service_account = env('E2E_GCP_SERVICE_ACCOUNT', required=True)
+        region = env('E2E_GCP_REGION', default='us-central1'),
+        project_id = env('E2E_GCP_PROJECT_ID', required=True)
 
         # Invoke the add_gcp_storage_account command
         result = self.invoke(
             'storage', 'add', 'gcp',
-            '--namespace', namespace,
             '--storage-id', storage_id,
             '--name', name,
-            '--service-account-json', service_account_json,
+            '--service-account', service_account,
             '--region', region,
             '--project-id', project_id
         )
@@ -650,16 +648,15 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         # Setup test data for updating
         name = 'Updated GCP Storage Account'
-        service_account_json = '{"type": "service_account", "project_id": "updated-test-project"}'
-        project_id = 'updated-test-project'
+        service_account = env('E2E_GCP_UPDATED_SERVICE_ACCOUNT', required=True)
+        project_id = env('E2E_GCP_PROJECT_ID', required=True)
 
         # Invoke the update_gcp_storage_account command
         result = self.invoke(
             'storage', 'update', 'gcp',
-            '--namespace', namespace,
             '--storage-id', storage_id,
             '--name', name,
-            '--service-account-json', service_account_json,
+            '--service-account', service_account,
             '--region', region,
             '--project-id', project_id
         )

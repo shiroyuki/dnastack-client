@@ -142,13 +142,13 @@ def add_aws_storage_account(context: Optional[str],
              ArgumentSpec(
                  name='name',
                  arg_names=['--name'],
-                 help='An human readable name for the storage account',
+                 help='A human readable name for the storage account',
                  as_option=True
              ),
              ArgumentSpec(
                  name='service_account_json',
-                 arg_names=['--service-account-json'],
-                 help='The json file for the storage account to use when authenticating with GCP',
+                 arg_names=['--service-account'],
+                 help='The json file for the storage account to use when authenticating with GCP. Use @<path> to load from a file.',
                  as_option=True,
                  required=True,
                  default=None
@@ -176,34 +176,19 @@ def add_gcp_storage_account(context: Optional[str],
                             namespace: Optional[str],
                             storage_id: str,
                             name: str,
-                            service_account_json: str,
+                            service_account: str,
                             region: str,
                             project_id: str):
-    # Load service account from file if necessary
-    if service_account_json.startswith('@'):
-        file_path = service_account_json[1:]
-        if not os.path.exists(file_path):
-            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
-                       color=True)
-            exit(1)
-        with open(file_path, 'r') as f:
-            service_account_json = f.read()
+    """Create a new GCP storage account"""
 
     # Validate service account JSON
     try:
-        service_account = json.loads(service_account_json)
+        service_account_json = json.loads(load_service_account(service_account))
     except json.JSONDecodeError:
-        click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
+        click.echo(style("Error: Malformed service account.", fg='red'), err=True, color=True)
         exit(1)
 
-    # Validate project ID
-    if not project_id:
-        click.echo(style("Error: Project ID is required.", fg='red'), err=True, color=True)
-        exit(1)
-
-    """Create a new GCP storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
-
     credentials = GcpStorageAccountCredentials(
         service_account_json=service_account_json,
         region=region,
@@ -244,7 +229,7 @@ def add_gcp_storage_account(context: Optional[str],
              ),
              ArgumentSpec(
                  name='service_account_json',
-                 arg_names=['--service-account-json'],
+                 arg_names=['--service-account'],
                  help='The json file for the storage account to use when authenticating with GCP. Use @<path> to load from a file.',
                  as_option=True,
                  required=True,
@@ -273,32 +258,18 @@ def update_gcp_storage_account(context: Optional[str],
                                namespace: Optional[str],
                                storage_id: str,
                                name: str,
-                               service_account_json: str,
+                               service_account: str,
                                region: str,
                                project_id: str):
-    # Load service account from file if necessary
-    if service_account_json.startswith('@'):
-        file_path = service_account_json[1:]
-        if not os.path.exists(file_path):
-            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
-                       color=True)
-            exit(1)
-        with open(file_path, 'r') as f:
-            service_account_json = f.read()
+    """Update an existing GCP storage account"""
 
     # Validate service account JSON
     try:
-        service_account = json.loads(service_account_json)
+        service_account_json = json.loads(load_service_account(service_account))
     except json.JSONDecodeError:
         click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
         exit(1)
 
-    # Validate project ID
-    if not project_id:
-        click.echo(style("Error: Project ID is required.", fg='red'), err=True, color=True)
-        exit(1)
-
-    """Update an existing GCP storage account"""
     client = get_storage_client(context, endpoint_id, namespace)
 
     credentials = GcpStorageAccountCredentials(
@@ -691,3 +662,15 @@ def list_platforms(context: Optional[str],
     )
     show_iterator(output_format=OutputFormat.JSON,
                   iterator=client.list_platforms(list_options, max_results))
+
+
+def load_service_account(service_account: str) -> str:
+    if service_account.startswith('@'):
+        file_path = service_account[1:]
+        if not os.path.exists(file_path):
+            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
+                       color=True)
+            exit(1)
+        with open(file_path, 'r') as f:
+            service_account = f.read()
+    return service_account
