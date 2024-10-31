@@ -15,13 +15,16 @@ class CaseInsensitiveEnum(Enum):
                 return member
         raise ValueError(f"{value} is not a valid {cls.__name__}")
 
+
 class Provider(str, CaseInsensitiveEnum):
     aws = "aws"
     gcp = "gcp"
     azure = "azure"
 
+
 class PlatformType(str, CaseInsensitiveEnum):
     pacbio = "pacbio"
+
 
 class AwsStorageAccountCredentials(BaseModel):
     access_key_id: Optional[str]
@@ -31,6 +34,11 @@ class AwsStorageAccountCredentials(BaseModel):
     type: str = 'AWS_ACCESS_KEY'
 
 
+class GcpStorageAccountCredentials(BaseModel):
+    service_account_json: Optional[str]
+    region: Optional[str]
+    project_id: Optional[str]
+
 
 class StorageAccount(BaseModel):
     id: Optional[str]
@@ -39,7 +47,8 @@ class StorageAccount(BaseModel):
     provider: Optional[Provider]
     created_at: Optional[str]
     last_updated_at: Optional[str]
-    credentials: Optional[Union[AwsStorageAccountCredentials]]
+    credentials: Optional[Union[AwsStorageAccountCredentials, GcpStorageAccountCredentials]]
+
 
 class StorageListOptions(BaseListOptions):
     provider: Optional[Provider]

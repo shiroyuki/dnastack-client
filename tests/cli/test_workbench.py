@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 
 from datetime import date, timedelta
 from time import sleep
@@ -14,6 +15,7 @@ from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun
 from dnastack.client.workbench.samples.models import Sample, SampleFile, Instrument
 from dnastack.client.workbench.storage.models import Platform, StorageAccount, Provider
 from tests.cli.base import WorkbenchCliTestCase
+from dnastack.common.environments import env
 
 main_file_content = """
                 version 1.0
@@ -100,7 +102,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         self.assert_not_empty(engine_health_checks_result, "Expected at least one health check")
         self.assertTrue(any(health_check.outcome == 'SUCCESS' for health_check in engine_health_checks_result))
-
 
     ## Runs
     def test_runs_list_base_case(self):
@@ -552,7 +553,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(State.QUEUED, events_result[0].metadata.new_state,
                          f'Expected first event\'s new state to be QUEUED. Got {events_result[0].metadata.new_state}')
 
-
     ## Samples
 
     def test_samples_list_and_describe(self):
@@ -624,27 +624,65 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertIsNotNone(created_storage_account.name)
         self.assertEqual(created_storage_account.provider, Provider.aws)
 
+    def test_add_and_update_gcp_storage_account(self):
+        # Setup test data for adding
+        storage_id = f'test-gcp-storage-account-{random.randint(0, 100000)}'
+        name = 'Test GCP Storage Account'
+        service_account = env('E2E_GCP_SERVICE_ACCOUNT', required=True)
+        region = env('E2E_GCP_REGION', default='us-central1'),
+        project_id = env('E2E_GCP_PROJECT_ID', required=True)
+
+        # Invoke the add_gcp_storage_account command
+        result = self.invoke(
+            'storage', 'add', 'gcp',
+            '--storage-id', storage_id,
+            '--name', name,
+            '--service-account', service_account,
+            '--region', region,
+            '--project-id', project_id
+        )
+
+        # Assertions for adding
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn('Storage account added successfully', result.stdout)
+
+        # Setup test data for updating
+        name = 'Updated GCP Storage Account'
+        service_account = env('E2E_GCP_UPDATED_SERVICE_ACCOUNT', required=True)
+        project_id = env('E2E_GCP_PROJECT_ID', required=True)
+
+        # Invoke the update_gcp_storage_account command
+        result = self.invoke(
+            'storage', 'update', 'gcp',
+            '--storage-id', storage_id,
+            '--name', name,
+            '--service-account', service_account,
+            '--region', region,
+            '--project-id', project_id
+        )
+
+        # Assertions for updating
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn('Storage account updated successfully', result.stdout)
 
     def test_storage_list(self):
         created_storage_account = self._get_or_create_storage_account()
         storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-             'workbench', 'storage', 'list'
+            'workbench', 'storage', 'list'
         )]
         self.assert_not_empty(storage_accounts, f'Expected at least one storage account. Found {storage_accounts}')
         self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
 
-
     def test_storage_describe(self):
         created_storage_account = self._get_or_create_storage_account()
         storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-             'workbench', 'storage', 'describe', created_storage_account.id
+            'workbench', 'storage', 'describe', created_storage_account.id
         )]
         self.assertEqual(len(storage_accounts), 1,
                          f'Expected exactly one storage account. Found {storage_accounts}')
         self.assertEqual(storage_accounts[0].id, created_storage_account.id)
         self.assertEqual(storage_accounts[0].name, created_storage_account.name)
         self.assertEqual(storage_accounts[0].provider, Provider.aws)
-
 
     def test_platform_create(self):
         created_storage_account = self._create_storage_account()
@@ -654,22 +692,20 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(created_platform.type, 'pacbio')
         self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
 
-
     def test_platforms_list(self):
         created_storage_account = self._get_or_create_storage_account()
         created_platform = self._get_or_create_platform()
         platforms = [Platform(**platform) for platform in self.simple_invoke(
-             'workbench', 'storage', 'platforms', 'list'
+            'workbench', 'storage', 'platforms', 'list'
         )]
         self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
         self.assertTrue(created_platform.id in [platform.id for platform in platforms])
-
 
     def test_platform_describe(self):
         created_storage_account = self._get_or_create_storage_account()
         created_platform = self._get_or_create_platform()
         platforms = [Platform(**platform) for platform in self.simple_invoke(
-             'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            'workbench', 'storage', 'platforms', 'describe', created_platform.id,
             '--storage-id', created_storage_account.id
         )]
         self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
@@ -677,11 +713,12 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(platforms[0].name, created_platform.name)
         self.assertEqual(platforms[0].type, created_platform.type)
         self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
+
     def test_platform_delete(self):
         created_storage_account = self._get_or_create_storage_account()
         created_platform = self._get_or_create_platform()
         output = self.simple_invoke(
-             'workbench', 'storage', 'platforms', 'delete', created_platform.id,
+            'workbench', 'storage', 'platforms', 'delete', created_platform.id,
             '--storage-id', created_storage_account.id,
             '--force',
             parse_output=False
@@ -689,12 +726,12 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue("deleted successfully" in output)
 
         platforms = [Platform(**platform) for platform in self.simple_invoke(
-             'workbench', 'storage', 'platforms', 'list'
+            'workbench', 'storage', 'platforms', 'list'
         )]
         self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
 
         result = self.invoke(
-             'workbench', 'storage', 'platforms', 'describe', created_platform.id,
+            'workbench', 'storage', 'platforms', 'describe', created_platform.id,
             '--storage-id', created_storage_account.id,
             bypass_error=True
         )
@@ -705,27 +742,25 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
     def test_storage_delete(self):
         created_storage_account = self._create_storage_account()
         output = self.simple_invoke(
-             'workbench', 'storage', 'delete', created_storage_account.id,
+            'workbench', 'storage', 'delete', created_storage_account.id,
             '--force',
             parse_output=False
         )
         self.assertTrue("deleted successfully" in output)
 
         storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
-             'workbench', 'storage', 'list'
+            'workbench', 'storage', 'list'
         )]
         self.assertTrue(
             created_storage_account.id not in [storage_account.id for storage_account in storage_accounts])
 
         result = self.invoke(
-             'workbench', 'storage', 'describe', created_storage_account.id,
+            'workbench', 'storage', 'describe', created_storage_account.id,
             bypass_error=True
         )
 
         self.assertNotEqual(result.exit_code, 0)
         self.assertTrue('"error_code":404' in result.stderr)
-
-
 
     ## Workflows
     def test_workflows_list(self):
@@ -1152,7 +1187,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
     #         finally:
     #             os.chdir(original_dir)
 
-
     def test_create_workflow_defaults(self):
         self._create_workflow_files()
         self._create_description_file()
@@ -1160,7 +1194,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
@@ -1171,7 +1205,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         ## JSON File inputs
         input_json = self._create_inputs_json_file()
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "foo", "--values",
             f"@{input_json}"))
@@ -1180,7 +1214,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assert_not_empty(created_default.values)
         ## JSON Key inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo3", "--engine", "foo3", "--values",
             "foo=bar"
@@ -1196,19 +1230,19 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo2", "--engine", "2", "--values",
             '{"foo": "bar"}'
         ))
 
         list_result = [WorkflowDefaults(**workflow_default) for workflow_default in self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "list", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "list", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id)]
 
@@ -1222,13 +1256,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         describe_result = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "describe",
+            "workbench", "workflows", "versions", "defaults", "describe",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id
         )[0])
@@ -1244,13 +1278,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         updated_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "update", created_default.id, "--name", "foo2",
+            "workbench", "workflows", "versions", "defaults", "update", created_default.id, "--name", "foo2",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             "--values", '{"foo": "bar2"}'
         ))
@@ -1265,13 +1299,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## JSON inputs
         created_default = WorkflowDefaults(**self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "create", "--workflow",
+            "workbench", "workflows", "versions", "defaults", "create", "--workflow",
             created_workflow.internalId,
             "--version", created_workflow.versions[0].id, "--name", "foo", "--values", '{"foo": "bar"}'
         ))
 
         message = self.simple_invoke(
-             "workbench", "workflows", "versions", "defaults", "delete",
+            "workbench", "workflows", "versions", "defaults", "delete",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id, "--force"
         )
@@ -1279,7 +1313,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue("Deleted" in message)
 
         result = self.invoke(
-             "workbench", "workflows", "versions", "defaults", "describe",
+            "workbench", "workflows", "versions", "defaults", "describe",
             "--workflow", created_workflow.internalId, "--version", created_workflow.versions[0].id,
             created_default.id,
             bypass_error=True
@@ -1311,7 +1345,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertIsNotNone(workflow_transformation.id)
         self.assertEqual(workflow_transformation.workflow_id, workflow.internalId)
         self.assertEqual(workflow_transformation.workflow_version_id, workflow_version.id)
-        self.assertMultiLineEqual(workflow_transformation.script.replace(" ", "").replace("\n", ""), "(context)=>{return{'baz':'waz'}}")
+        self.assertMultiLineEqual(workflow_transformation.script.replace(" ", "").replace("\n", ""),
+                                  "(context)=>{return{'baz':'waz'}}")
         self.assertIn("test", workflow_transformation.labels)
         self.assertIn("can-be-deleted", workflow_transformation.labels)
 
@@ -1322,12 +1357,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-             'workbench', 'workflows','versions', 'transformations', 'list',
+            'workbench', 'workflows', 'versions', 'transformations', 'list',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
         )]
 
-        self.assert_not_empty(transformations, f'Expected at least one workflow transformation. Found {transformations}')
+        self.assert_not_empty(transformations,
+                              f'Expected at least one workflow transformation. Found {transformations}')
         self.assertTrue(created_workflow_transformation.id in [transformation.id for transformation in transformations])
 
     def test_workflow_transformation_describe(self):
@@ -1337,7 +1373,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         created_workflow_transformation = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformation = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-             'workbench', 'workflows','versions', 'transformations', 'describe',
+            'workbench', 'workflows', 'versions', 'transformations', 'describe',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             created_workflow_transformation.id
@@ -1358,7 +1394,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         workflow_transformation_2 = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
 
         transformations = [WorkflowTransformation(**transformation) for transformation in self.simple_invoke(
-             'workbench', 'workflows','versions', 'transformations', 'describe',
+            'workbench', 'workflows', 'versions', 'transformations', 'describe',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             workflow_transformation_1.id,
@@ -1372,10 +1408,11 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self._create_workflow_files()
         workflow = self._create_workflow()
         workflow_version = self._create_workflow_version(workflow.internalId, "v1")
-        workflow_transformation_to_be_deleted = self._create_workflow_transformation(workflow.internalId, workflow_version.id)
+        workflow_transformation_to_be_deleted = self._create_workflow_transformation(workflow.internalId,
+                                                                                     workflow_version.id)
 
         output = self.simple_invoke(
-             'workbench', 'workflows','versions', 'transformations', 'delete',
+            'workbench', 'workflows', 'versions', 'transformations', 'delete',
             '--workflow', workflow.internalId,
             '--version', workflow_version.id,
             '--force',

@@ -78,6 +78,15 @@ class StorageClient(BaseWorkbenchClient):
             )
         return StorageAccount(**response.json())
 
+    def update_storage_account(self, storage_account_id: str, storage_account: StorageAccount) -> StorageAccount:
+        """Update a storage account."""
+        with self.create_http_session() as session:
+            response = session.put(
+                urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}'),
+                json=storage_account.dict()
+            )
+        return StorageAccount(**response.json())
+
     # Add method for deleting a storage account
     def delete_storage_account(self, storage_account_id: str) -> None:
         """Delete a storage account."""
