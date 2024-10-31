@@ -251,7 +251,7 @@ class EWesClient(BaseWorkbenchClient):
                              params=params,
                              stream=True,
                              trace_context=trace) as response:
-                if int(response.headers['Content-Length']) == 0:
+                if 'Content-Length' in response.headers and int(response.headers['Content-Length']) == 0:
                     yield None
                     return
                 for chunk in response.iter_content(chunk_size=None):
