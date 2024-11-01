@@ -99,14 +99,11 @@ def add_aws_storage_account(context: Optional[str],
         exit(1)
 
     """Create a new aws storage account"""
-    client = get_storage_client(context, endpoint_id, namespace)
-
     credentials = AwsStorageAccountCredentials(
         access_key_id=access_key_id,
         secret_access_key=secret_access_key,
         region=region,
     )
-
     storage_account = StorageAccount(
         id=storage_id,
         name=name,
@@ -115,6 +112,7 @@ def add_aws_storage_account(context: Optional[str],
         credentials=credentials
     )
 
+    client = get_storage_client(context, endpoint_id, namespace)
     response = client.add_storage_account(storage_account)
     click.echo(to_json(normalize(response)))
 
@@ -196,6 +194,90 @@ def add_gcp_storage_account(context: Optional[str],
 
     client = get_storage_client(context, endpoint_id, namespace)
     response = client.add_storage_account(storage_account)
+    click.echo(to_json(normalize(response)))
+
+
+@command(update_storage_command_group,
+         'aws',
+         specs=[
+             ArgumentSpec(
+                 name='namespace',
+                 arg_names=['--namespace', '-n'],
+                 help='An optional flag to define the namespace to connect to. By default, the namespace will be '
+                      'extracted from the users credentials.',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='name',
+                 arg_names=['--name'],
+                 help='An human readable name for the storage account',
+                 as_option=True
+             ),
+             ArgumentSpec(
+                 name='access_key_id',
+                 arg_names=['--access-key-id'],
+                 help='The access key id for the storage account to use when authenticating with AWS',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='secret_access_key',
+                 arg_names=['--secret-access-key'],
+                 help='The Secret Access key for the storage account to use when authenticating with AWS',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='region',
+                 arg_names=['--region'],
+                 help='The region for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+             ArgumentSpec(
+                 name='bucket',
+                 arg_names=['--bucket'],
+                 help='The name of the bucket to use for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
+         ]
+         )
+def update_aws_storage_account(context: Optional[str],
+                            endpoint_id: Optional[str],
+                            namespace: Optional[str],
+                            storage_id: Optional[str],
+                            name: str,
+                            access_key_id: str,
+                            secret_access_key: str,
+                            region: str,
+                            bucket: str):
+    # Validate bucket format
+    if not re.match(r'^s3://', bucket):
+        click.echo(style("Error: Bucket name must start with 's3://'", fg='red'), err=True, color=True)
+        exit(1)
+
+    """Update an existing aws storage account"""
+    credentials = AwsStorageAccountCredentials(
+        access_key_id=access_key_id,
+        secret_access_key=secret_access_key,
+        region=region,
+    )
+    storage_account = StorageAccount(
+        id=storage_id,
+        name=name,
+        provider=Provider.aws,
+        bucket=bucket,
+        credentials=credentials
+    )
+
+    client = get_storage_client(context, endpoint_id, namespace)
+    existing_storage_account = client.get_storage_account(storage_account_id=storage_id)
+    response = client.update_storage_account(storage_id, storage_account, existing_storage_account.etag)
     click.echo(to_json(normalize(response)))
 
 
