@@ -1,6 +1,8 @@
 from typing import List, Optional, Iterator
 from urllib.parse import urljoin
 
+import click
+
 from dnastack import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
@@ -78,13 +80,14 @@ class StorageClient(BaseWorkbenchClient):
             )
         return StorageAccount(**response.json())
 
-    def update_storage_account(self, storage_account_id: str, storage_account: StorageAccount) -> StorageAccount:
+    def update_storage_account(self, storage_account_id: str, storage_account: StorageAccount, if_match: str) -> StorageAccount:
         """Update a storage account."""
         with self.create_http_session() as session:
-            response = session.put(
-                urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}'),
-                json=storage_account.dict()
-            )
+            response = session.submit("PUT",
+                                      urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}'),
+                                      json=storage_account.dict(),
+                                      headers={"If-Match": if_match}
+                                      )
         return StorageAccount(**response.json())
 
     # Add method for deleting a storage account
