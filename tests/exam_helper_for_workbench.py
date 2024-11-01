@@ -9,6 +9,7 @@ from typing import List, Optional
 from urllib.parse import urljoin
 
 from pydantic import BaseModel
+from pygments.lexer import default
 from requests import delete
 
 from dnastack import ServiceEndpoint
@@ -16,7 +17,7 @@ from dnastack.client.factory import EndpointRepository
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.ewes.models import MinimalExtendedRun, ExtendedRunRequest, BatchRunResponse, \
     BatchRunRequest, EngineParamPreset
-from dnastack.client.workbench.storage.models import StorageAccount, Platform
+from dnastack.client.workbench.storage.models import StorageAccount, Platform, Provider
 from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate, WorkflowVersion, WorkflowTransformation
 from dnastack.common.environments import env
@@ -347,6 +348,12 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
                             """)
             return transformation_file.name
 
+    @staticmethod
+    def _create_service_account_json_file(service_account_json: str) -> str:
+        with tempfile.NamedTemporaryFile(delete=False) as service_account_file:
+            service_account_file.write(service_account_json.encode())
+            return service_account_file.name
+
     def _create_workflow_transformation(self, workflow_id, version_id,
                                         script_from_file: bool = False) -> WorkflowTransformation:
 
@@ -362,25 +369,40 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
             f'@{transformation_script}' if script_from_file else "(context) => { return { 'foo': 'bar' } }"
         ))
 
-    def _create_storage_account(self, id=None) -> StorageAccount:
+    def _create_storage_account(self, provider: Provider, id=None) -> StorageAccount:
         if not id:
             id = f'test-storage-account-{random.randint(0, 100000)}'
-        return StorageAccount(**self.simple_invoke(
-            'workbench', 'storage', 'add', 'aws',
-            id,
-            '--name', 'Test Storage Account',
-            '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
-            '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
-            '--region', env('E2E_AWS_REGION', default='ca-central-1'),
-            '--bucket', env('E2E_AWS_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test')
-        ))
 
-    def _get_or_create_storage_account(self) -> StorageAccount:
+        if provider == provider.aws:
+            return StorageAccount(**self.simple_invoke(
+                'workbench', 'storage', 'add', 'aws',
+                id,
+                '--name', 'Test AWS Storage Account',
+                '--bucket', env('E2E_AWS_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test', required=False),
+                '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
+                '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
+                '--region', env('E2E_AWS_REGION', default='ca-central-1'),
+                )
+            )
+        elif provider == provider.gcp:
+            service_account_json_file = self._create_service_account_json_file(env('E2E_GCP_SERVICE_ACCOUNT', required=True))
+            return StorageAccount(**self.simple_invoke(
+                'workbench', 'storage', 'add', 'gcp',
+                id,
+                '--name', 'Test GCP Storage Account',
+                '--bucket', env('E2E_GCP_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test', required=False),
+                '--project-id', env('E2E_GCP_PROJECT_ID', default='striking-effort-817', required=False),
+                '--service-account', f'@{service_account_json_file}',
+                '--region', env('E2E_GCP_REGION', default='us-east1'),
+                )
+            )
+
+    def _get_or_create_storage_account(self, provider: Provider) -> StorageAccount:
         if not self.storage_account:
-            self.storage_account = self._create_storage_account()
+            self.storage_account = self._create_storage_account(provider=provider)
         return self.storage_account
 
-    def _create_platform(self, created_storage_account: StorageAccount, id=None) -> Platform:
+    def _create_platform(self, storage_account: StorageAccount, id=None) -> Platform:
         if not id:
             id = f'test-storage-account-{random.randint(0, 100000)}'
 
@@ -394,13 +416,12 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
             'workbench', 'storage', 'platforms', 'add',
             id,
             '--name', 'Test Platform',
-            '--storage-id', created_storage_account.id,
+            '--storage-id', storage_account.id,
             '--platform', 'PACBIO',
             '--path', path
         ))
 
-    def _get_or_create_platform(self) -> Platform:
-        if not self.platform:
-            self.platform = self._create_platform(self._get_or_create_storage_account())
-
+    def _get_or_create_platform(self, storage_account: StorageAccount) -> Platform:
+        if not self.platform and storage_account:
+            self.platform = self._create_platform(storage_account)
         return self.platform

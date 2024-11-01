@@ -45,11 +45,6 @@ storage_command_group.add_command(update_storage_command_group)
                  as_option=True
              ),
              ArgumentSpec(
-                 name='storage_id',
-                 help='The storage account id',
-                 as_option=False
-             ),
-             ArgumentSpec(
                  name='name',
                  arg_names=['--name'],
                  help='An human readable name for the storage account',
@@ -92,7 +87,7 @@ storage_command_group.add_command(update_storage_command_group)
 def add_aws_storage_account(context: Optional[str],
                             endpoint_id: Optional[str],
                             namespace: Optional[str],
-                            storage_id: str,
+                            storage_id: Optional[str],
                             name: str,
                             access_key_id: str,
                             secret_access_key: str,
@@ -110,13 +105,13 @@ def add_aws_storage_account(context: Optional[str],
         access_key_id=access_key_id,
         secret_access_key=secret_access_key,
         region=region,
-        bucket=bucket
     )
 
     storage_account = StorageAccount(
         id=storage_id,
         name=name,
         provider=Provider.aws,
+        bucket=bucket,
         credentials=credentials
     )
 
@@ -135,11 +130,6 @@ def add_aws_storage_account(context: Optional[str],
                  as_option=True
              ),
              ArgumentSpec(
-                 name='storage_id',
-                 help='The storage account id',
-                 as_option=False
-             ),
-             ArgumentSpec(
                  name='name',
                  arg_names=['--name'],
                  help='A human readable name for the storage account',
@@ -169,39 +159,42 @@ def add_aws_storage_account(context: Optional[str],
                  required=True,
                  default=None
              ),
+             ArgumentSpec(
+                 name='bucket',
+                 arg_names=['--bucket'],
+                 help='The name of the bucket to use for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
          ]
          )
 def add_gcp_storage_account(context: Optional[str],
                             endpoint_id: Optional[str],
                             namespace: Optional[str],
-                            storage_id: str,
+                            storage_id: Optional[str],
                             name: str,
-                            service_account: str,
+                            service_account_json: str,
+                            bucket: str,
                             region: str,
                             project_id: str):
     """Create a new GCP storage account"""
 
-    # Validate service account JSON
-    try:
-        service_account_json = json.loads(load_service_account(service_account))
-    except json.JSONDecodeError:
-        click.echo(style("Error: Malformed service account.", fg='red'), err=True, color=True)
-        exit(1)
-
-    client = get_storage_client(context, endpoint_id, namespace)
+    loaded_service_account = validate_and_load_service_account_json(service_account_json)
     credentials = GcpStorageAccountCredentials(
-        service_account_json=service_account_json,
+        service_account_json=loaded_service_account,
         region=region,
         project_id=project_id
     )
-
     storage_account = StorageAccount(
         id=storage_id,
         name=name,
         provider=Provider.gcp,
+        bucket=bucket,
         credentials=credentials
     )
 
+    client = get_storage_client(context, endpoint_id, namespace)
     response = client.add_storage_account(storage_account)
     click.echo(to_json(normalize(response)))
 
@@ -217,11 +210,6 @@ def add_gcp_storage_account(context: Optional[str],
                  as_option=True
              ),
              ArgumentSpec(
-                 name='storage_id',
-                 help='The storage account id',
-                 as_option=False
-             ),
-             ArgumentSpec(
                  name='name',
                  arg_names=['--name'],
                  help='A human readable name for the storage account',
@@ -251,6 +239,14 @@ def add_gcp_storage_account(context: Optional[str],
                  required=True,
                  default=None
              ),
+             ArgumentSpec(
+                 name='bucket',
+                 arg_names=['--bucket'],
+                 help='The name of the bucket to use for the storage account',
+                 as_option=True,
+                 required=True,
+                 default=None
+             ),
          ]
          )
 def update_gcp_storage_account(context: Optional[str],
@@ -258,34 +254,29 @@ def update_gcp_storage_account(context: Optional[str],
                                namespace: Optional[str],
                                storage_id: str,
                                name: str,
-                               service_account: str,
+                               bucket: str,
+                               service_account_json: str,
                                region: str,
                                project_id: str):
     """Update an existing GCP storage account"""
 
-    # Validate service account JSON
-    try:
-        service_account_json = json.loads(load_service_account(service_account))
-    except json.JSONDecodeError:
-        click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
-        exit(1)
-
-    client = get_storage_client(context, endpoint_id, namespace)
-
+    loaded_service_account = validate_and_load_service_account_json(service_account_json)
     credentials = GcpStorageAccountCredentials(
-        service_account_json=service_account_json,
+        service_account_json=loaded_service_account,
         region=region,
         project_id=project_id
     )
-
     storage_account = StorageAccount(
         id=storage_id,
         name=name,
         provider=Provider.gcp,
+        bucket=bucket,
         credentials=credentials
     )
 
-    response = client.update_storage_account(storage_id, storage_account)
+    client = get_storage_client(context, endpoint_id, namespace)
+    existing_storage_account = client.get_storage_account(storage_account_id=storage_id)
+    response = client.update_storage_account(storage_id, storage_account, existing_storage_account.etag)
     click.echo(to_json(normalize(response)))
 
 
@@ -664,13 +655,25 @@ def list_platforms(context: Optional[str],
                   iterator=client.list_platforms(list_options, max_results))
 
 
-def load_service_account(service_account: str) -> str:
-    if service_account.startswith('@'):
-        file_path = service_account[1:]
-        if not os.path.exists(file_path):
-            click.echo(style(f"Error: Service account file {file_path} does not exist.", fg='red'), err=True,
-                       color=True)
-            exit(1)
-        with open(file_path, 'r') as f:
-            service_account = f.read()
-    return service_account
+def validate_and_load_service_account_json(service_account_json: str) -> str:
+    if not service_account_json.startswith("@"):
+        click.echo(style("Error: Service account JSON must be a file path starting with '@'", fg='red'), err=True, color=True)
+        exit(1)
+    service_account_json_file_path = service_account_json[1:]
+    if not os.path.isfile(service_account_json_file_path):
+        click.echo(style(f"Error: File '{service_account_json_file_path}' does not exist.", fg='red'), err=True, color=True)
+        exit(1)
+
+    try:
+        with open(service_account_json_file_path, 'r') as f:
+            service_account = json.load(f)
+    except json.JSONDecodeError:
+        click.echo(style("Error: Malformed service account JSON.", fg='red'), err=True, color=True)
+        exit(1)
+    except Exception as e:
+        click.echo(style(f"Error: {str(e)}", fg='red'), err=True, color=True)
+        exit(1)
+
+    # return service_account
+    return json.dumps(service_account)
+

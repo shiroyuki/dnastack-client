@@ -27,14 +27,14 @@ class PlatformType(str, CaseInsensitiveEnum):
 
 
 class AwsStorageAccountCredentials(BaseModel):
+    type: Literal['AWS_ACCESS_KEY'] = 'AWS_ACCESS_KEY'
     access_key_id: Optional[str]
     secret_access_key: Optional[str]
     region: Optional[str]
-    bucket: Optional[str]
-    type: str = 'AWS_ACCESS_KEY'
 
 
 class GcpStorageAccountCredentials(BaseModel):
+    type: Literal['GCP_SERVICE_ACCOUNT'] = 'GCP_SERVICE_ACCOUNT'
     service_account_json: Optional[str]
     region: Optional[str]
     project_id: Optional[str]
@@ -44,9 +44,11 @@ class StorageAccount(BaseModel):
     id: Optional[str]
     namespace: Optional[str]
     name: Optional[str]
+    etag: Optional[str]
     provider: Optional[Provider]
     created_at: Optional[str]
     last_updated_at: Optional[str]
+    bucket: Optional[str]
     credentials: Optional[Union[AwsStorageAccountCredentials, GcpStorageAccountCredentials]]
 
 

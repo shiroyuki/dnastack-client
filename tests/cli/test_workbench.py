@@ -556,7 +556,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
     ## Samples
 
     def test_samples_list_and_describe(self):
-        created_storage_account = self._create_storage_account()
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
         created_platform = self._create_platform(created_storage_account)
         samples = self._wait_for_samples()
         self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
@@ -590,7 +590,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         sleep(timeout)
 
     def test_samples_files_list(self):
-        created_storage_account = self._create_storage_account()
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
         created_platform = self._create_platform(created_storage_account)
         samples = self._wait_for_samples()
         self._wait()
@@ -618,55 +618,43 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue(all(sample_file.platform_id == created_platform.id for sample_file in sample_files))
 
     ## Storage
-    def test_storage_create(self):
-        created_storage_account = self._create_storage_account()
+    def test_storage_add_aws(self):
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
         self.assertIsNotNone(created_storage_account.id)
         self.assertIsNotNone(created_storage_account.name)
         self.assertEqual(created_storage_account.provider, Provider.aws)
 
-    def test_add_and_update_gcp_storage_account(self):
+    def test_storage_add_gcp(self):
+        created_storage_account = self._create_storage_account(provider=Provider.gcp)
+        self.assertIsNotNone(created_storage_account.id)
+        self.assertIsNotNone(created_storage_account.name)
+        self.assertEqual(created_storage_account.provider, Provider.gcp)
+
+    def test_update_gcp_storage_account(self):
         # Setup test data for adding
         storage_id = f'test-gcp-storage-account-{random.randint(0, 100000)}'
-        name = 'Test GCP Storage Account'
-        service_account = env('E2E_GCP_SERVICE_ACCOUNT', required=True)
-        region = env('E2E_GCP_REGION', default='us-central1'),
-        project_id = env('E2E_GCP_PROJECT_ID', required=True)
-
-        # Invoke the add_gcp_storage_account command
-        result = self.invoke(
-            'storage', 'add', 'gcp',
-            '--storage-id', storage_id,
-            '--name', name,
-            '--service-account', service_account,
-            '--region', region,
-            '--project-id', project_id
-        )
-
-        # Assertions for adding
-        self.assertEqual(result.exit_code, 0)
-        self.assertIn('Storage account added successfully', result.stdout)
+        storage_account = self._create_storage_account(id=storage_id, provider=Provider.gcp)
 
         # Setup test data for updating
         name = 'Updated GCP Storage Account'
-        service_account = env('E2E_GCP_UPDATED_SERVICE_ACCOUNT', required=True)
-        project_id = env('E2E_GCP_PROJECT_ID', required=True)
+        service_account_json_file = self._create_service_account_json_file(env('E2E_GCP_SERVICE_ACCOUNT', required=True))
 
         # Invoke the update_gcp_storage_account command
-        result = self.invoke(
-            'storage', 'update', 'gcp',
-            '--storage-id', storage_id,
+        updated_storage_account = StorageAccount(**self.simple_invoke(
+            'workbench', 'storage', 'update', 'gcp',
+            storage_id,
             '--name', name,
-            '--service-account', service_account,
-            '--region', region,
-            '--project-id', project_id
-        )
+            '--service-account', f'@{service_account_json_file}',
+            '--bucket', env('E2E_GCP_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test', required=False),
+            '--region', env('E2E_GCP_REGION', default='us-east1'),
+            '--project-id', env('E2E_GCP_PROJECT_ID', default='striking-effort-817', required=False)
+        ))
 
-        # Assertions for updating
-        self.assertEqual(result.exit_code, 0)
-        self.assertIn('Storage account updated successfully', result.stdout)
+        self.assertEqual(updated_storage_account.id, storage_account.id)
+        self.assertEqual(updated_storage_account.name, name)
 
     def test_storage_list(self):
-        created_storage_account = self._get_or_create_storage_account()
+        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
         storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
             'workbench', 'storage', 'list'
         )]
@@ -674,7 +662,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue(created_storage_account.id in [storage_account.id for storage_account in storage_accounts])
 
     def test_storage_describe(self):
-        created_storage_account = self._get_or_create_storage_account()
+        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
         storage_accounts = [StorageAccount(**storage_account) for storage_account in self.simple_invoke(
             'workbench', 'storage', 'describe', created_storage_account.id
         )]
@@ -685,16 +673,16 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(storage_accounts[0].provider, Provider.aws)
 
     def test_platform_create(self):
-        created_storage_account = self._create_storage_account()
-        created_platform = self._create_platform(created_storage_account=created_storage_account, id='test-platform')
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
+        created_platform = self._create_platform(storage_account=created_storage_account, id='test-platform')
         self.assertIsNotNone(created_platform.id)
         self.assertEqual(created_platform.name, 'Test Platform')
         self.assertEqual(created_platform.type, 'pacbio')
         self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
 
     def test_platforms_list(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
+        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
+        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
         platforms = [Platform(**platform) for platform in self.simple_invoke(
             'workbench', 'storage', 'platforms', 'list'
         )]
@@ -702,8 +690,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue(created_platform.id in [platform.id for platform in platforms])
 
     def test_platform_describe(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
+        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
+        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
         platforms = [Platform(**platform) for platform in self.simple_invoke(
             'workbench', 'storage', 'platforms', 'describe', created_platform.id,
             '--storage-id', created_storage_account.id
@@ -715,8 +703,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
 
     def test_platform_delete(self):
-        created_storage_account = self._get_or_create_storage_account()
-        created_platform = self._get_or_create_platform()
+        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
+        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
         output = self.simple_invoke(
             'workbench', 'storage', 'platforms', 'delete', created_platform.id,
             '--storage-id', created_storage_account.id,
@@ -740,7 +728,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue('"error_code":404' in result.stderr)
 
     def test_storage_delete(self):
-        created_storage_account = self._create_storage_account()
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
         output = self.simple_invoke(
             'workbench', 'storage', 'delete', created_storage_account.id,
             '--force',
@@ -1422,7 +1410,7 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertTrue("Deleted..." in output)
 
     def test_instruments_list(self):
-        created_storage_account = self._create_storage_account()
+        created_storage_account = self._create_storage_account(provider=Provider.aws)
         created_platform = self._create_platform(created_storage_account)
         self._wait()
         instruments = [Instrument(**instrument) for instrument in self.simple_invoke(
