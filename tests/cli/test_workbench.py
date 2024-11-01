@@ -624,6 +624,28 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertIsNotNone(created_storage_account.name)
         self.assertEqual(created_storage_account.provider, Provider.aws)
 
+    def test_update_aws_storage_account(self):
+        # Setup test data for adding
+        storage_id = f'test-aws-storage-account-{random.randint(0, 100000)}'
+        storage_account = self._create_storage_account(id=storage_id, provider=Provider.aws)
+
+        # Setup test data for updating
+        name = 'Updated AWS Storage Account'
+
+        # Invoke the update_gcp_storage_account command
+        updated_storage_account = StorageAccount(**self.simple_invoke(
+            'workbench', 'storage', 'update', 'aws',
+            storage_id,
+            '--name', name,
+            '--bucket', env('E2E_AWS_BUCKET', default='s3://dnastack-workbench-sample-service-e2e-test', required=False),
+            '--access-key-id', env('E2E_AWS_ACCESS_KEY_ID', required=True),
+            '--secret-access-key', env('E2E_AWS_SECRET_ACCESS_KEY', required=True),
+            '--region', env('E2E_AWS_REGION', default='ca-central-1'),
+        ))
+
+        self.assertEqual(updated_storage_account.id, storage_account.id)
+        self.assertEqual(updated_storage_account.name, name)
+
     def test_storage_add_gcp(self):
         created_storage_account = self._create_storage_account(provider=Provider.gcp)
         self.assertIsNotNone(created_storage_account.id)
