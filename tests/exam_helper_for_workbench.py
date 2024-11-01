@@ -406,19 +406,12 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         if not id:
             id = f'test-storage-account-{random.randint(0, 100000)}'
 
-        path = env('E2E_AWS_BUCKET', required=False, default='/dnastack-workbench-sample-service-e2e-test')
-
-        # Replace s3:// with /
-        if path.startswith('s3://'):
-            path = path.replace('s3://', '/')
-
         return Platform(**self.simple_invoke(
             'workbench', 'storage', 'platforms', 'add',
             id,
             '--name', 'Test Platform',
             '--storage-id', storage_account.id,
             '--platform', 'PACBIO',
-            '--path', path
         ))
 
     def _get_or_create_platform(self, storage_account: StorageAccount) -> Platform:

@@ -550,7 +550,7 @@ storage_command_group.add_command(storage_platforms_command_group)
                  arg_names=['--path'],
                  help='The path in the storage account where platform data is located.',
                  as_option=True,
-                 required=True,
+                 required=False,
                  default=None
              ),
          ]
@@ -563,15 +563,6 @@ def add_platform(context: Optional[str],
                  storage_id: str,
                  platform_type: str,
                  path: str):
-    # Validate path format
-    if re.match(r'^s3://', path):
-        click.echo(style("Error: Path must not start with 's3://'", fg='red'), err=True, color=True)
-        exit(1)
-
-    # Prefix path with a forward slash if not already present
-    if path and not path.startswith('/'):
-        path = '/' + path
-
     """Create a new platform"""
     client = get_storage_client(context, endpoint_id, namespace)
     platform = Platform(
