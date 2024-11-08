@@ -1,4 +1,3 @@
-from typing import Optional
 import json
 from typing import Optional
 from urllib.parse import urljoin

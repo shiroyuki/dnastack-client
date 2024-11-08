@@ -26,11 +26,6 @@ def files_command_group():
             required=True,
         ),
         ArgumentSpec(
-            name='platform',
-            arg_names=['--platform'],
-            help='Filter the files to show only those that originated from a specific platform.',
-        ),
-        ArgumentSpec(
             name='storage',
             arg_names=['--storage'],
             help='Filter the files by their storage account.',
@@ -70,7 +65,6 @@ def list_sample_files(
         page: Optional[int],
         page_size: Optional[int],
         sort: Optional[str],
-        platform: Optional[str],
         storage: Optional[str],
         instrument_id: Optional[str],
         platform_type: Optional[PlatformType],
@@ -85,7 +79,6 @@ def list_sample_files(
         page_size=page_size,
         sort=sort,
         storage_id=storage,
-        platform_id=platform,
         platform_type=platform_type,
         instrument_id=instrument_id,
         search=search

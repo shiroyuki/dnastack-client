@@ -15,7 +15,6 @@ class SampleFile(BaseModel):
     sample_id: str
     path: str
     storage_account_id: Optional[str]
-    platform_id: Optional[str]
     platform_type: Optional[PlatformType]
     instrument_id: Optional[str]
     region: Optional[str]
@@ -38,7 +37,6 @@ class SampleListResponse(PaginatedResource):
 
 
 class SampleFilesListOptions(BaseListOptions):
-    platform_id: Optional[str]
     storage_id: Optional[str]
     platform_type: Optional[PlatformType]
     instrument_id: Optional[str]
