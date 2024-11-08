@@ -1,8 +1,6 @@
 from typing import List, Optional, Iterator
 from urllib.parse import urljoin
 
-import click
-
 from dnastack import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
