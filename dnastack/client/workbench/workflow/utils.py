@@ -1,11 +1,11 @@
 import os
+import re
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import List, Tuple, Optional
-import re
 
-from dnastack.client.workbench.workflow.models import WorkflowFile, WorkflowFileType
+
 class LoadedFile:
 
     def __init__(self, abs_location: Path, rel_location: Path, content: bytes):

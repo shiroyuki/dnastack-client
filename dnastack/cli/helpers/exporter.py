@@ -1,13 +1,12 @@
 import csv
-from json import dumps
-
-import csv
 import datetime
 import io
-import yaml
 from decimal import Decimal
-from pydantic import BaseModel
+from json import dumps
 from typing import Any, List, Type, Optional
+
+import yaml
+from pydantic import BaseModel
 
 from dnastack.client.result_iterator import ResultIterator
 

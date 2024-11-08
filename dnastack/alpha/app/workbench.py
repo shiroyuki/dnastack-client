@@ -1,21 +1,19 @@
 import asyncio
-import json
 import datetime
-
+import json
 import random
 import string
+import time
 from enum import Enum, unique
 from typing import Optional, List, Iterator, Callable, Iterable, Union
 
-import time
 import dnastack
-
-from dnastack.client.workbench.workflow.client import WorkflowClient
-from dnastack.client.workbench.workflow.models import Workflow, WorkflowVersion, WorkflowSource, WorkflowListOptions, WorkflowDescriptor
-
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, ExtendedRunStatus, RunId, ExtendedRun, \
-	ExtendedRunRequest, LogType, Log, BatchRunRequest
+    ExtendedRunRequest, LogType, Log, BatchRunRequest
+from dnastack.client.workbench.workflow.client import WorkflowClient
+from dnastack.client.workbench.workflow.models import Workflow, WorkflowVersion, WorkflowSource, WorkflowListOptions, \
+    WorkflowDescriptor
 from dnastack.common.logger import get_logger
 
 

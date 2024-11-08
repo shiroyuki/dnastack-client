@@ -1,7 +1,7 @@
 import contextlib
 import linecache
-import tracemalloc
 import sys
+import tracemalloc
 
 
 def display_top(snapshot, key_type='lineno', limit=10):

@@ -985,7 +985,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             version_to_delete = self._create_workflow_version(created_workflow.internalId, "to-delete")
             output = self.simple_invoke(
                 'workbench', 'workflows', 'versions', 'delete',
-                '--force', '--workflow', created_workflow.internalId,
+                '--force',
+                '--workflow', created_workflow.internalId,
                 version_to_delete.id,
                 parse_output=False
             )

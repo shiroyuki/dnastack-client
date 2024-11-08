@@ -1,6 +1,5 @@
-from logging import Logger
-
 from abc import ABC
+from logging import Logger
 from threading import Lock
 from typing import Any, Dict, List, Optional
 from uuid import uuid4

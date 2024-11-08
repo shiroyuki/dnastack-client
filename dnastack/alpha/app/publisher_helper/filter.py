@@ -1,6 +1,5 @@
 from typing import Iterator, Dict, Any, List
 
-from dnastack import DataConnectClient
 from dnastack.client.data_connect import QueryLoader
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.common.exceptions import DependencyError

@@ -1,9 +1,11 @@
-import json
 from typing import List, Iterator, Optional
 from urllib.parse import urljoin
 
+from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
+from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient
+from dnastack.client.workbench.base_client import WorkbenchResultLoader
 from dnastack.client.workbench.workflow.models import WorkflowDescriptor, WorkflowListResponse, Workflow, \
     WorkflowCreate, \
     WorkflowVersionCreate, WorkflowVersion, WorkflowVersionListResponse, WorkflowListOptions, \
@@ -11,11 +13,8 @@ from dnastack.client.workbench.workflow.models import WorkflowDescriptor, Workfl
     WorkflowTransformationListOptions, WorkflowTransformationListResponse, WorkflowDefaults, WorkflowDefaultsSelector, \
     ResolvedWorkflow, WorkflowDefaultsUpdateRequest, WorkflowTransformation, WorkflowTransformationCreate, \
     WorkflowDefaultsCreateRequest
-from dnastack.client.workbench.base_client import WorkbenchResultLoader
 from dnastack.common.tracing import Span
 from dnastack.http.session import JsonPatch, HttpSession
-from dnastack.client.models import ServiceEndpoint
-from dnastack.client.service_registry.models import ServiceType
 
 
 class WorkflowDefaultsListResultLoader(WorkbenchResultLoader):

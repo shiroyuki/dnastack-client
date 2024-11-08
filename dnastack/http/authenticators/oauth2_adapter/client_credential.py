@@ -1,4 +1,3 @@
-from pprint import pformat
 from typing import Dict, Any, List
 
 from dnastack.common.tracing import Span

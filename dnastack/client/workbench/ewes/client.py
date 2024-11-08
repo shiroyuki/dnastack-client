@@ -5,7 +5,8 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
-from dnastack.client.workbench.ewes.models import ExtendedRunEvents, WesServiceInfo, ExtendedRunStatus, ExtendedRunListOptions, \
+from dnastack.client.workbench.ewes.models import ExtendedRunEvents, WesServiceInfo, ExtendedRunStatus, \
+    ExtendedRunListOptions, \
     ExtendedRunListResponse, ExtendedRun, RunId, WorkbenchApiError, BatchActionResult, MinimalExtendedRun, \
     BatchRunResponse, BatchRunRequest, ExtendedRunRequest, Log, TaskListOptions, \
     TaskListResponse, LogType, ExecutionEngineListOptions, ExecutionEngineListResponse, ExecutionEngine, \

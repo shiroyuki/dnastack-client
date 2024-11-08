@@ -1,4 +1,3 @@
-import sys
 from typing import List
 
 # These are optional requirements.

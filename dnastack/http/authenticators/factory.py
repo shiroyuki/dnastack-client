@@ -1,10 +1,10 @@
 from typing import List, Any, Dict, Optional
 
-from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.client.models import ServiceEndpoint
 from dnastack.common.model_mixin import JsonModelMixin
 from dnastack.http.authenticators.abstract import Authenticator
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
+from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 
 
 class UnsupportedAuthenticationInformationError(RuntimeError):

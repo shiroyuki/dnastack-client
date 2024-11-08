@@ -1,5 +1,6 @@
-from copy import deepcopy
-from typing import Optional, Any, Dict
+from typing import Optional
+import json
+from typing import Optional
 from urllib.parse import urljoin
 
 from pydantic import BaseModel
@@ -8,10 +9,9 @@ from dnastack.alpha.app.publisher_helper.collection_service import BlobApiMixin,
     PerCollectionApiMixin
 from dnastack.alpha.app.publisher_helper.data_connect import SearchOperation
 from dnastack.alpha.app.publisher_helper.filter import FilterOperation
-from dnastack.alpha.app.publisher_helper.models import BaseItemInfo, ItemType, TableInfo, BlobInfo
 from dnastack.client.collections.client import CollectionServiceClient
 from dnastack.client.collections.model import Collection as CollectionModel
-from dnastack.client.data_connect import DataConnectClient, QueryLoader
+from dnastack.client.data_connect import DataConnectClient
 from dnastack.client.drs import DrsClient, Blob
 from dnastack.client.factory import EndpointRepository
 from dnastack.client.models import ServiceEndpoint
@@ -19,7 +19,7 @@ from dnastack.common.logger import get_logger_for
 from dnastack.context.helper import use
 from dnastack.http.authenticators.factory import HttpAuthenticatorFactory
 from dnastack.http.session import HttpSession
-import json
+
 
 class FilterInfo(BaseModel):
     sql: str

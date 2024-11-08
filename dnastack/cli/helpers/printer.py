@@ -1,9 +1,9 @@
-from shutil import get_terminal_size
-
-import click
 import json
 from contextlib import contextmanager
+from shutil import get_terminal_size
 from typing import Any, List, Optional, Dict
+
+import click
 
 
 # ####################

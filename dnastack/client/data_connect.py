@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime, time, date, timedelta
 from decimal import Decimal
 from pprint import pformat
-from pydantic import BaseModel, ValidationError, Field
-from requests import exceptions as requests_exc, Response
 from typing import Optional, Any, Dict, List, Iterator, Union, Callable, Iterable
 from urllib.parse import urljoin
+
+from pydantic import BaseModel, ValidationError, Field
+from requests import exceptions as requests_exc, Response
 
 from dnastack.client.base_client import BaseServiceClient
 from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError, \

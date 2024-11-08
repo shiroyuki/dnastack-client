@@ -1,7 +1,7 @@
 """ Prototype Code """
 from dataclasses import dataclass
 
-from typing import TypeVar, Iterable, Callable, List, Dict, Any, Optional, Iterator
+from typing import TypeVar, Iterable, Callable, List, Dict, Any, Iterator
 
 T = TypeVar('T')
 X = TypeVar('X')

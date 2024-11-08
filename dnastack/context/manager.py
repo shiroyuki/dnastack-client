@@ -1,19 +1,18 @@
-from abc import ABC, abstractmethod
-
 import re
+from abc import ABC, abstractmethod
+from typing import Optional, List, Dict
+from urllib.parse import urljoin, urlparse
 from uuid import uuid4
 
 import requests
 from imagination.decorator import service
 from pydantic import BaseModel
-from typing import Optional, List, Dict
-from urllib.parse import urljoin, urlparse
 
-from dnastack.common.auth_manager import AuthManager
 from dnastack.client.factory import EndpointRepository
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.client import ServiceRegistry, STANDARD_SERVICE_REGISTRY_TYPE_V1_0
 from dnastack.client.service_registry.manager import ServiceRegistryManager
+from dnastack.common.auth_manager import AuthManager
 from dnastack.common.events import EventSource, Event
 from dnastack.common.logger import get_logger
 from dnastack.configuration.manager import ConfigurationManager

@@ -1,25 +1,25 @@
 from typing import Optional
 
-import click
-
-from dnastack.cli.data_connect.commands import _get, DECIMAL_POINT_OUTPUT_SPEC
-from dnastack.cli.helpers.command.decorator import command
-from dnastack.cli.helpers.command.group import AliasedGroup
-from dnastack.cli.helpers.command.spec import DATA_OUTPUT_SPEC
+from dnastack.cli.commands.dataconnect.utils import DECIMAL_POINT_OUTPUT_ARG, _get
+from dnastack.cli.core.command import formatted_command
+from dnastack.cli.core.command_spec import DATA_OUTPUT_ARG
+from dnastack.cli.core.group import formatted_group
 from dnastack.cli.helpers.iterator_printer import show_iterator
 
 
-@click.group("data-connect", cls=AliasedGroup, aliases=["dc"])
+@formatted_group("data-connect", aliases=["dc"])
 def alpha_data_connect_command_group():
     """ Interact with Data Connect Service (testing) """
 
 
-@command(alpha_data_connect_command_group,
-         'table-data',
-         specs=[
-             DATA_OUTPUT_SPEC,
-             DECIMAL_POINT_OUTPUT_SPEC,
-         ])
+@formatted_command(
+    group=alpha_data_connect_command_group,
+    name='table-data',
+    specs=[
+        DATA_OUTPUT_ARG,
+        DECIMAL_POINT_OUTPUT_ARG,
+    ]
+)
 def get_table_data(context: Optional[str],
                    endpoint_id: Optional[str],
                    table_name: str,

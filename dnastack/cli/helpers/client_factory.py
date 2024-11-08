@@ -9,8 +9,8 @@ from dnastack.common.logger import get_logger
 from dnastack.configuration.exceptions import MissingEndpointError
 from dnastack.configuration.manager import ConfigurationManager
 from dnastack.configuration.models import DEFAULT_CONTEXT
-from dnastack.context.models import Context
 from dnastack.configuration.wrapper import ConfigurationWrapper
+from dnastack.context.models import Context
 
 
 class ServiceEndpointNotFound(RuntimeError):
