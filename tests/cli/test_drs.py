@@ -3,7 +3,7 @@ from typing import Optional, Dict, List, Any
 
 from dnastack import use
 from dnastack.client.factory import EndpointRepository
-from .base import PublisherCliTestCase
+from tests.cli.base import PublisherCliTestCase
 
 
 class TestDrsCommand(PublisherCliTestCase):

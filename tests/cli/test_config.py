@@ -1,7 +1,4 @@
-from typing import Set
-
-from .base import PublisherCliTestCase
-
+from tests.cli.base import PublisherCliTestCase
 
 class TestConfiguration(PublisherCliTestCase):
     def test_list_available_properties(self):

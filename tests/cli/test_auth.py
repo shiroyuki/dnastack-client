@@ -1,7 +1,7 @@
 from dnastack.common.environments import env, flag
-from .auth_utils import handle_device_code_flow
-from .base import PublisherCliTestCase
-from ..exam_helper import publisher_client_id, publisher_client_secret, token_endpoint
+from tests.cli.auth_utils import handle_device_code_flow
+from tests.cli.base import PublisherCliTestCase
+from tests.exam_helper import publisher_client_id, publisher_client_secret, token_endpoint
 
 
 class TestAuthentication(PublisherCliTestCase):

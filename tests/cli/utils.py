@@ -1,11 +1,13 @@
 import json
+import os
 import subprocess
-from typing import Any, AnyStr, List
+from typing import Any
 from unittest import TestCase
+
 import yaml
 from click.testing import CliRunner
+
 from dnastack import __main__ as dnastack_cli
-import os
 
 
 # ASSERTS

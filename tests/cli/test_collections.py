@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from dnastack.client.base_exceptions import DataConnectError
 from dnastack.client.collections.client import UnknownCollectionError
-from .base import PublisherCliTestCase
+from tests.cli.base import PublisherCliTestCase
 
 
 class TestCollectionsCommand(PublisherCliTestCase):

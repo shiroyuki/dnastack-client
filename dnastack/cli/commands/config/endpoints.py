@@ -231,7 +231,7 @@ def unset_endpoint_property(context: Optional[str],
 
 @formatted_command(
     group=endpoint_command_group,
-    name='get-default',
+    name='get-defaults',
     specs=[
         CONTEXT_ARG,
     ]

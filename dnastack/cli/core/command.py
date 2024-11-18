@@ -85,18 +85,24 @@ def formatted_command(group, name, specs: List[ArgumentSpec], hidden: bool = Fal
         # Create a wrapper function that matches parameter names
         def wrapped_callback(**kwargs):
             try:
-                # Create a mapping of CLI option names to function parameter names
+                # Create a mapping of CLI option names (both long and short) to function parameter names
                 name_mapping = {}
                 for spec in specs:
                     if spec.arg_type != ArgumentType.POSITIONAL and spec.arg_names:
-                        # Get the Click parameter name from the first arg_name
-                        cli_name = spec.arg_names[0].lstrip('-').replace('-', '_')
-                        if cli_name != spec.name:
+                        # Handle all possible argument names for this spec
+                        for arg_name in spec.arg_names:
+                            # Strip leading dashes and convert to underscore format
+                            cli_name = arg_name.lstrip('-').replace('-', '_')
+                            # Map both the full and processed names to the spec name
                             name_mapping[cli_name] = spec.name
+                            # For long options (--option-name), also map the original format
+                            if arg_name.startswith('--'):
+                                name_mapping[arg_name[2:].replace('-', '_')] = spec.name
 
                 # Remap the kwargs based on our mapping
                 remapped_kwargs = {}
                 for key, value in kwargs.items():
+                    # Check if this key needs to be remapped
                     if key in name_mapping:
                         remapped_kwargs[name_mapping[key]] = value
                     else:

@@ -2,8 +2,8 @@ from typing import Any, Dict, List
 
 from dnastack import ServiceEndpoint
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
-from .base import PublisherCliTestCase
-from ..exam_helper_for_data_connect import DataConnectTestCaseMixin
+from tests.cli.base import PublisherCliTestCase
+from tests.exam_helper_for_data_connect import DataConnectTestCaseMixin
 
 
 class TestDataConnectCommand(PublisherCliTestCase, DataConnectTestCaseMixin):

@@ -1,4 +1,3 @@
-from tests.cli.auth_utils import handle_device_code_flow
 from tests.cli.base import PublisherCliTestCase
 
 

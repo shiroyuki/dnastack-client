@@ -15,8 +15,8 @@ from dnastack.configuration.models import Configuration
 from dnastack.context.manager import ContextManager, BaseContextManager
 from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.json_path import JsonPath
-from ..exam_helper import BasePublisherTestCase, BaseTestCase
-from ..exam_helper_for_workbench import BaseWorkbenchTestCase
+from tests.exam_helper import BaseTestCase, BasePublisherTestCase
+from tests.exam_helper_for_workbench import BaseWorkbenchTestCase
 
 
 class CliTestCase(BaseTestCase):

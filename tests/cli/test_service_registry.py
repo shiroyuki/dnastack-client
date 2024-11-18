@@ -3,7 +3,7 @@ from typing import Iterable, Any, Dict
 from urllib.parse import urljoin
 
 from dnastack.common.simple_stream import SimpleStream
-from .base import PublisherCliTestCase
+from tests.cli.base import PublisherCliTestCase
 
 
 class TestCliServiceRegistry(PublisherCliTestCase):
