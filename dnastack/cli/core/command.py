@@ -111,62 +111,66 @@ def formatted_command(group, name, specs: List[ArgumentSpec], hidden: bool = Fal
                 click.echo(str(e), err=True)
                 raise SystemExit(1) from e
 
-        # Process specs in reverse order to maintain correct ordering
-        for spec in reversed(specs):
-            if spec.arg_type == ArgumentType.POSITIONAL:
-                # For positional arguments, use the name directly
-                arg_name = spec.name
+        # Separate positional and option arguments
+        positional_specs = [spec for spec in specs if spec.arg_type == ArgumentType.POSITIONAL]
+        option_specs = [spec for spec in specs if spec.arg_type != ArgumentType.POSITIONAL]
 
-                # Set up argument parameters
-                arg_params = {
-                    'type': spec.type,
-                    'required': spec.required if spec.required is not None else True,
-                }
+        # Process positional arguments in forward order to maintain correct ordering
+        for spec in positional_specs:
+            arg_name = spec.name
 
-                # Handle multiple values
-                if spec.multiple or spec.nargs:
-                    arg_params['nargs'] = spec.nargs if spec.nargs is not None else -1
+            # Set up argument parameters
+            arg_params = {
+                'type': spec.type,
+                'required': spec.required if spec.required is not None else True,
+            }
 
-                if spec.default is not None:
-                    arg_params['default'] = spec.default
+            # Handle multiple values
+            if spec.multiple or spec.nargs:
+                arg_params['nargs'] = spec.nargs if spec.nargs is not None else -1
 
-                # Create the argument
-                arg = click.argument(arg_name, **arg_params)
-                wrapped_callback = arg(wrapped_callback)
+            if spec.default is not None:
+                arg_params['default'] = spec.default
 
-                # Store help text for the argument
-                if spec.help:
-                    cmd.store_argument_help(arg_name, spec.help)
-            else:
-                # Handle option arguments
-                arg_names = spec.get_argument_names()
+            # Create the argument
+            arg = click.argument(arg_name, **arg_params)
+            wrapped_callback = arg(wrapped_callback)
 
-                # Validate option names
-                for arg_name in arg_names:
-                    if not arg_name.startswith('-'):
-                        raise ValueError(f"Invalid option name '{arg_name}'. Must start with - or --")
+            # Store help text for the argument
+            if spec.help:
+                cmd.store_argument_help(arg_name, spec.help)
 
-                # Create option
-                option_kwargs = {
-                    'help': spec.help,
-                    'required': spec.required if spec.required is not None else False,
-                    'default': spec.default,
-                    'type': spec.type,
-                    'multiple': spec.multiple,
-                }
+        # Process option arguments (order doesn't matter for these)
+        for spec in option_specs:
+            # Handle option arguments
+            arg_names = spec.get_argument_names()
 
-                # Add special handling for boolean flags
-                if spec.type is bool:
-                    option_kwargs['is_flag'] = True
-                    option_kwargs['required'] = False
-                    option_kwargs['show_default'] = False
+            # Validate option names
+            for arg_name in arg_names:
+                if not arg_name.startswith('-'):
+                    raise ValueError(f"Invalid option name '{arg_name}'. Must start with - or --")
 
-                if spec.choices:
-                    option_kwargs['type'] = click.Choice(spec.choices)
-                    option_kwargs['show_choices'] = True
+            # Create option
+            option_kwargs = {
+                'help': spec.help,
+                'required': spec.required if spec.required is not None else False,
+                'default': spec.default,
+                'type': spec.type,
+                'multiple': spec.multiple,
+            }
 
-                option = click.option(*arg_names, **option_kwargs)
-                wrapped_callback = option(wrapped_callback)
+            # Add special handling for boolean flags
+            if spec.type is bool:
+                option_kwargs['is_flag'] = True
+                option_kwargs['required'] = False
+                option_kwargs['show_default'] = False
+
+            if spec.choices:
+                option_kwargs['type'] = click.Choice(spec.choices)
+                option_kwargs['show_choices'] = True
+
+            option = click.option(*arg_names, **option_kwargs)
+            wrapped_callback = option(wrapped_callback)
 
         # Get all params from the wrapped callback
         cmd.params = wrapped_callback.__click_params__ if hasattr(wrapped_callback, '__click_params__') else []
