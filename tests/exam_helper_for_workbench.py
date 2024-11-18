@@ -2,22 +2,18 @@ import json
 import random
 import tempfile
 import zipfile
-from datetime import datetime
-import time
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
 
 from pydantic import BaseModel
-from pygments.lexer import default
-from requests import delete
 
 from dnastack import ServiceEndpoint
 from dnastack.client.factory import EndpointRepository
 from dnastack.client.workbench.ewes.client import EWesClient
 from dnastack.client.workbench.ewes.models import MinimalExtendedRun, ExtendedRunRequest, BatchRunResponse, \
     BatchRunRequest, EngineParamPreset
-from dnastack.client.workbench.storage.models import StorageAccount, Platform, Provider
+from dnastack.client.workbench.storage.models import StorageAccount, Provider
 from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate, WorkflowVersion, WorkflowTransformation
 from dnastack.common.environments import env
@@ -401,20 +397,3 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
         if not self.storage_account:
             self.storage_account = self._create_storage_account(provider=provider)
         return self.storage_account
-
-    def _create_platform(self, storage_account: StorageAccount, id=None) -> Platform:
-        if not id:
-            id = f'test-storage-account-{random.randint(0, 100000)}'
-
-        return Platform(**self.simple_invoke(
-            'workbench', 'storage', 'platforms', 'add',
-            id,
-            '--name', 'Test Platform',
-            '--storage-id', storage_account.id,
-            '--platform', 'PACBIO',
-        ))
-
-    def _get_or_create_platform(self, storage_account: StorageAccount) -> Platform:
-        if not self.platform and storage_account:
-            self.platform = self._create_platform(storage_account)
-        return self.platform

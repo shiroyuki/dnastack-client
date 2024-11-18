@@ -1,19 +1,18 @@
 # The implementation is based on https://github.com/ga4gh/workflow-execution-service-schemas/tree/develop/openapi.
-import os.path
-from mimetypes import guess_type
-
-from pprint import pformat
-
 import json
+import os.path
 from datetime import datetime
-from pydantic import BaseModel, ValidationError, Field
+from mimetypes import guess_type
+from pprint import pformat
 from typing import Iterator, Optional, List, Any, Dict, Union
 from urllib.parse import urljoin
+
+from pydantic import BaseModel, ValidationError, Field
 
 from dnastack.client.base_client import BaseServiceClient
 from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError, DataConnectError
 from dnastack.client.result_iterator import ResultLoader, InactiveLoaderError, ResultIterator
-from dnastack.client.service_registry.models import ServiceType, Service
+from dnastack.client.service_registry.models import ServiceType
 from dnastack.http.session import HttpSession, HttpError, ClientError
 
 STANDARD_WES_TYPE_V1_1 = ServiceType(group='org.ga4gh', artifact='wes', version='1.1')

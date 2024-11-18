@@ -1,7 +1,7 @@
+from typing import List, Optional, Dict
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
 
 from dnastack.client.models import ServiceEndpoint as Endpoint
 from dnastack.context.models import Context

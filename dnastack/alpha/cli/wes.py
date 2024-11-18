@@ -1,14 +1,16 @@
-import click
 import json
 import re
-import yaml
-from imagination import container
 from typing import Optional, List
 
+import click
+import yaml
+from imagination import container
+
 from dnastack.alpha.client.wes.client import WesClient, RunRequest
+from dnastack.cli.core.command import formatted_command
+from dnastack.cli.core.command_spec import ArgumentSpec, RESOURCE_OUTPUT_ARG, ArgumentType
+from dnastack.cli.core.group import formatted_group
 from dnastack.cli.helpers.client_factory import ConfigurationBasedClientFactory
-from dnastack.cli.helpers.command.decorator import command
-from dnastack.cli.helpers.command.spec import ArgumentSpec, RESOURCE_OUTPUT_SPEC
 from dnastack.cli.helpers.exporter import normalize, to_json, to_yaml
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 from dnastack.constants import __version__
@@ -21,51 +23,65 @@ def _get(context_name: Optional[str] = None,
     return factory.get(WesClient, endpoint_id=endpoint_id, context_name=context_name)
 
 
-@click.group('wes')
+@formatted_group('wes')
 def alpha_wes_command_group():
     """ Interact with Workflow Execution Service """
 
 
-@command(alpha_wes_command_group,
-         specs=[
-             ArgumentSpec(
-                 name='workflow_type',
-                 help='Workflow type',
-                 as_option=True,
-             ),
-             ArgumentSpec(
-                 name='workflow_type_version',
-                 help='Workflow type version',
-                 as_option=True,
-             ),
-             ArgumentSpec(
-                 name='manifest_file_path',
-                 arg_names=['--manifest-file', '-f'],
-                 help='The file path of the run manifest file',
-                 as_option=True,
-             ),
-             ArgumentSpec(
-                 name='workflow_url',
-                 arg_names=['--workflow-url', '-u'],
-                 help='The file path or URL to the workflow file (*.wdl)',
-                 as_option=True,
-             ),
-             ArgumentSpec(
-                 name='params',
-             ),
-             ArgumentSpec(
-                 name='attachments',
-                 arg_names=['--attach', '-a'],
-                 help='Attachment for this workflow run',
-                 as_option=True,
-             ),
-             ArgumentSpec(
-                 name='tags',
-                 arg_names=['--tag', '-t'],
-                 help='Tag for this run in the key-value pattern, e.g., <key>=<value>',
-                 as_option=True,
-             ),
-         ])
+@formatted_command(
+    group=alpha_wes_command_group,
+    name='submit',
+    specs=[
+        ArgumentSpec(
+            name='params',
+            arg_names=['--params'],
+            arg_type=ArgumentType.POSITIONAL,
+            help='Parameters for this workflow run',
+        ),
+        ArgumentSpec(
+            name='workflow_type',
+            arg_names=['--workflow-type'],
+            help='Workflow type',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='workflow_type_version',
+            arg_names=['--workflow-type-version'],
+            help='Workflow type version',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='manifest_file_path',
+            arg_names=['--manifest-file', '-f'],
+            help='The file path of the run manifest file',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='workflow_url',
+            arg_names=['--workflow-url', '-u'],
+            help='The file path or URL to the workflow file (*.wdl)',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='attachments',
+            arg_names=['--attach', '-a'],
+            help='Attachment for this workflow run',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='tags',
+            arg_names=['--tag', '-t'],
+            help='Tag for this run in the key-value pattern, e.g., <key>=<value>',
+            as_option=True,
+        ),
+        ArgumentSpec(
+            name='dry_run',
+            arg_names=['--dry-run'],
+            help='Dry run mode',
+            as_option=True,
+        ),
+    ]
+)
 def submit(context: Optional[str],
            endpoint_id: Optional[str],
            manifest_file_path: Optional[str],
@@ -200,11 +216,13 @@ def _execute(run_request: RunRequest,
     )
 
 
-@command(alpha_wes_command_group,
-         'list',
-         specs=[
-             RESOURCE_OUTPUT_SPEC,
-         ])
+@formatted_command(
+    group=alpha_wes_command_group,
+    name='list',
+    specs=[
+        RESOURCE_OUTPUT_ARG,
+    ]
+)
 def list_runs(context: Optional[str],
               endpoint_id: Optional[str],
               output: Optional[str],
@@ -214,10 +232,13 @@ def list_runs(context: Optional[str],
     show_iterator(output_format=output, iterator=client.get_runs(), limit=limit)
 
 
-@command(alpha_wes_command_group,
-         specs=[
-             RESOURCE_OUTPUT_SPEC,
-         ])
+@formatted_command(
+    group=alpha_wes_command_group,
+    name='get',
+    specs=[
+        RESOURCE_OUTPUT_ARG,
+    ]
+)
 def get(context: Optional[str],
         endpoint_id: Optional[str],
         output: Optional[str],
@@ -271,7 +292,11 @@ def get(context: Optional[str],
     )
 
 
-@command(alpha_wes_command_group)
+@formatted_command(
+    group=alpha_wes_command_group,
+    name='logs',
+    specs=[]
+)
 def logs(context: Optional[str],
          endpoint_id: Optional[str],
          run_id: str,

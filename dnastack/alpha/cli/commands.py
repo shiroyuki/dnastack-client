@@ -1,6 +1,5 @@
 from typing import Optional, Union, List
 
-import click
 from click import Abort
 from imagination import container
 
@@ -8,11 +7,11 @@ from dnastack.alpha.cli.auth import alpha_auth_command_group
 from dnastack.alpha.cli.collections import alpha_collection_command_group
 from dnastack.alpha.cli.data_connect import alpha_data_connect_command_group
 from dnastack.alpha.cli.wes import alpha_wes_command_group
-from dnastack.cli.collections import COLLECTION_ID_CLI_ARG_SPEC, _abort_with_collection_list
-from dnastack.cli.data_connect.commands import DECIMAL_POINT_OUTPUT_SPEC
-from dnastack.cli.data_connect.helper import handle_query
-from dnastack.cli.helpers.command.decorator import command
-from dnastack.cli.helpers.command.spec import DATA_OUTPUT_SPEC
+from dnastack.cli.commands.collections.utils import COLLECTION_ID_CLI_ARG, _abort_with_collection_list
+from dnastack.cli.commands.dataconnect.utils import DECIMAL_POINT_OUTPUT_ARG, handle_query
+from dnastack.cli.core.command import formatted_command
+from dnastack.cli.core.command_spec import DATA_OUTPUT_ARG
+from dnastack.cli.core.group import formatted_group
 from dnastack.client.collections.client import CollectionServiceClient, EXPLORER_COLLECTION_SERVICE_TYPE_V1_0, \
     UnknownCollectionError
 from dnastack.client.data_connect import DataConnectClient
@@ -24,7 +23,7 @@ from dnastack.configuration.models import DEFAULT_CONTEXT
 from dnastack.context.models import Context
 
 
-@click.group("alpha")
+@formatted_group("alpha")
 def alpha_command_group():
     """
     Interact with experimental commands.
@@ -46,13 +45,15 @@ alpha_command_group.add_command(alpha_data_connect_command_group)
 #######################
 # Root-level commands #
 #######################
-@command(alpha_command_group,
-         'query',
-         [
-             COLLECTION_ID_CLI_ARG_SPEC,
-             DATA_OUTPUT_SPEC,
-             DECIMAL_POINT_OUTPUT_SPEC,
-         ])
+@formatted_command(
+    group=alpha_command_group,
+    name='query',
+    specs=[
+        COLLECTION_ID_CLI_ARG,
+        DATA_OUTPUT_ARG,
+        DECIMAL_POINT_OUTPUT_ARG,
+    ]
+)
 def run_query(context: Optional[str],
               endpoint_id: Optional[str],
               collection: Optional[str],

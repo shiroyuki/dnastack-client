@@ -1,6 +1,7 @@
 import sys
-from imagination.decorator import service
 from threading import Lock
+
+from imagination.decorator import service
 
 
 @service.registered()

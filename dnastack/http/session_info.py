@@ -7,16 +7,16 @@ import shutil
 from abc import ABC
 from json import loads
 from threading import Lock
+from time import time
 from typing import Optional, Dict, Any, Union, List
 
 import yaml
 from imagination.decorator import service, EnvironmentVariable
 from imagination.decorator.config import Service
 from pydantic import BaseModel, Field
-from time import time
 
-from dnastack.constants import LOCAL_STORAGE_DIRECTORY
 from dnastack.common.logger import get_logger
+from dnastack.constants import LOCAL_STORAGE_DIRECTORY
 
 
 class SessionInfoHandler(BaseModel):

@@ -5,8 +5,7 @@ from dnastack import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.client.workbench.base_client import BaseWorkbenchClient, WorkbenchResultLoader
-from dnastack.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse, \
-    Platform, PlatformListOptions, PlatformListResponse
+from dnastack.client.workbench.storage.models import StorageAccount, StorageListOptions, StorageListResponse
 from dnastack.common.tracing import Span
 from dnastack.http.session import HttpSession
 
@@ -29,26 +28,6 @@ class StorageAccountListResultLoader(WorkbenchResultLoader):
 
     def extract_api_response(self, response_body: dict) -> StorageListResponse:
         return StorageListResponse(**response_body)
-
-
-class PlatformListResultLoader(WorkbenchResultLoader):
-    def __init__(self,
-                 service_url: str,
-                 http_session: HttpSession,
-                 trace: Optional[Span],
-                 list_options: Optional[PlatformListOptions] = None,
-                 max_results: int = None):
-        super().__init__(service_url=service_url,
-                         http_session=http_session,
-                         list_options=list_options,
-                         max_results=max_results,
-                         trace=trace)
-
-    def get_new_list_options(self) -> PlatformListOptions:
-        return PlatformListOptions()
-
-    def extract_api_response(self, response_body: dict) -> PlatformListResponse:
-        return PlatformListResponse(**response_body)
 
 
 class StorageClient(BaseWorkbenchClient):
@@ -106,39 +85,6 @@ class StorageClient(BaseWorkbenchClient):
         """List storage accounts."""
         return ResultIterator(StorageAccountListResultLoader(
             service_url=urljoin(self.endpoint.url, f'{self.namespace}/storage'),
-            http_session=self.create_http_session(),
-            list_options=list_options,
-            trace=None,
-            max_results=max_results))
-
-    def add_platform(self, platform: Platform) -> Platform:
-        """Create a new platform."""
-        with self.create_http_session() as session:
-            response = session.post(
-                urljoin(self.endpoint.url, f'{self.namespace}/storage/{platform.storage_account_id}/platforms'),
-                json=platform.dict()
-            )
-        return Platform(**response.json())
-
-    def delete_platform(self, platform_id: str, storage_account_id: str) -> None:
-        """Delete a platform."""
-        with self.create_http_session() as session:
-            session.delete(urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}/platforms/{platform_id}'))
-        return None
-
-    def get_platform(self, platform_id: str, storage_account_id: str) -> Platform:
-        """Get a platform of storage account by its ID."""
-        with self.create_http_session() as session:
-            response = session.get(urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}/platforms/{platform_id}'))
-        return Platform(**response.json())
-
-    def list_platforms(self, list_options: Optional[PlatformListOptions], max_results: int) -> Iterator[Platform]:
-        """List platforms."""
-        url = f'{self.namespace}/storage/{list_options.storage_account_id}/platforms' \
-            if list_options.storage_account_id \
-            else f'{self.namespace}/storage/platforms'
-        return ResultIterator(PlatformListResultLoader(
-            service_url=urljoin(self.endpoint.url, url),
             http_session=self.create_http_session(),
             list_options=list_options,
             trace=None,

@@ -13,7 +13,7 @@ from dnastack.client.workbench.ewes.models import ExtendedRunStatus, ExtendedRun
     MinimalExtendedRunWithInputs, BatchRunRequest, RunEvent, EventType, State, MinimalExtendedRun, \
     MinimalExtendedRunWithOutputs
 from dnastack.client.workbench.samples.models import Sample, SampleFile, Instrument
-from dnastack.client.workbench.storage.models import Platform, StorageAccount, Provider
+from dnastack.client.workbench.storage.models import StorageAccount, Provider, PlatformType
 from tests.cli.base import WorkbenchCliTestCase
 from dnastack.common.environments import env
 
@@ -557,7 +557,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_samples_list_and_describe(self):
         created_storage_account = self._create_storage_account(provider=Provider.aws)
-        created_platform = self._create_platform(created_storage_account)
         samples = self._wait_for_samples()
         self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
         for sample in samples:
@@ -591,7 +590,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_samples_files_list(self):
         created_storage_account = self._create_storage_account(provider=Provider.aws)
-        created_platform = self._create_platform(created_storage_account)
         samples = self._wait_for_samples()
         self._wait()
         self.assert_not_empty(samples, f'Expected at least one sample. Found {samples}')
@@ -611,11 +609,13 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
         ## Add another test case where we pass the platform id
         sample_files = [SampleFile(**sample_file) for sample_file in self.simple_invoke(
-            'workbench', 'samples', 'files', 'list', '--sample', sample.id, '--platform', created_platform.id
+            'workbench', 'samples', 'files', 'list',
+            '--sample', sample.id,
+            '--platform-type', PlatformType.pacbio.value
         )]
         self.assert_not_empty(sample_files, f'Expected at least one sample file. Found {sample_files}')
         self.assertTrue(all(sample_file.sample_id == sample.id for sample_file in sample_files))
-        self.assertTrue(all(sample_file.platform_id == created_platform.id for sample_file in sample_files))
+        self.assertTrue(all(sample_file.platform_type == PlatformType.pacbio.value for sample_file in sample_files))
 
     ## Storage
     def test_storage_add_aws(self):
@@ -693,61 +693,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.assertEqual(storage_accounts[0].id, created_storage_account.id)
         self.assertEqual(storage_accounts[0].name, created_storage_account.name)
         self.assertEqual(storage_accounts[0].provider, Provider.aws)
-
-    def test_platform_create(self):
-        created_storage_account = self._create_storage_account(provider=Provider.aws)
-        created_platform = self._create_platform(storage_account=created_storage_account, id='test-platform')
-        self.assertIsNotNone(created_platform.id)
-        self.assertEqual(created_platform.name, 'Test Platform')
-        self.assertEqual(created_platform.type, 'pacbio')
-        self.assertEqual(created_platform.storage_account_id, created_storage_account.id)
-
-    def test_platforms_list(self):
-        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
-        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'workbench', 'storage', 'platforms', 'list'
-        )]
-        self.assert_not_empty(platforms, f'Expected at least one platform. Found {platforms}')
-        self.assertTrue(created_platform.id in [platform.id for platform in platforms])
-
-    def test_platform_describe(self):
-        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
-        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-            '--storage-id', created_storage_account.id
-        )]
-        self.assertEqual(len(platforms), 1, f'Expected exactly one platform. Found {platforms}')
-        self.assertEqual(platforms[0].id, created_platform.id)
-        self.assertEqual(platforms[0].name, created_platform.name)
-        self.assertEqual(platforms[0].type, created_platform.type)
-        self.assertEqual(platforms[0].storage_account_id, created_storage_account.id)
-
-    def test_platform_delete(self):
-        created_storage_account = self._get_or_create_storage_account(provider=Provider.aws)
-        created_platform = self._get_or_create_platform(storage_account=created_storage_account)
-        output = self.simple_invoke(
-            'workbench', 'storage', 'platforms', 'delete', created_platform.id,
-            '--storage-id', created_storage_account.id,
-            '--force',
-            parse_output=False
-        )
-        self.assertTrue("deleted successfully" in output)
-
-        platforms = [Platform(**platform) for platform in self.simple_invoke(
-            'workbench', 'storage', 'platforms', 'list'
-        )]
-        self.assertTrue(created_platform.id not in [platform.id for platform in platforms])
-
-        result = self.invoke(
-            'workbench', 'storage', 'platforms', 'describe', created_platform.id,
-            '--storage-id', created_storage_account.id,
-            bypass_error=True
-        )
-
-        self.assertNotEqual(result.exit_code, 0)
-        self.assertTrue('"error_code":404' in result.stderr)
 
     def test_storage_delete(self):
         created_storage_account = self._create_storage_account(provider=Provider.aws)
@@ -985,7 +930,8 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
             version_to_delete = self._create_workflow_version(created_workflow.internalId, "to-delete")
             output = self.simple_invoke(
                 'workbench', 'workflows', 'versions', 'delete',
-                '--force', '--workflow', created_workflow.internalId,
+                '--force',
+                '--workflow', created_workflow.internalId,
                 version_to_delete.id,
                 parse_output=False
             )
@@ -1433,7 +1379,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
 
     def test_instruments_list(self):
         created_storage_account = self._create_storage_account(provider=Provider.aws)
-        created_platform = self._create_platform(created_storage_account)
         self._wait()
         instruments = [Instrument(**instrument) for instrument in self.simple_invoke(
             'workbench', 'instruments', 'list'

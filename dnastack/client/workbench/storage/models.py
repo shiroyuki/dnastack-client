@@ -63,25 +63,3 @@ class StorageListResponse(PaginatedResource):
     def items(self) -> List[Any]:
         return self.accounts
 
-
-class Platform(BaseModel):
-    id: Optional[str]
-    namespace: Optional[str]
-    storage_account_id: Optional[str]
-    name: Optional[str]
-    path: Optional[str]
-    type: Optional[PlatformType]
-    created_at: Optional[str]
-    last_updated_at: Optional[str]
-
-
-class PlatformListOptions(BaseListOptions):
-    storage_account_id: Optional[str]
-    sort: Optional[str]
-
-
-class PlatformListResponse(PaginatedResource):
-    platforms: List[Platform]
-
-    def items(self) -> List[Any]:
-        return self.platforms

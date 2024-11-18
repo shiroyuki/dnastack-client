@@ -1,5 +1,4 @@
 import logging
-
 from typing import Any
 
 from dnastack.common.logger import get_logger

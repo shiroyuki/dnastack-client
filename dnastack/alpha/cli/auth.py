@@ -1,25 +1,36 @@
 import base64
-import click
 import json
 import lzma
-from pydantic import Field, BaseModel
 from typing import Optional, List
 
-from dnastack.cli.auth.command import AuthCommandHandler as StableAuthCommandHandler
-from dnastack.cli.helpers.command.decorator import command
-from dnastack.cli.helpers.command.spec import MULTIPLE_ENDPOINT_ID_SPEC
+import click
+from pydantic import Field, BaseModel
+
+from dnastack.cli.commands.auth.commands import AuthCommandHandler as StableAuthCommandHandler
+from dnastack.cli.core.command import formatted_command
+from dnastack.cli.core.command_spec import MULTIPLE_ENDPOINT_ID_ARG, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG, ArgumentType, \
+    ArgumentSpec
+from dnastack.cli.core.group import formatted_group
 from dnastack.cli.helpers.exporter import normalize, to_json
 from dnastack.cli.helpers.printer import echo_result
 from dnastack.http.authenticators.abstract import AuthStateStatus
 from dnastack.http.session_info import Session
 
 
-@click.group("auth")
+@formatted_group("auth")
 def alpha_auth_command_group():
     """ Manage authentication and authorization """
 
 
-@command(alpha_auth_command_group, 'export', specs=[MULTIPLE_ENDPOINT_ID_SPEC])
+@formatted_command(
+    group=alpha_auth_command_group, 
+    name='export', 
+    specs=[
+        MULTIPLE_ENDPOINT_ID_ARG,
+        CONTEXT_ARG,
+        SINGLE_ENDPOINT_ID_ARG,
+    ]
+)
 def export_backup(context: Optional[str],
                   endpoint_id: Optional[str] = None,
                   pretty: bool = False,
@@ -34,7 +45,19 @@ def export_backup(context: Optional[str],
     click.echo(result)
 
 
-@command(alpha_auth_command_group, 'import')
+@formatted_command(
+    group=alpha_auth_command_group,
+    name='import',
+    specs=[
+        ArgumentSpec(
+            name='backup_content',
+            arg_type=ArgumentType.POSITIONAL,
+            help='The backup content to import.',
+            required=True,
+        ),
+        CONTEXT_ARG,
+    ]
+)
 def import_from_backup(context: Optional[str],
                        backup_content: str):
     """ Import sessions """

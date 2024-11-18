@@ -3,17 +3,16 @@ from pprint import pformat
 from typing import Optional, List
 
 from pydantic import ValidationError
-from requests import Response
 
 from dnastack import ServiceEndpoint
-from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 from dnastack.client.base_client import BaseServiceClient
 from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError
 from dnastack.client.result_iterator import ResultLoader, InactiveLoaderError
+from dnastack.client.workbench.models import BaseListOptions, PaginatedResource
 from dnastack.common.tracing import Span
 from dnastack.http.authenticators.factory import HttpAuthenticatorFactory
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
-from dnastack.http.session import HttpSession, HttpError, ServerError
+from dnastack.http.session import HttpSession, HttpError
 
 
 class ApiError(Exception):

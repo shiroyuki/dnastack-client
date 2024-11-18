@@ -1,22 +1,21 @@
-from urllib.parse import urlparse
-
 import hashlib
 from json import dumps
-
-from pydantic import BaseModel
 from traceback import format_exc
 from typing import List, Any, Dict, Optional, Iterable, Type, TypeVar, Union, Iterator, Set
+from urllib.parse import urlparse
+
+from pydantic import BaseModel
 
 from dnastack import CollectionServiceClient, DataConnectClient, DrsClient
 from dnastack.client.base_client import BaseServiceClient
-from dnastack.client.constants import SERVICE_CLIENT_CLASS, DATA_SERVICE_CLIENT_CLASSES
-from dnastack.client.factory import create, EndpointRepository
+from dnastack.client.constants import SERVICE_CLIENT_CLASS
+from dnastack.client.factory import EndpointRepository
+from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.client import ServiceRegistry
 from dnastack.client.service_registry.helper import parse_ga4gh_service_info
 from dnastack.client.service_registry.models import ServiceType, Service
-from dnastack.common.simple_stream import SimpleStream
-from dnastack.client.models import ServiceEndpoint
 from dnastack.common.logger import get_logger
+from dnastack.common.simple_stream import SimpleStream
 
 T = TypeVar('T')
 

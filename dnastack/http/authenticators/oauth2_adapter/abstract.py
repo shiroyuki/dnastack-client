@@ -1,14 +1,12 @@
 import re
-
 from abc import ABC
 from typing import Any, Dict, List
 
-from dnastack.common.environments import env
 from dnastack.common.events import EventSource
+from dnastack.common.logger import get_logger
 from dnastack.common.tracing import Span
 from dnastack.http.authenticators.constants import get_authenticator_log_level
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
-from dnastack.common.logger import get_logger, get_log_level, default_logging_level
 
 
 class AuthException(RuntimeError):

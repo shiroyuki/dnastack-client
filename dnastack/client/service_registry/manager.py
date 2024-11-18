@@ -9,8 +9,8 @@ from dnastack.client.service_registry.factory import ClientFactory
 from dnastack.client.service_registry.helper import parse_ga4gh_service_info
 from dnastack.common.events import EventSource
 from dnastack.common.logger import get_logger
-from dnastack.context.models import Context
 from dnastack.context.context_wraper import get_endpoint_by_id
+from dnastack.context.models import Context
 
 
 class InvalidServiceRegistryError(RuntimeError):

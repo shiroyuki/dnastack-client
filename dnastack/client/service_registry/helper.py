@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
-from dnastack.client.service_registry.models import Service
 from dnastack.client.models import ServiceEndpoint
+from dnastack.client.service_registry.models import Service
 
 
 def parse_ga4gh_service_info(service: Service, alternate_service_id: Optional[str] = None) -> ServiceEndpoint:

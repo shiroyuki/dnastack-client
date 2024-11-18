@@ -1,11 +1,9 @@
-import sys
-
 import csv
+import sys
 from json import dumps as to_json_string
+from typing import TypeVar, Any, Iterable, Optional, Callable
 
 import click
-from pydantic import BaseModel
-from typing import TypeVar, Any, Iterable, Optional, Callable
 from yaml import dump as to_yaml_string, SafeDumper
 
 from dnastack.cli.helpers.exporter import normalize
