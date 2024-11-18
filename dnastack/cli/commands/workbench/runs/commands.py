@@ -409,12 +409,12 @@ def init_runs_commands(group: Group):
                 required=False,
                 multiple=True
             ),
-            NAMESPACE_ARG,
             ArgumentSpec(
                 name='workflow_url',
                 arg_names=['--url'],
                 help='The URL to the workflow file (*.wdl). Only urls from workflow-service are '
                      'currently supported.',
+                required=True,
             ),
             ArgumentSpec(
                 name='engine_id',
@@ -473,6 +473,7 @@ def init_runs_commands(group: Group):
                 arg_names=['--samples'],
                 help='An optional flag that accepts a comma separated list of Sample IDs to use in the given workflow.',
             ),
+            NAMESPACE_ARG,
             CONTEXT_ARG,
             SINGLE_ENDPOINT_ID_ARG,
         ]
