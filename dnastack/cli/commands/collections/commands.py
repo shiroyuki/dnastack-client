@@ -11,7 +11,7 @@ from dnastack.cli.commands.collections.utils import _filter_collection_fields, _
 from dnastack.cli.commands.dataconnect.utils import DECIMAL_POINT_OUTPUT_ARG, handle_query
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, RESOURCE_OUTPUT_ARG, DATA_OUTPUT_ARG, CONTEXT_ARG, \
-    SINGLE_ENDPOINT_ID_ARG
+    SINGLE_ENDPOINT_ID_ARG, ArgumentType
 from dnastack.cli.helpers.exporter import to_json
 from dnastack.cli.helpers.iterator_printer import show_iterator
 from dnastack.common.logger import get_logger
@@ -194,6 +194,12 @@ def init_collections_commands(group: Group):
         group=group,
         name='query',
         specs=[
+            ArgumentSpec(
+                name='query',
+                arg_type=ArgumentType.POSITIONAL,
+                help='The SQL query.',
+                required=True,
+            ),
             COLLECTION_ID_CLI_ARG,
             DECIMAL_POINT_OUTPUT_ARG,
             DATA_OUTPUT_ARG,

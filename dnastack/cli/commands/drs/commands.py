@@ -22,8 +22,8 @@ def init_drs_commands(group: Group):
                 name='id_or_urls',
                 arg_type=ArgumentType.POSITIONAL,
                 help='DRS IDs or URLs (drs://<host>/<id>)',
-                required=True,
-                multi=True,
+                required=False,
+                multiple=True,
             ),
             ArgumentSpec(
                 name='quiet',
