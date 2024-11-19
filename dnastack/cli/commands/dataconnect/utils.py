@@ -14,6 +14,7 @@ DECIMAL_POINT_OUTPUT_ARG = ArgumentSpec(
     arg_names=['--decimal-as'],
     help='The format of the decimal value',
     choices=["string", "float"],
+    default="string",
 )
 
 

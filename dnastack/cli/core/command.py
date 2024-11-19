@@ -114,7 +114,7 @@ def formatted_command(group, name, specs: List[ArgumentSpec], hidden: bool = Fal
                     raise SystemExit(1)
                 return result
             except Exception as e:
-                click.echo(str(e), err=True)
+                click.secho(f"{type(e).__name__}: {str(e)}", fg='red', err=True)
                 raise SystemExit(1) from e
 
         # Separate positional and option arguments
