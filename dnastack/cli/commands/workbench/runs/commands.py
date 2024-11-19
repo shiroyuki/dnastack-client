@@ -297,7 +297,7 @@ def init_runs_commands(group: Group):
                 arg_type=ArgumentType.POSITIONAL,
                 help='Specify a run ID or log URL to retrieve logs.',
                 required=True,
-                multiple=True
+                multiple=False
             ),
             NAMESPACE_ARG,
             ArgumentSpec(
