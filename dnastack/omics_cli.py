@@ -65,11 +65,18 @@ def version():
             name='context_name',
             arg_names=['--name'],
             help='Context name -- default to hostname'
+        ),
+        ArgumentSpec(
+            name='no_auth',
+            arg_names=['--no-auth'],
+            help='Skip automatic authentication if set',
+            type=bool,
+            required=False,
+            hidden=True,
         )
     ]
 )
-def use(
-        registry_hostname_or_url: str,
+def use(registry_hostname_or_url: str,
         context_name: Optional[str] = None,
         no_auth: bool = False):
     """
@@ -90,7 +97,7 @@ omics.add_command(config_command_group)
 # noinspection PyTypeChecker
 omics.add_command(drs_command_group)
 # noinspection PyTypeChecker
-omics.add_command(auth_command_group())
+omics.add_command(auth_command_group)
 # noinspection PyTypeChecker
 omics.add_command(collections_command_group)
 # noinspection PyTypeChecker
