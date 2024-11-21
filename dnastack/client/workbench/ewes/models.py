@@ -21,6 +21,7 @@ class LogType(str, Enum):
 
 
 class State(str, Enum):
+    PREPROCESSING = "PREPROCESSING"
     UNKNOWN = "UNKNOWN"
     QUEUED = "QUEUED"
     INITIALIZING = "INITIALIZING"
@@ -32,6 +33,7 @@ class State(str, Enum):
     SYSTEM_ERROR = "SYSTEM_ERROR"
     CANCELED = "CANCELED"
     COMPLETE_WITH_ERRORS = "COMPLETE_WITH_ERRORS"
+    PREPROCESSING_ERROR = "PREPROCESSING_ERROR"
 
     def is_error(self) -> bool:
         return self in [State.COMPLETE_WITH_ERRORS, State.EXECUTOR_ERROR, State.SYSTEM_ERROR]
