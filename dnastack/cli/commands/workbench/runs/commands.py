@@ -463,12 +463,6 @@ def init_runs_commands(group: Group):
                 type=bool,
             ),
             ArgumentSpec(
-                name='no_defaults',
-                arg_names=['--no-defaults'],
-                help='If specified, the command will not use any default values for the workflow.',
-                type=bool,
-            ),
-            ArgumentSpec(
                 name='sample_ids',
                 arg_names=['--samples'],
                 help='An optional flag that accepts a comma separated list of Sample IDs to use in the given workflow.',
@@ -489,7 +483,6 @@ def init_runs_commands(group: Group):
                      workflow_params: JsonLike,
                      input_overrides,
                      dry_run: bool,
-                     no_defaults: bool,
                      sample_ids: Optional[str]):
         """
         Submit one or more workflows for execution
@@ -515,26 +508,6 @@ def init_runs_commands(group: Group):
             raise NoDefaultEngineError("No default engine found. Please specify an engine id using the --engine flag "
                                        "or in the workflow engine parameters list using ENGINE_ID_KEY=....")
 
-        def get_workflow_defaults(engine_id_to_fetch: str):
-            workflow_client = get_workflow_client(context_name=context, endpoint_id=endpoint_id,
-                                                  namespace=namespace)
-            resolved_workflow = workflow_client.resolve_workflow(workflow_url)
-            defaults_selector = WorkflowDefaultsSelector()
-            resolved_defaults = dict()
-            engine = ewes_client.get_engine(engine_id_to_fetch)
-            defaults_selector.engine = engine.id
-            defaults_selector.region = engine.region
-            defaults_selector.provider = engine.provider
-
-            try:
-                resolved_defaults = workflow_client.resolve_workflow_defaults(
-                    workflow_id=resolved_workflow.internalId,
-                    workflow_version_id=resolved_workflow.versionId,
-                    selector=defaults_selector).values
-            except Exception as e:
-                pass
-            return resolved_defaults
-
         if not engine_id:
             engine_id = get_default_engine_id()
 
@@ -557,9 +530,6 @@ def init_runs_commands(group: Group):
             default_workflow_engine_parameters = None
 
         default_workflow_params = default_workflow_params.parsed_value() if default_workflow_params else {}
-        if not no_defaults:
-            workflow_defaults = get_workflow_defaults(engine_id)
-            merge(default_workflow_params, workflow_defaults)
 
         batch_request: BatchRunRequest = BatchRunRequest(
             workflow_url=workflow_url,
