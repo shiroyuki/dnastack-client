@@ -57,7 +57,7 @@ def validate_azure_credentials(sas: Optional[FileOrValue],
     auth_methods = {
         'sas': bool(sas),
         'access_key': bool(access_key),
-        'service_principal': all([tenant_id, client_id, client_secret])
+        'service_principal': any([tenant_id, client_id, client_secret])
     }
 
     # Count how many auth methods were provided
