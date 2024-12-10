@@ -5,7 +5,7 @@ import click
 from click import style
 
 from dnastack.cli.commands.workbench.storage.utils import validate_and_load_service_account_json, \
-    handle_sensitive_azure_params
+    validate_azure_credentials
 from dnastack.cli.commands.workbench.utils import get_storage_client, NAMESPACE_ARG
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, ArgumentType, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG
@@ -13,6 +13,7 @@ from dnastack.cli.core.group import formatted_group
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.client.workbench.storage.models import AwsStorageAccountCredentials, StorageAccount, Provider, \
     GcpStorageAccountCredentials, AzureStorageAccountCredentials, AzureCredentialsType
+from dnastack.common.json_argument_parser import FileOrValue
 
 
 @formatted_group("add")
@@ -208,12 +209,14 @@ def add_gcp_storage_account(context: Optional[str],
             arg_names=['--sas'],
             help='The Shared Access Signature (SAS) for secure access. Use @<path> to load from file.',
             required=False,
+            type=FileOrValue,
         ),
         ArgumentSpec(
             name='access_key',
             arg_names=['--access-key'],
             help='The access key for the storage account. Use @<path> to load from file.',
             required=False,
+            type=FileOrValue,
         ),
         ArgumentSpec(
             name='tenant_id',
@@ -234,12 +237,12 @@ def add_gcp_storage_account(context: Optional[str],
             arg_names=['--client-secret'],
             help='Refers to the password or secret key for the service principal. Use @<path> to load from file.',
             required=False,
+            type=FileOrValue,
         ),
         CONTEXT_ARG,
         SINGLE_ENDPOINT_ID_ARG,
     ]
 )
-@handle_sensitive_azure_params()
 def add_azure_storage_account(context: Optional[str],
                               endpoint_id: Optional[str],
                               namespace: Optional[str],
@@ -247,28 +250,29 @@ def add_azure_storage_account(context: Optional[str],
                               name: str,
                               container: str,
                               storage_account_name: str,
-                              sas: Optional[str],
-                              access_key: Optional[str],
+                              sas: Optional[FileOrValue],
+                              access_key: Optional[FileOrValue],
                               tenant_id: Optional[str],
                               client_id: Optional[str],
-                              client_secret: Optional[str]):
+                              client_secret: Optional[FileOrValue]):
     """Create a new azure storage account"""
-    credentials_type = None
-    if sas:
-        credentials_type = AzureCredentialsType.SAS_URL
-    elif access_key:
-        credentials_type = AzureCredentialsType.ACCESS_KEY
-    elif tenant_id and client_id and client_secret:
-        credentials_type = AzureCredentialsType.CLIENT_CREDENTIALS
-    else:
-        raise click.BadParameter('Invalid Azure credentials provided. Please provide either SAS, access key, or service principal credentials.')
+    try:
+        credentials_type = validate_azure_credentials(
+            sas=sas,
+            access_key=access_key,
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+    except ValueError as e:
+        raise click.BadParameter(str(e))
 
     credentials = AzureStorageAccountCredentials(
-        sas_url=sas,
-        access_key=access_key,
+        sas_url=sas.value() if sas is not None else None,
+        access_key=access_key.value() if access_key is not None else None,
         tenant_id=tenant_id,
         client_id=client_id,
-        client_secret=client_secret,
+        client_secret=client_secret.value() if client_secret is not None else None,
         storage_account_name=storage_account_name,
         azure_credentials_type=credentials_type
     )

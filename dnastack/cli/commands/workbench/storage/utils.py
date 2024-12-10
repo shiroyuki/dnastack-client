@@ -1,11 +1,12 @@
 import json
 import os
-from functools import wraps
+from typing import Optional
 
 import click
 from click import style
 
-from dnastack.cli.commands.utils import handle_value_or_file
+from dnastack.client.workbench.storage.models import AzureCredentialsType
+from dnastack.common.json_argument_parser import FileOrValue
 
 
 def validate_and_load_service_account_json(service_account_json: str) -> str:
@@ -31,68 +32,52 @@ def validate_and_load_service_account_json(service_account_json: str) -> str:
     return json.dumps(service_account)
 
 
-def handle_sensitive_azure_params():
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            # First validate the auth method choice
-            ctx = click.get_current_context()
-            auth_method = validate_azure_auth_params(ctx, ['sas', 'access_key', 'tenant_id', 'client_id', 'client_secret'])
-
-            # Only process sensitive parameters for the chosen auth method
-            if auth_method == 'sas':
-                kwargs['sas'] = handle_value_or_file(kwargs.get('sas'), 'sas')
-            elif auth_method == 'access_key':
-                kwargs['access_key'] = handle_value_or_file(kwargs.get('access_key'), 'access_key')
-            elif auth_method == 'service_principal':
-                kwargs['client_secret'] = handle_value_or_file(kwargs.get('client_secret'), 'client_secret')
-
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
-
-
-def validate_azure_auth_params(ctx, auth_params):
+def validate_azure_credentials(sas: Optional[FileOrValue],
+                               access_key: Optional[FileOrValue],
+                               tenant_id: Optional[str],
+                               client_id: Optional[str],
+                               client_secret: Optional[FileOrValue]) -> AzureCredentialsType:
     """
-    Validate authentication parameters and return the chosen auth method.
-    Only considers parameters that were explicitly provided in the command.
-    """
-    # Get parameters that were explicitly provided in the command
-    provided = []
-    for param in auth_params:
-        # Check if parameter exists and wasn't just initialized as None
-        param_value = ctx.params.get(param)
-        if param_value is not None or (isinstance(param_value, tuple) and len(param_value) == 0):
-            provided.append(param)
+    Validate Azure storage account authentication parameters and return the appropriate credentials type.
 
+    Args:
+        sas: Optional shared access signature
+        access_key: Optional access key
+        tenant_id: Optional tenant ID for service principal auth
+        client_id: Optional client ID for service principal auth
+        client_secret: Optional client secret for service principal auth
+
+    Returns:
+        AzureCredentialsType indicating the validated authentication method
+
+    Raises:
+        ValueError: If invalid or conflicting authentication parameters are provided
+    """
+    # Track which auth methods have parameters provided
     auth_methods = {
-        'sas': ['sas'],
-        'access_key': ['access_key'],
-        'service_principal': ['tenant_id', 'client_id', 'client_secret']
+        'sas': bool(sas),
+        'access_key': bool(access_key),
+        'service_principal': all([tenant_id, client_id, client_secret])
     }
 
-    # Check for conflicting auth methods
-    conflicting_methods = []
-    for method, params in auth_methods.items():
-        if any(p in provided for p in params):
-            conflicting_methods.append(method)
+    # Count how many auth methods were provided
+    provided_methods = [method for method, is_provided in auth_methods.items() if is_provided]
 
-    if len(conflicting_methods) > 1:
-        raise click.BadParameter(
-            f'Conflicting authentication methods provided: {", ".join(conflicting_methods)}. Use only one.')
+    if len(provided_methods) > 1:
+        raise ValueError(
+            f'Conflicting authentication methods provided: {", ".join(provided_methods)}. Use only one.'
+        )
 
-    # Now validate the chosen method
-    chosen_method = None
-    for method, params in auth_methods.items():
-        if any(p in provided for p in params):
-            chosen_method = method
-            # Verify all required params for this method are present
-            if not all(p in provided for p in params):
-                missing = [p for p in params if p not in provided]
-                raise click.BadParameter(
-                    f'{method} auth requires all of: {", ".join(params)}. Missing: {", ".join(missing)}')
+    if len(provided_methods) == 0:
+        raise ValueError(
+            'No authentication method provided. Use either SAS, access key, or service principal credentials.'
+        )
 
-    if not chosen_method:
-        raise click.BadParameter('No authentication method provided. Use either SAS, access key, or service principal.')
+    # Map the provided method to the appropriate credential type
+    credentials_type_map = {
+        'sas': AzureCredentialsType.SAS_URL,
+        'access_key': AzureCredentialsType.ACCESS_KEY,
+        'service_principal': AzureCredentialsType.CLIENT_CREDENTIALS
+    }
 
-    return chosen_method
+    return credentials_type_map[provided_methods[0]]
