@@ -413,14 +413,14 @@ def init_runs_commands(group: Group):
                 name='workflow_url',
                 arg_names=['--url'],
                 help='The URL to the workflow file (*.wdl). The url should contain the workflow id followed by the version. '
-                     'Only urls from workflow-service are currently supported.',
+                     'See https://docs.omics.ai/products/workbench/workflows/discovering-workflows#navigating-the-workflows-table on how to find the workflow id.',
                 required=False,
             ),
             ArgumentSpec(
                 name='workflow',
                 arg_names=['--workflow'],
-                help='The name id of the workflow to run. Only workflows from workflow-service are '
-                     'currently supported.',
+                help='The name id of the workflow to run. '
+                     'See https://docs.omics.ai/products/workbench/workflows/discovering-workflows#navigating-the-workflows-table on how to find the workflow id.',
                 required=False,
             ),
             ArgumentSpec(
@@ -518,6 +518,11 @@ def init_runs_commands(group: Group):
         # Validation check for --version without --workflow
         if version and not workflow:
             click.echo(style("Error: You must specify --workflow when using --version.", fg='red'), err=True, color=True)
+            exit(1)
+
+        # Validation check for --workflow without --version
+        if workflow and not version:
+            click.echo(style("Error: You must specify --version when using --workflow.", fg='red'), err=True, color=True)
             exit(1)
 
         # Combine workflow and version if both are provided
