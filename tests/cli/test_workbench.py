@@ -335,6 +335,26 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         input_json_file = self._create_inputs_json_file()
         input_text_file = self._create_inputs_text_file()
 
+        def test_submit_batch_with_workflow_and_version():
+            workflow_id, workflow_version = hello_world_workflow_url.split('/')
+            submitted_batch = BatchRunResponse(**self.simple_invoke(
+                'workbench', 'runs', 'submit',
+                '--workflow', workflow_id,
+                '--version', workflow_version,
+                '--workflow-params', 'test.hello.name=foo',
+            ))
+            self.assertEqual(len(submitted_batch.runs), 1, 'Expected exactly one run to be submitted.')
+            described_runs = [MinimalExtendedRunWithInputs(**described_run) for described_run in self.simple_invoke(
+                'workbench', 'runs', 'describe',
+                '--inputs',
+                submitted_batch.runs[0].run_id
+            )]
+            self.assertEqual(len(described_runs), 1, f'Expected exactly one run. Found {described_runs}')
+            self.assertEqual(described_runs[0].inputs, {'test.hello.name': 'foo'},
+                             f'Expected workflow params to be exactly the same. Found {described_runs[0].inputs}')
+
+        test_submit_batch_with_workflow_and_version()
+
         def test_submit_batch_with_single_key_value_params():
             submitted_batch = BatchRunResponse(**self.simple_invoke(
                 'workbench', 'runs', 'submit',

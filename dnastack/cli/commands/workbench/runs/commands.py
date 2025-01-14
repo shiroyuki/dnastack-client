@@ -412,9 +412,22 @@ def init_runs_commands(group: Group):
             ArgumentSpec(
                 name='workflow_url',
                 arg_names=['--url'],
-                help='The URL to the workflow file (*.wdl). Only urls from workflow-service are '
+                help='The URL to the workflow file (*.wdl). The url should contain the workflow id followed by the version. '
+                     'Only urls from workflow-service are currently supported.',
+                required=False,
+            ),
+            ArgumentSpec(
+                name='workflow',
+                arg_names=['--workflow'],
+                help='The name id of the workflow to run. Only workflows from workflow-service are '
                      'currently supported.',
-                required=True,
+                required=False,
+            ),
+            ArgumentSpec(
+                name='version',
+                arg_names=['--version'],
+                help='The version of the workflow to run.',
+                required=False,
             ),
             ArgumentSpec(
                 name='engine_id',
@@ -475,7 +488,9 @@ def init_runs_commands(group: Group):
     def submit_batch(context: Optional[str],
                      endpoint_id: Optional[str],
                      namespace: Optional[str],
-                     workflow_url: str,
+                     workflow_url: Optional[str],
+                     workflow: Optional[str],
+                     version: Optional[str],
                      engine_id: Optional[str],
                      default_workflow_engine_parameters: JsonLike,
                      default_workflow_params: JsonLike,
@@ -489,6 +504,25 @@ def init_runs_commands(group: Group):
 
         docs: https://docs.omics.ai/docs/runs-submit
         """
+
+        # Validation check for mutually exclusive arguments
+        if workflow_url and workflow:
+            click.echo(style("Error: You cannot specify both --url and --workflow.", fg='red'), err=True, color=True)
+            exit(1)
+
+        # Validation check for required arguments
+        if not workflow_url and not workflow:
+            click.echo(style("Error: You must specify either --url or --workflow.", fg='red'), err=True, color=True)
+            exit(1)
+
+        # Validation check for --version without --workflow
+        if version and not workflow:
+            click.echo(style("Error: You must specify --workflow when using --version.", fg='red'), err=True, color=True)
+            exit(1)
+
+        # Combine workflow and version if both are provided
+        if workflow and version:
+            workflow_url = f"{workflow}/{version}"
 
         ewes_client = get_ewes_client(context_name=context, endpoint_id=endpoint_id, namespace=namespace)
 
