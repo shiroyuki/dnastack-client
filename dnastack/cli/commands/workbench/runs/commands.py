@@ -419,7 +419,7 @@ def init_runs_commands(group: Group):
             ArgumentSpec(
                 name='workflow',
                 arg_names=['--workflow'],
-                help='The name id of the workflow to run. '
+                help='The id of the workflow to run. '
                      'See https://docs.omics.ai/products/workbench/workflows/discovering-workflows#navigating-the-workflows-table on how to find the workflow id.',
                 required=False,
             ),
