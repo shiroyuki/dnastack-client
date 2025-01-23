@@ -11,6 +11,7 @@ from dnastack.cli.commands.config import config_command_group
 from dnastack.cli.commands.config.contexts import contexts_command_group, ContextCommandHandler
 from dnastack.cli.commands.dataconnect import data_connect_command_group
 from dnastack.cli.commands.drs import drs_command_group
+from dnastack.cli.commands.publisher import publisher_command_group
 from dnastack.cli.commands.workbench import workbench_command_group
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, ArgumentType
@@ -104,6 +105,8 @@ omics.add_command(collections_command_group)
 omics.add_command(contexts_command_group)
 # noinspection PyTypeChecker
 omics.add_command(alpha_command_group)
+# noinspection PyTypeChecker
+omics.add_command(publisher_command_group)
 # noinspection PyTypeChecker
 omics.add_command(workbench_command_group)
 
