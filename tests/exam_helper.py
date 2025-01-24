@@ -411,11 +411,10 @@ class BaseTestCase(TestCase):
 
 
 class WithTestUserTestCase(BaseTestCase):
-    _wallet_admin_client_id = env('E2E_WALLET_CLIENT_ID', required=False, default='workbench-frontend-e2e-test')
-    _wallet_admin_client_secret = env('E2E_WALLET_CLIENT_SECRET', required=False,
-                                      default='dev-secret-never-use-in-prod')
+    _wallet_admin_client_id = None
+    _wallet_admin_client_secret = None
+    _wallet_helper = None
 
-    _wallet_helper = WalletHelper(wallet_base_uri, _wallet_admin_client_id, _wallet_admin_client_secret)
     test_user_prefix = "can_be_deleted__test-user-"
     test_policy_prefix = "can_be_deleted__policy-"
 
@@ -423,8 +422,21 @@ class WithTestUserTestCase(BaseTestCase):
     test_user_policy: Policy = None
 
     @classmethod
+    def _get_wallet_helper(cls) -> WalletHelper:
+        """Get or create wallet helper instance"""
+        if cls._wallet_helper is None:
+            if cls._wallet_admin_client_id is None or cls._wallet_admin_client_secret is None:
+                raise NotImplementedError("Wallet credentials must be set by child class")
+            cls._wallet_helper = WalletHelper(
+                wallet_base_uri,
+                cls._wallet_admin_client_id,
+                cls._wallet_admin_client_secret
+            )
+        return cls._wallet_helper
+
+    @classmethod
     def do_on_setup_class_before_auth(cls) -> None:
-        cls.test_user = cls._wallet_helper.create_test_user(f'{cls.test_user_prefix}{uuid4()}')
+        cls.test_user = cls._get_wallet_helper().create_test_user(f'{cls.test_user_prefix}{uuid4()}')
         cls._base_logger.info(f'Class {cls.__name__}: Created test user with ID {cls.test_user.id}')
 
         cls._states['email'] = cls.test_user.email
@@ -432,20 +444,20 @@ class WithTestUserTestCase(BaseTestCase):
 
         access_policy = cls.get_access_policy(cls.test_user)
         if access_policy and not cls.test_user_policy:
-            cls.test_user_policy = cls._wallet_helper.create_access_policy(access_policy)
+            cls.test_user_policy = cls._get_wallet_helper().create_access_policy(access_policy)
             cls._base_logger.info(f'Class {cls.__name__}: Created access policy for the test user. '
                                   f'Policy: {cls.test_user_policy}')
 
         cls._base_logger.debug(f'Class {cls.__name__}: Logging in to the app {cls.get_app_url()}')
-        cls._wallet_helper.login_to_app(cls.get_app_url(), cls.test_user.email, cls.test_user.personalAccessToken)
+        cls._get_wallet_helper().login_to_app(cls.get_app_url(), cls.test_user.email, cls.test_user.personalAccessToken)
         cls._base_logger.debug(f'Class {cls.__name__}: Logged in')
 
     @classmethod
     def do_on_teardown_class(cls) -> None:
         if cls.test_user:
-            cls._wallet_helper.delete_test_user(cls.test_user.email)
+            cls._get_wallet_helper().delete_test_user(cls.test_user.email)
         if cls.test_user_policy:
-            cls._wallet_helper.delete_access_policy(cls.test_user_policy.id, cls.test_user_policy.version)
+            cls._get_wallet_helper().delete_access_policy(cls.test_user_policy.id, cls.test_user_policy.version)
 
     @classmethod
     @abstractmethod
@@ -458,7 +470,7 @@ class WithTestUserTestCase(BaseTestCase):
         pass
 
 
-class BasePublisherTestCase(BaseTestCase):
+class DeprecatedBasePublisherTestCase(BaseTestCase):
     _explorer_base_url = env('E2E_EXPLORER_BASE_URL', required=False, default='https://explorer.beta.dnastack.com/')
     _explorer_hostname = urlparse(_explorer_base_url).netloc
     _collection_service_url = env('E2E_COLLECTION_SERVICE_BASE_URL',

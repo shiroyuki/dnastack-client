@@ -15,7 +15,8 @@ from dnastack.configuration.models import Configuration
 from dnastack.context.manager import ContextManager, BaseContextManager
 from dnastack.feature_flags import currently_in_debug_mode
 from dnastack.json_path import JsonPath
-from tests.exam_helper import BaseTestCase, BasePublisherTestCase
+from tests.exam_helper import BaseTestCase, DeprecatedBasePublisherTestCase
+from tests.exam_helper_for_publisher import BasePublisherTestCase
 from tests.exam_helper_for_workbench import BaseWorkbenchTestCase
 
 
@@ -176,9 +177,11 @@ class CliTestCase(BaseTestCase):
         return Configuration(**yaml.load(content, Loader=yaml.SafeLoader))
 
 
-class PublisherCliTestCase(CliTestCase, BasePublisherTestCase):
+class DeprecatedPublisherCliTestCase(CliTestCase, DeprecatedBasePublisherTestCase):
     pass
 
+class PublisherCliTestCase(CliTestCase, BasePublisherTestCase):
+    pass
 
 class WorkbenchCliTestCase(CliTestCase, BaseWorkbenchTestCase):
     pass

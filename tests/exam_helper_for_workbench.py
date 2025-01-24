@@ -18,7 +18,8 @@ from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate, WorkflowVersion, WorkflowTransformation
 from dnastack.common.environments import env
 from dnastack.http.session import HttpSession
-from tests.exam_helper import WithTestUserTestCase
+from tests.exam_helper import WithTestUserTestCase, wallet_base_uri
+from tests.wallet_hellper import WalletHelper
 from tests.workbench_user_service_helper import WorkbenchUserServiceHelper
 
 HELLO_WORLD_WORKFLOW = """
@@ -75,6 +76,17 @@ class ExecutionEngine(BaseModel):
 
 
 class BaseWorkbenchTestCase(WithTestUserTestCase):
+    _wallet_admin_client_id = env(
+        'E2E_WORKBENCH_WALLET_CLIENT_ID',
+        required=False,
+        default='workbench-frontend-e2e-test'
+    )
+    _wallet_admin_client_secret = env(
+        'E2E_WORKBENCH_WALLET_CLIENT_SECRET',
+        required=False,
+        default='dev-secret-never-use-in-prod'
+    )
+
     workbench_base_url = env('E2E_WORKBENCH_BASE_URL', required=False, default='http://localhost:9191')
     ewes_service_base_url = env('E2E_EWES_SERVICE_BASE_URL', required=False, default='http://localhost:9095')
     workflow_service_base_url = env('E2E_WORKFLOW_SERVICE_BASE_URL', required=False, default='http://localhost:9192')

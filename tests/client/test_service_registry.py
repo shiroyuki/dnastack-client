@@ -12,20 +12,20 @@ from dnastack.client.service_registry.factory import ClientFactory, Unregistered
 from dnastack.client.service_registry.models import ServiceType, Organization
 from dnastack.common.environments import env
 from dnastack.common.model_mixin import JsonModelMixin
-from tests.exam_helper import BasePublisherTestCase, token_endpoint, device_code_endpoint
+from tests.exam_helper import DeprecatedBasePublisherTestCase, token_endpoint, device_code_endpoint
 
 SERVICE_REGISTRY_URL = env('E2E_SERVICE_REGISTRY_URL',
                            required=False,
-                           default=urljoin(BasePublisherTestCase._explorer_base_url, '/api/service-registry/'))
+                           default=urljoin(DeprecatedBasePublisherTestCase._explorer_base_url, '/api/service-registry/'))
 
 # Configurable expectations
 # NOTE: The service registry MUST have the expected collection service.
 REGISTERED_COLLECTION_SERVICE_URL = env('E2E_REGISTERED_COLLECTION_SERVICE_URL',
                                         required=False,
-                                        default=urljoin(BasePublisherTestCase._explorer_base_url, '/api/'))
+                                        default=urljoin(DeprecatedBasePublisherTestCase._explorer_base_url, '/api/'))
 
 
-class TestServiceRegistryEndToEnd(BasePublisherTestCase):
+class TestServiceRegistryEndToEnd(DeprecatedBasePublisherTestCase):
     def test_list_services(self):
         registry = ServiceRegistry(ServiceEndpoint(url=SERVICE_REGISTRY_URL))
         services = [service for service in registry.list_services()]
@@ -34,7 +34,7 @@ class TestServiceRegistryEndToEnd(BasePublisherTestCase):
             self.assertIsInstance(service, Service)
 
 
-class TestClientFactoryUnit(BasePublisherTestCase):
+class TestClientFactoryUnit(DeprecatedBasePublisherTestCase):
     mock_service_type_1 = ServiceType(group='com.dnastack',
                                       artifact='panda',
                                       version='1.2.3')
@@ -871,7 +871,7 @@ class TestClientFactoryUnit(BasePublisherTestCase):
         self.assertTrue(client.require_authentication())
 
 
-class TestClientFactoryEndToEnd(BasePublisherTestCase):
+class TestClientFactoryEndToEnd(DeprecatedBasePublisherTestCase):
     @staticmethod
     def automatically_authenticate() -> bool:
         return False

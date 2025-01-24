@@ -37,7 +37,7 @@ class Collection(BaseModel):
     slugName: str
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     description: Optional[str] = None
-    itemsQuery: str
+    itemsQuery: Optional[str]
     tags: Optional[List[Tag]] = Field(default_factory=list)
     createdAt: datetime
     updatedAt: Optional[datetime] = None

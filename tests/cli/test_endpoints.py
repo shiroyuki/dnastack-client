@@ -1,9 +1,9 @@
 from urllib.parse import urljoin
 
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
 
-class TestCommand(PublisherCliTestCase):
+class TestCommand(DeprecatedPublisherCliTestCase):
     @staticmethod
     def automatically_authenticate() -> bool:
         return False
