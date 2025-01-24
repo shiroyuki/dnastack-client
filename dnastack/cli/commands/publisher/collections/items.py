@@ -29,6 +29,7 @@ def items_command_group():
             arg_names=['--limit', '-l'],
             help='The maximum number of items to display',
             type=int,
+            default=50,
         ),
         ArgumentSpec(
             name='no_auth',
@@ -46,16 +47,12 @@ def items_command_group():
 def list(context: Optional[str],
                endpoint_id: Optional[str],
                collection: Optional[str],
-               limit: Optional[int] = 50,
+               limit: Optional[int],
                no_auth: bool = False,
                output: Optional[str] = None):
     """ List items of the given collection """
     logger = get_logger('CLI/list-items')
     limit_override = False
-
-    # This is for Python 3.7. In newer Python, the wrapper code automatically
-    # will provide the value as annotated in type hints.
-    limit = int(limit)
 
     assert limit >= 0, 'The limit (--limit) should be either ZERO (item query WITHOUT limit) ' \
                        'or at least ONE (item query WITH limit).'

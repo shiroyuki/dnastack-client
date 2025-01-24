@@ -21,7 +21,7 @@ from dnastack.http.authenticators.oauth2_adapter.factory import OAuth2AdapterFac
 from dnastack.http.authenticators.oauth2_adapter.models import OAuth2Authentication
 from dnastack.http.client_factory import HttpClientFactory
 from dnastack.http.session_info import SessionInfo, InMemorySessionStorage, SessionManager, SessionInfoHandler
-from tests.exam_helper import token_endpoint, publisher_client_secret, publisher_client_id, BasePublisherTestCase, \
+from tests.exam_helper import token_endpoint, publisher_client_secret, publisher_client_id, DeprecatedBasePublisherTestCase, \
     make_mock_response
 
 
@@ -55,7 +55,7 @@ class FauxSessionCreator:
                            valid_until=current_timestamp + expiry_timestamp_delta)
 
 
-class BaseAuthTest(BasePublisherTestCase):
+class BaseAuthTest(DeprecatedBasePublisherTestCase):
     def _trigger_auth(self, auth: Authenticator):
         request = Request()
         auth.before_request(request, trace_context=Span(origin=self))

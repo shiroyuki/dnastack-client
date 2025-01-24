@@ -3,10 +3,10 @@ from urllib.parse import urljoin
 
 from dnastack.context.manager import InvalidServiceRegistryError
 from tests.cli.auth_utils import handle_device_code_flow
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
 
-class TestCommand(PublisherCliTestCase):
+class TestCommand(DeprecatedPublisherCliTestCase):
     def setUp(self) -> None:
         super().setUp()
         self._temporarily_remove_existing_config()

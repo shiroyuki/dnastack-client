@@ -49,6 +49,8 @@ class WalletHelper:
         self.__admin_client_id = client_id
         self.__admin_client_secret = client_secret
         self.__wallet_resource = f'{wallet_base_uri}/'
+        self.__oauth_login_path = '/oauth/login'
+        self.__select_account_prompt = '&prompt=select_account'
 
     @staticmethod
     def _create_http_session(suppress_error: bool = False, no_auth: bool = False) -> HttpSession:
@@ -73,14 +75,74 @@ class WalletHelper:
                                     headers={'Authorization': self._basic_auth()})
             return TokenResponse(**response.json()).access_token
 
-    def login_to_app(self, app_base_url: str, email: str, personal_access_token: str) -> HttpSession:
+    def configure_oauth_settings(self,
+                                 oauth_login_path: str = '/oauth/login',
+                                 select_account_prompt: str = '&prompt=select_account') -> None:
+        """
+        Configure OAuth-related settings for the application.
+
+        Args:
+            oauth_login_path: The path for OAuth login endpoint
+            select_account_prompt: The prompt parameter to remove from redirect URL
+        """
+        self.__oauth_login_path = oauth_login_path
+        self.__select_account_prompt = select_account_prompt
+
+    def sign_in_with_personal_token(self,
+                                    email: str,
+                                    personal_access_token: str,
+                                    app_base_url: Optional[str] = None,
+                                    custom_login_handler: Optional[callable] = None) -> HttpSession:
+        """
+        Sign in using personal access token with more flexibility.
+
+        Args:
+            email: User's email
+            personal_access_token: User's personal access token
+            app_base_url: Optional base URL of the application
+            custom_login_handler: Optional function to handle custom login flow
+
+        Returns:
+            HttpSession with authenticated session
+        """
         session = self._create_http_session()
-        session.get(urljoin(self.__wallet_base_uri, f'/login/token'),
-                    params=dict(email=email, token=personal_access_token))
-        response = session.get(urljoin(app_base_url, f'/oauth/login'), allow_redirects=False)
-        first_redirect_url_without_prompt = response.headers['Location'].replace('&prompt=select_account', '')
-        session.get(first_redirect_url_without_prompt)
+
+        # First authenticate with wallet
+        session.get(
+            urljoin(self.__wallet_base_uri, '/login/token'),
+            params=dict(email=email, token=personal_access_token)
+        )
+
+        # If custom login handler is provided, use it
+        if custom_login_handler:
+            return custom_login_handler(session)
+
+        # If app_base_url is provided, proceed with default OAuth flow
+        if app_base_url:
+            # Get the redirect URL
+            response = session.get(
+                urljoin(app_base_url, self.__oauth_login_path),
+                allow_redirects=False
+            )
+
+            if 'Location' in response.headers:
+                # Remove select account prompt if configured
+                redirect_url = response.headers['Location']
+                if self.__select_account_prompt:
+                    redirect_url = redirect_url.replace(self.__select_account_prompt, '')
+
+                # Follow redirect
+                session.get(redirect_url)
+
         return session
+
+    # Modified login_to_app to use the new sign_in method
+    def login_to_app(self, app_base_url: str, email: str, personal_access_token: str) -> HttpSession:
+        """
+        Backward compatible login method
+        """
+        return self.sign_in_with_personal_token(email, personal_access_token, app_base_url)
+
 
     def create_test_user(self, username: str) -> TestUser:
         with self._create_http_session() as session:
@@ -106,3 +168,91 @@ class WalletHelper:
         with self._create_http_session() as session:
             session.delete(urljoin(self.__wallet_base_uri, f'/policies/{policy_id}'),
                            headers={'Authorization': self._bearer_auth(), 'If-Match': policy_version})
+
+    def add_test_user_to_group(self, test_user: TestUser, group_id: str) -> None:
+        """
+        Add a TestUser to a Wallet group.
+
+        Args:
+            test_user: TestUser instance
+            group_id: Group ID to add the user to
+        """
+        self.add_user_to_group(test_user.email, group_id)
+
+    def remove_test_user_from_group(self, test_user: TestUser, group_id: str) -> None:
+        """
+        Remove a TestUser from a Wallet group.
+
+        Args:
+            test_user: TestUser instance
+            group_id: Group ID to add the user to
+        """
+        self.remove_user_from_group(test_user.email, group_id)
+
+    def add_user_to_group(self, email: str, group_id: str) -> None:
+        """
+        Add a user to a Wallet group with retry on conflict.
+
+        Args:
+            email: User's email
+            group_id: Group ID to add the user to
+        """
+        status = self._add_user_to_group_internal(email, group_id)
+
+        # Retry once if we got a conflict (409)
+        if status == 409:
+            self._add_user_to_group_internal(email, group_id)
+
+    def _add_user_to_group_internal(self, email: str, group_id: str) -> int:
+        """
+        Internal method to add user to group.
+
+        Args:
+            email: User's email
+            group_id: Group ID to add the user to
+
+        Returns:
+            HTTP status code
+        """
+        operations = [
+            {
+                "op": "add",
+                "path": "/members/-",
+                "value": {"email": email}
+            }
+        ]
+
+        # Get current version (ETag)
+        with self._create_http_session() as session:
+            response = session.get(
+                urljoin(self.__wallet_base_uri, f'/principals/groups/{group_id}/members'),
+                headers={'Authorization': self._bearer_auth()}
+            )
+            version = response.headers['ETag'].replace('"', '')
+
+            # Add member
+            response = session.json_patch(
+                urljoin(self.__wallet_base_uri, f'/principals/groups/{group_id}/members'),
+                json=operations,
+                headers={
+                    'Authorization': self._bearer_auth(),
+                    'Content-Type': 'application/json-patch+json',
+                    'If-Match': version
+                }
+            )
+
+            return response.status_code
+
+    def remove_user_from_group(self, email: str, group_id: str) -> None:
+        """
+        Remove a user from a Wallet group.
+
+        Args:
+            email: User's email
+            group_id: Group ID to remove the user from
+        """
+        with self._create_http_session() as session:
+            session.delete(
+                urljoin(self.__wallet_base_uri, f'/principals/groups/{group_id}/members/{email}'),
+                headers={'Authorization': self._bearer_auth()}
+            )

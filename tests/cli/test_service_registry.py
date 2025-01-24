@@ -3,10 +3,10 @@ from typing import Iterable, Any, Dict
 from urllib.parse import urljoin
 
 from dnastack.common.simple_stream import SimpleStream
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
 
-class TestCliServiceRegistry(PublisherCliTestCase):
+class TestCliServiceRegistry(DeprecatedPublisherCliTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True
