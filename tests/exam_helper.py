@@ -449,7 +449,11 @@ class WithTestUserTestCase(BaseTestCase):
                                   f'Policy: {cls.test_user_policy}')
 
         cls._base_logger.debug(f'Class {cls.__name__}: Logging in to the app {cls.get_app_url()}')
-        cls._get_wallet_helper().login_to_app(cls.get_app_url(), cls.test_user.email, cls.test_user.personalAccessToken)
+        cls._get_wallet_helper().log_in_with_personal_token(
+            app_base_url=cls.get_app_url(),
+            email=cls.test_user.email,
+            personal_access_token=cls.test_user.personalAccessToken
+        )
         cls._base_logger.debug(f'Class {cls.__name__}: Logged in')
 
     @classmethod
