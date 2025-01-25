@@ -1,6 +1,7 @@
 import json
 import random
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 from typing import List, Optional
@@ -155,19 +156,21 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
     def do_on_setup_class_before_auth(cls) -> None:
         super().do_on_setup_class_before_auth()
         cls.namespace = WorkbenchUserServiceHelper().register_user(cls.test_user.email).default_namespace
+        # Wait for the namespace to be created and initialized
+        time.sleep(1)
 
-        with cls._wallet_helper.login_to_app(cls.workbench_base_url,
-                                             cls.test_user.email,
-                                             cls.test_user.personalAccessToken) as session:
+        with cls._get_wallet_helper().log_in_with_personal_token(app_base_url=cls.workbench_base_url,
+                                                                 email=cls.test_user.email,
+                                                                 personal_access_token=cls.test_user.personalAccessToken) as session:
             cls.execution_engine = cls._create_execution_engine(session)
             cls.engine_params = cls._add_execution_engine_parameter(session, cls.execution_engine.id)
             cls._base_logger.info(f'Class {cls.__name__}: Created execution engine: {cls.execution_engine}')
 
     @classmethod
     def do_on_teardown_class(cls) -> None:
-        with cls._wallet_helper.login_to_app(cls.workbench_base_url,
-                                             cls.test_user.email,
-                                             cls.test_user.personalAccessToken) as session:
+        with cls._get_wallet_helper().log_in_with_personal_token(app_base_url=cls.workbench_base_url,
+                                                                 email=cls.test_user.email,
+                                                                 personal_access_token=cls.test_user.personalAccessToken) as session:
             cls._base_logger.info(f'Class {cls.__name__}: Cleaning up namespace: {cls.namespace}')
             cls._cleanup_namespace(session)
 
@@ -239,10 +242,10 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
 
     @classmethod
     def _cleanup_namespace(cls, session: HttpSession) -> None:
-        access_token = cls._wallet_helper.get_access_token(f'{cls.ewes_service_base_url}/', 'namespace')
+        access_token = cls._get_wallet_helper().get_access_token(f'{cls.ewes_service_base_url}/', 'namespace')
         session.delete(urljoin(cls.ewes_service_base_url, cls.namespace),
                        headers={'Authorization': f'Bearer {access_token}'})
-        access_token = cls._wallet_helper.get_access_token(f'{cls.workflow_service_base_url}/', 'namespace')
+        access_token = cls._get_wallet_helper().get_access_token(f'{cls.workflow_service_base_url}/', 'namespace')
         session.delete(urljoin(cls.workflow_service_base_url, cls.namespace),
                        headers={'Authorization': f'Bearer {access_token}'})
 

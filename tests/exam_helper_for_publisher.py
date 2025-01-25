@@ -91,7 +91,7 @@ class BasePublisherTestCase(WithTestUserTestCase):
         cls._get_wallet_helper().add_test_user_to_group(cls.test_user, cls.publisher_wallet_test_users_group)
 
         custom_handler = create_publisher_login_handler(app_base_url=cls.publisher_base_url)
-        with cls._wallet_helper.sign_in_with_personal_token(
+        with cls._wallet_helper.log_in_with_personal_token(
             email=cls.test_user.email,
             personal_access_token=cls.test_user.personalAccessToken,
             custom_login_handler=custom_handler
@@ -106,7 +106,7 @@ class BasePublisherTestCase(WithTestUserTestCase):
         cls._get_wallet_helper().remove_test_user_from_group(cls.test_user, cls.publisher_wallet_test_users_group)
 
         custom_handler = create_publisher_login_handler(app_base_url=cls.publisher_base_url)
-        with cls._wallet_helper.sign_in_with_personal_token(
+        with cls._wallet_helper.log_in_with_personal_token(
                 email=cls.test_user.email,
                 personal_access_token=cls.test_user.personalAccessToken,
                 custom_login_handler=custom_handler
@@ -141,10 +141,4 @@ class BasePublisherTestCase(WithTestUserTestCase):
         compatible_endpoint = compatible_endpoints[index]
 
         return EWesClient.make(compatible_endpoint, cls.namespace)
-
-    # @classmethod
-    # def _create_execution_engine(cls, session: HttpSession) -> ExecutionEngine:
-    #     response = session.post(urljoin(cls.workbench_base_url, f'/services/ewes-service/{cls.namespace}/engines'),
-    #                             json=cls.execution_engine.dict())
-    #     return ExecutionEngine(**response.json())
 

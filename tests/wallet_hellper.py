@@ -88,11 +88,11 @@ class WalletHelper:
         self.__oauth_login_path = oauth_login_path
         self.__select_account_prompt = select_account_prompt
 
-    def sign_in_with_personal_token(self,
-                                    email: str,
-                                    personal_access_token: str,
-                                    app_base_url: Optional[str] = None,
-                                    custom_login_handler: Optional[callable] = None) -> HttpSession:
+    def log_in_with_personal_token(self,
+                                   email: str,
+                                   personal_access_token: str,
+                                   app_base_url: Optional[str] = None,
+                                   custom_login_handler: Optional[callable] = None) -> HttpSession:
         """
         Sign in using personal access token with more flexibility.
 
@@ -132,17 +132,9 @@ class WalletHelper:
                     redirect_url = redirect_url.replace(self.__select_account_prompt, '')
 
                 # Follow redirect
-                session.get(redirect_url)
+                response = session.get(redirect_url, allow_redirects=True)
 
         return session
-
-    # Modified login_to_app to use the new sign_in method
-    def login_to_app(self, app_base_url: str, email: str, personal_access_token: str) -> HttpSession:
-        """
-        Backward compatible login method
-        """
-        return self.sign_in_with_personal_token(email, personal_access_token, app_base_url)
-
 
     def create_test_user(self, username: str) -> TestUser:
         with self._create_http_session() as session:
