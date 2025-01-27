@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 import click
-from click import Group
+from click import Group, style
 
 from dnastack.cli.commands.dataconnect.utils import DECIMAL_POINT_OUTPUT_ARG, handle_query
 from dnastack.cli.commands.publisher.collections.utils import _filter_collection_fields, _simplify_collection, _get, \
@@ -154,3 +154,33 @@ def init_collections_commands(group: Group):
         client = _get(context, endpoint_id)
         response = client.create_collection(collection)
         click.echo(to_json(normalize(response)))
+
+
+    @formatted_command(
+        group=group,
+        name='describe',
+        specs=[
+            ArgumentSpec(
+                name='id_or_slugs',
+                arg_type=ArgumentType.POSITIONAL,
+                help='The ID or slug name of the target collection',
+                required=True,
+                multiple=True,
+            ),
+            CONTEXT_ARG,
+            SINGLE_ENDPOINT_ID_ARG,
+        ]
+    )
+    def describe_collection(context: Optional[str],
+                            endpoint_id: Optional[str],
+                            id_or_slugs: List[str]):
+        """ View details of a specific collection """
+        client = _get(context, endpoint_id)
+        # Get unique collections by id, with the last occurrence taking precedence
+        unique_collections = {
+            collection.id: collection
+            for id_or_slug in id_or_slugs
+            for collection in [client.get(id_or_slug_name=id_or_slug)]
+        }
+
+        click.echo(to_json(normalize(list(unique_collections.values()))))
