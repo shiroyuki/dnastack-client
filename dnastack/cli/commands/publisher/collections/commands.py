@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, List
 
+import click
 from click import Group
 
 from dnastack.cli.commands.dataconnect.utils import DECIMAL_POINT_OUTPUT_ARG, handle_query
@@ -9,7 +10,10 @@ from dnastack.cli.commands.publisher.collections.utils import _filter_collection
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, RESOURCE_OUTPUT_ARG, DATA_OUTPUT_ARG, CONTEXT_ARG, \
     SINGLE_ENDPOINT_ID_ARG, ArgumentType
+from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator
+from dnastack.client.collections.model import Collection, Tag
+from dnastack.common.json_argument_parser import FileOrValue
 from dnastack.common.tracing import Span
 
 
@@ -92,3 +96,61 @@ def init_collections_commands(group: Group):
                             output_format=output,
                             trace=trace)
 
+
+    @formatted_command(
+        group=group,
+        name='create',
+        specs=[
+            ArgumentSpec(
+                name='name',
+                arg_names=['--name'],
+                help='The name of the collection you want to create or manage.',
+                required=True,
+            ),
+            ArgumentSpec(
+                name='description',
+                arg_names=['--description'],
+                help='A short summary or explanation of the purpose or contents of the collection. '
+                     'Use @<path> to load from file.',
+                type=FileOrValue,
+                required=True,
+            ),
+            ArgumentSpec(
+                name='slug',
+                arg_names=['--slug'],
+                help='A unique identifier for the collection, often used in URLs for easy reference.',
+                required=True,
+            ),
+            ArgumentSpec(
+                name='tags',
+                arg_names=['--tags'],
+                help='A comma-separated list of tags to categorize and organize the collection.',
+                required=False,
+            ),
+            CONTEXT_ARG,
+            SINGLE_ENDPOINT_ID_ARG,
+        ]
+    )
+    def create_collection(context: Optional[str],
+                         endpoint_id: Optional[str],
+                         name: str,
+                         description: FileOrValue,
+                         slug: str,
+                         tags: Optional[str] = None):
+        """ Create a new collection """
+        def parse_tags(tags: Optional[str]) -> Optional[List[Tag]]:
+            if not tags:
+                return None
+            return [Tag(label=tag.strip()) for tag in tags.split(',')]
+
+        collection = Collection(
+            name=name,
+            description=description.value(),
+            slugName=slug,
+            tags=parse_tags(tags),
+            itemsQuery=";",
+        )
+
+        client = _get(context, endpoint_id)
+        response = client.create_collection(collection)
+        click.echo(to_json(normalize(response)))

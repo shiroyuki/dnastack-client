@@ -78,6 +78,13 @@ class CollectionServiceClient(BaseServiceClient):
             res = session.get(urljoin(self.url, 'collections'), trace_context=trace)
             return [Collection(**raw_collection) for raw_collection in res.json()]
 
+    def create_collection(self, collection: Collection, trace: Optional[Span] = None) -> Collection:
+        """ Create a collection """
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            res = session.post(urljoin(self.url, 'collections'), json=collection.dict(), trace_context=trace)
+            return Collection(**res.json())
+
     def data_connect_endpoint(self,
                               collection: Union[str, Collection, None] = None,
                               no_auth: bool = False) -> ServiceEndpoint:

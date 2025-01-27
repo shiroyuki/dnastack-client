@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class Tag(BaseModel):
-    id: str
+    id: Optional[str]
     label: str
 
 
@@ -39,7 +39,7 @@ class Collection(BaseModel):
     description: Optional[str] = None
     itemsQuery: Optional[str]
     tags: Optional[List[Tag]] = Field(default_factory=list)
-    createdAt: datetime
+    createdAt: Optional[datetime]
     updatedAt: Optional[datetime] = None
     dbSchemaName: Optional[str] = None
     itemsChangedAt: Optional[datetime] = None
