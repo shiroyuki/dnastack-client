@@ -41,6 +41,44 @@ class TestPublisherCommand(PublisherCliTestCase):
             self.assert_not_empty(collection.id, 'Collection ID should not be empty')
 
 
+    def test_collections_describe(self):
+        first_collection = self._get_first_collection()
+        describe_collections = self.simple_invoke(
+            'publisher', 'collections', 'describe',
+            first_collection.slugName,
+        )
+
+        self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection.')
+        for collection in describe_collections:
+            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+
+
+    def test_collections_describe_with_duplicate_ids(self):
+        first_collection = self._get_first_collection()
+        describe_collections = self.simple_invoke(
+            'publisher', 'collections', 'describe',
+            first_collection.id,
+            first_collection.id
+        )
+
+        self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection. Duplicates should be removed.')
+        for collection in describe_collections:
+            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+
+
+    def test_collections_describe_with_duplicate_results(self):
+        first_collection = self._get_first_collection()
+        describe_collections = self.simple_invoke(
+            'publisher', 'collections', 'describe',
+            first_collection.slugName,
+            first_collection.id
+        )
+
+        self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection. Duplicates should be removed.')
+        for collection in describe_collections:
+            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+
+
     def test_collections_create(self):
         collection_name = f'Col-{time.time_ns()}'
         created_collection = Collection(**self.simple_invoke(
