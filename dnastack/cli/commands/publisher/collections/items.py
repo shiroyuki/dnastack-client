@@ -2,16 +2,13 @@ import re
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 
-import click
-
-from dnastack.cli.commands.publisher.collections.utils import _get, _abort_with_collection_list, \
-    _switch_to_data_connect, _get_context, COLLECTION_ID_CLI_ARG
+from dnastack.cli.commands.publisher.collections.utils import _get_collection_service_client, \
+    _abort_with_collection_list, \
+    _switch_to_data_connect, _get_context, COLLECTION_ID_ARG
 from dnastack.cli.core.command import formatted_command
-from dnastack.cli.core.command_spec import ArgumentSpec, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG, RESOURCE_OUTPUT_ARG
+from dnastack.cli.core.command_spec import ArgumentSpec, RESOURCE_OUTPUT_ARG
 from dnastack.cli.core.group import formatted_group
-from dnastack.cli.helpers.exporter import to_json
 from dnastack.cli.helpers.iterator_printer import show_iterator
-from dnastack.common.logger import get_logger
 
 
 @formatted_group("items")
@@ -23,7 +20,7 @@ def items_command_group():
     group=items_command_group,
     name='list',
     specs=[
-        COLLECTION_ID_CLI_ARG,
+        COLLECTION_ID_ARG,
         ArgumentSpec(
             name='limit',
             arg_names=['--limit', '-l'],
@@ -31,51 +28,30 @@ def items_command_group():
             type=int,
             default=50,
         ),
-        ArgumentSpec(
-            name='no_auth',
-            arg_names=['--no-auth'],
-            help='Skip automatic authentication if set',
-            type=bool,
-            required=False,
-            hidden=True,
-        ),
-        RESOURCE_OUTPUT_ARG,
-        CONTEXT_ARG,
-        SINGLE_ENDPOINT_ID_ARG,
+        RESOURCE_OUTPUT_ARG
     ]
 )
-def list(context: Optional[str],
-               endpoint_id: Optional[str],
-               collection: Optional[str],
-               limit: Optional[int],
-               no_auth: bool = False,
-               output: Optional[str] = None):
+def list(collection: str,
+         limit: Optional[int],
+         output: Optional[str] = None):
     """ List items of the given collection """
-    logger = get_logger('CLI/list-items')
-    limit_override = False
-
     assert limit >= 0, 'The limit (--limit) should be either ZERO (item query WITHOUT limit) ' \
                        'or at least ONE (item query WITH limit).'
 
-    click.secho(f'Retrieving upto {limit} item{"s" if limit == 1 else ""}...' if limit else 'Retrieving all items...',
-                dim=True,
-                err=True)
-
-    collection_service_client = _get(context, endpoint_id)
+    collection_service_client = _get_collection_service_client()
 
     collection_id = collection.strip() if collection else None
-    if not collection_id:
-        _abort_with_collection_list(collection_service_client, collection, no_auth=no_auth)
+    if not collection_id: _abort_with_collection_list(collection_service_client=collection_service_client,
+                                                      collection_id_or_slug_name=collection)
 
-    actual_collection = collection_service_client.get(collection_id, no_auth=no_auth)
-    data_connect_client = _switch_to_data_connect(_get_context(context), collection_service_client,
-                                                  actual_collection.slugName, no_auth)
+    actual_collection = collection_service_client.get(collection_id)
+    data_connect_client = _switch_to_data_connect(context=_get_context(),
+                                                  collection_service_client=collection_service_client,
+                                                  collection_id_or_slug_name=actual_collection.slugName)
 
     def __simplify_item(row: Dict[str, Any]) -> Dict[str, Any]:
         # NOTE: It is implemented this way to guarantee that "id" and "name" are more likely to show first.
         property_names = ['type', 'size', 'size_unit', 'version', 'item_updated_at']
-
-        logger.debug(f'Item Simplifier: given: {to_json(row)}')
 
         item = dict(
             id=row['id'],
@@ -110,33 +86,14 @@ def list(context: Optional[str],
 
     items_query = actual_collection.itemsQuery.strip()
 
-    if re.search(r' limit\s*\d+$', items_query, re.IGNORECASE):
-        logger.warning('The items query already has the limit defined and the CLI will not override that limit.')
-    else:
-        logger.debug(f'Only shows {limit} row(s)')
-        limit_override = True
+    if not re.search(r' limit\s*\d+$', items_query, re.IGNORECASE):
         items_query = f'{items_query} LIMIT {limit + 1}'  # We use +1 as an indicator whether there are more results.
 
-    items.extend([i for i in data_connect_client.query(items_query, no_auth=no_auth)])
+    items.extend([i for i in data_connect_client.query(items_query)])
 
-    row_count = len(items)
-
-    displayed_item_count = show_iterator(
+    show_iterator(
         output or RESOURCE_OUTPUT_ARG.default,
         items,
         __simplify_item,
         limit
     )
-
-    click.secho(f'Displayed {displayed_item_count} item{"s" if displayed_item_count != 1 else ""} from this collection',
-                fg='green',
-                err=True)
-
-    if limit_override and row_count > limit:
-        click.secho(f'There exists more than {limit} item{"s" if limit != 1 else ""} in this collection. You may use '
-                    '"--limit 0" to get all items in this collection.\n\n'
-                    f'    dnastack collections list-items -c {actual_collection.slugName} --limit=0 '
-                    f'{"--no-auth" if no_auth else ""}'
-                    '\n',
-                    fg='yellow',
-                    err=True)

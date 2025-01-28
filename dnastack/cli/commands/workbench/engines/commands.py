@@ -3,7 +3,8 @@ from typing import Optional, List
 import click
 from click import style, Group
 
-from dnastack.cli.commands.workbench.utils import get_ewes_client, NAMESPACE_ARG, MAX_RESULTS_ARG
+from dnastack.cli.commands.utils import MAX_RESULTS_ARG
+from dnastack.cli.commands.workbench.utils import get_ewes_client, NAMESPACE_ARG
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, ArgumentType, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG
 from dnastack.cli.helpers.exporter import to_json, normalize

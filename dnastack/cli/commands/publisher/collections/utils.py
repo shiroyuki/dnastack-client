@@ -15,10 +15,11 @@ from dnastack.context.models import Context
 
 _logger = get_logger('cli/collections')
 
-COLLECTION_ID_CLI_ARG = ArgumentSpec(
+COLLECTION_ID_ARG = ArgumentSpec(
     name='collection',
     arg_names=['--collection', '-c'],
     help='The ID or slug name of the target collection; required only by an explorer service',
+    required=True
 )
 
 
@@ -36,7 +37,7 @@ def _get_context(context_name: Optional[str] = None) -> Context:
     return config_context
 
 
-def _get(context: Optional[str] = None, id: Optional[str] = None) -> CollectionServiceClient:
+def _get_collection_service_client(context: Optional[str] = None, id: Optional[str] = None) -> CollectionServiceClient:
     factory: ConfigurationBasedClientFactory = container.get(ConfigurationBasedClientFactory)
     return factory.get(CollectionServiceClient, context_name=context, endpoint_id=id)
 
@@ -44,7 +45,7 @@ def _get(context: Optional[str] = None, id: Optional[str] = None) -> CollectionS
 def _switch_to_data_connect(context: Context,
                             collection_service_client: CollectionServiceClient,
                             collection_id_or_slug_name: Optional[str],
-                            no_auth: bool) -> DataConnectClient:
+                            no_auth: bool = False) -> DataConnectClient:
     default_no_auth_properties = {'authentication': None, 'fallback_authentications': None}
 
     try:
@@ -87,7 +88,7 @@ def _switch_to_data_connect(context: Context,
 
 def _abort_with_collection_list(collection_service_client: CollectionServiceClient,
                                 collection_id_or_slug_name: Optional[str],
-                                no_auth: bool):
+                                no_auth: bool = False):
     available_identifiers = "\n - ".join(sorted([
         available_collection.slugName
         for available_collection in collection_service_client.list_collections(no_auth=no_auth)

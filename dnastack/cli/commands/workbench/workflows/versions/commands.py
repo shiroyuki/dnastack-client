@@ -5,7 +5,8 @@ from typing import Optional, List
 import click
 from click import Group
 
-from dnastack.cli.commands.workbench.utils import NAMESPACE_ARG, MAX_RESULTS_ARG
+from dnastack.cli.commands.utils import MAX_RESULTS_ARG
+from dnastack.cli.commands.workbench.utils import NAMESPACE_ARG
 from dnastack.cli.commands.workbench.workflows.utils import get_workflow_client, _get_replace_patch, \
     _get_description_patch, _get_author_patch, find_file, handle_zip_output, decode_base64_content, \
     create_missing_directories, write_to_file, decode_readable_file, handle_files_output
