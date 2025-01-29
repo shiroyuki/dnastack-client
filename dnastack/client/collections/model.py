@@ -59,6 +59,15 @@ class Collection(BaseModel):
         return cls(name=name, itemsQuery=items_query, slugName=slug_name, description=description)
 
 
+class CollectionItem(BaseModel):
+    id: str
+
+
 class CreateCollectionItemsRequest(BaseModel):
+    dataSourceId: str
+    sourceKeys: List[str]
+
+
+class DeleteCollectionItemsRequest(BaseModel):
     dataSourceId: str
     sourceKeys: List[str]

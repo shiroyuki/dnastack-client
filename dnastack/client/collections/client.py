@@ -2,7 +2,8 @@ from typing import List, Union, Optional
 from urllib.parse import urljoin
 
 from dnastack.client.base_client import BaseServiceClient
-from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest
+from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
+    CollectionItem
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.models import ServiceType
@@ -87,14 +88,25 @@ class CollectionServiceClient(BaseServiceClient):
 
     def create_collection_items(self,
                                 collection_id_or_slug_name_or_db_schema_name: str,
-                                create_collection_item_request: CreateCollectionItemsRequest,
-                                trace: Optional[Span] = None) -> Collection:
+                                create_items_request: CreateCollectionItemsRequest,
+                                trace: Optional[Span] = None) -> CollectionItem:
         """ Add items to a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
             res = session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/item'),
-                               json=create_collection_item_request.dict(), trace_context=trace)
-            return Collection(**res.json())
+                               json=create_items_request.dict(), trace_context=trace)
+            return CollectionItem(**res.json())
+
+    def delete_collection_items(self,
+                                collection_id_or_slug_name_or_db_schema_name: str,
+                                delete_items_request: DeleteCollectionItemsRequest,
+                                trace: Optional[Span] = None) -> None:
+        """ Delete items from a collection """
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            session.delete(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/item'),
+                           json=delete_items_request.dict(), trace_context=trace)
+            return None
 
     def data_connect_endpoint(self,
                               collection: Union[str, Collection, None] = None,
