@@ -228,6 +228,64 @@ class TestPublisherCommand(PublisherCliTestCase):
             r'.*Error: Missing option \'--files\'.*')
 
 
+    def test_collections_items_remove_items_with_value(self):
+        first_collection = self._get_first_collection()
+        result = self.simple_invoke(
+            'publisher', 'collections', 'items', 'remove',
+            '--collection', first_collection.slugName,
+            '--datasource', 'test-datasource',
+            '--files', 'file1.txt,file2.pdf,file3.jpg'
+        )
+
+        self.assertEqual(result.exit_code, 0)
+
+
+    def test_collections_items_remove_items_with_file(self):
+        def create_files_file():
+            with open('test-file-files.txt', 'w') as files_file:
+                files_file.write("""
+            foo.txt,bar.txt,baz.txt
+            maz.txt
+            """)
+
+        create_files_file()
+        first_collection = self._get_first_collection()
+        result = self.simple_invoke(
+            'publisher', 'collections', 'items', 'remove',
+            '--collection', first_collection.slugName,
+            '--datasource', 'test-datasource',
+            '--files', '@test-file-files.txt'
+        )
+
+        self.assertEqual(result.exit_code, 0)
+
+
+    def test_collections_items_remove_with_missing_required_fields(self):
+        # Missing collection
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'remove',
+            '--datasource', 'test-datasource',
+            '--files', 'file1.txt'
+        ],
+            r'.*Missing option \'--collection\'.*')
+
+        # Missing datasource
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'remove',
+            '--collection', 'test-collection',
+            '--files', 'file1.txt'
+        ],
+            r'.*Error: Missing option \'--datasource\'.*')
+
+        # Missing files
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'remove',
+            '--collection', 'test-collection',
+            '--datasource', 'test-datasource',
+        ],
+            r'.*Error: Missing option \'--files\'.*')
+
+
     def test_collections_tables_list(self):
         first_collection = self._get_first_collection()
         tables_result = self.simple_invoke(

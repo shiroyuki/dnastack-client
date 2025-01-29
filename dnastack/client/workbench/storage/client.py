@@ -80,8 +80,7 @@ class StorageClient(BaseWorkbenchClient):
             response = session.get(urljoin(self.endpoint.url, f'{self.namespace}/storage/{storage_account_id}'))
         return StorageAccount(**response.json())
 
-    def list_storage_accounts(self, list_options: Optional[StorageListOptions], max_results: int) -> Iterator[
-        StorageAccount]:
+    def list_storage_accounts(self, list_options: Optional[StorageListOptions], max_results: int) -> Iterator[StorageAccount]:
         """List storage accounts."""
         return ResultIterator(StorageAccountListResultLoader(
             service_url=urljoin(self.endpoint.url, f'{self.namespace}/storage'),
