@@ -80,7 +80,7 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_create(self):
-        collection_name = f'Col-{time.time_ns()}'
+        collection_name = f'col{time.time_ns()}'
         created_collection = Collection(**self.simple_invoke(
             'publisher', 'collections', 'create',
             '--name', collection_name,
@@ -94,7 +94,7 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_create_with_conflicting_name(self):
-        collection_name = f'Col-{time.time_ns()}'
+        collection_name = f'col{time.time_ns()}'
         self.simple_invoke(
             'publisher', 'collections', 'create',
             '--name', collection_name,
@@ -108,7 +108,7 @@ class TestPublisherCommand(PublisherCliTestCase):
             '--description', "Cohort of participants with quality of life assessments",
             '--slug', collection_name,
         ],
-            rf'.*Error: A collection with the name "{collection_name}" already exists\. Please use a different name or update the existing collection.*')
+            rf'.*Collection with name {collection_name} already exists.*')
 
 
     def test_collections_create_with_missing_required_fields(self):
