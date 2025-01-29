@@ -166,6 +166,68 @@ class TestPublisherCommand(PublisherCliTestCase):
             self.assert_not_empty(item['id'], 'Item ID should not be empty')
 
 
+    def test_collections_items_add_items_with_value(self):
+        first_collection = self._get_first_collection()
+        items_result = self.simple_invoke(
+            'publisher', 'collections', 'items', 'add',
+            '--collection', first_collection.slugName,
+            '--datasource', 'test-datasource',
+            '--files', 'file1.txt,file2.pdf,file3.jpg'
+        )
+
+        self.assertEqual(len(items_result), 3, f'Expected exactly three items to be added.')
+        for item in items_result:
+            self.assert_not_empty(item['id'], 'Item ID should not be empty')
+
+
+    def test_collections_items_add_items_with_file(self):
+        def create_files_file():
+            with open('test-file-files.txt', 'w') as files_file:
+                files_file.write("""
+            foo.txt,bar.txt,baz.txt
+            maz.txt
+            """)
+
+        create_files_file()
+        first_collection = self._get_first_collection()
+        items_result = self.simple_invoke(
+            'publisher', 'collections', 'items', 'add',
+            '--collection', first_collection.slugName,
+            '--datasource', 'test-datasource',
+            '--files', '@test-file-files.txt'
+        )
+
+        self.assertEqual(len(items_result), 3, f'Expected exactly four items to be added.')
+        for item in items_result:
+            self.assert_not_empty(item['id'], 'Item ID should not be empty')
+
+
+    def test_collections_items_add_with_missing_required_fields(self):
+        # Missing collection
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'add',
+            '--datasource', 'test-datasource',
+            '--files', 'file1.txt'
+        ],
+            r'.*Missing option \'--collection\'.*')
+
+        # Missing datasource
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'add',
+            '--collection', 'test-collection',
+            '--files', 'file1.txt'
+        ],
+            r'.*Error: Missing option \'--datasource\'.*')
+
+        # Missing files
+        self.expect_error_from([
+            'publisher', 'collections', 'items', 'add',
+            '--collection', 'test-collection',
+            '--datasource', 'test-datasource',
+        ],
+            r'.*Error: Missing option \'--files\'.*')
+
+
     def test_collections_tables_list(self):
         first_collection = self._get_first_collection()
         tables_result = self.simple_invoke(

@@ -18,7 +18,7 @@ _logger = get_logger('cli/collections')
 COLLECTION_ID_ARG = ArgumentSpec(
     name='collection',
     arg_names=['--collection', '-c'],
-    help='The ID or slug name of the target collection; required only by an explorer service',
+    help='The ID or slug name of the target collection.',
     required=True
 )
 

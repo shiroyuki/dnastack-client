@@ -57,3 +57,8 @@ class Collection(BaseModel):
             slug_name = re.sub(r'[^a-z0-9-]', '-', name.lower()) + str(int(time()))
             slug_name = re.sub(r'-+', '-', slug_name)
         return cls(name=name, itemsQuery=items_query, slugName=slug_name, description=description)
+
+
+class CreateCollectionItemsRequest(BaseModel):
+    dataSourceId: str
+    sourceKeys: List[str]
