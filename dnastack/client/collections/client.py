@@ -2,7 +2,7 @@ from typing import List, Union, Optional
 from urllib.parse import urljoin
 
 from dnastack.client.base_client import BaseServiceClient
-from dnastack.client.collections.model import Collection
+from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.service_registry.models import ServiceType
@@ -83,6 +83,17 @@ class CollectionServiceClient(BaseServiceClient):
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
             res = session.post(urljoin(self.url, 'collections'), json=collection.dict(), trace_context=trace)
+            return Collection(**res.json())
+
+    def create_collection_items(self,
+                                collection_id_or_slug_name_or_db_schema_name: str,
+                                create_collection_item_request: CreateCollectionItemsRequest,
+                                trace: Optional[Span] = None) -> Collection:
+        """ Add items to a collection """
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            res = session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/item'),
+                               json=create_collection_item_request.dict(), trace_context=trace)
             return Collection(**res.json())
 
     def data_connect_endpoint(self,
