@@ -83,7 +83,9 @@ class CollectionServiceClient(BaseServiceClient):
         """ Create a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
-            res = session.post(urljoin(self.url, 'collections'), json=collection.dict(), trace_context=trace)
+            res = session.post(urljoin(self.url, 'collections') + '?includeInternalItemsQuery=true',
+                               json=collection.dict(),
+                               trace_context=trace)
             return Collection(**res.json())
 
     def create_collection_items(self,

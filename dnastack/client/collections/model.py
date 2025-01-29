@@ -44,7 +44,7 @@ class Collection(BaseModel):
     dbSchemaName: Optional[str] = None
     itemsChangedAt: Optional[datetime] = None
     latestItemUpdatedTime: Optional[datetime] = None
-    accessTypeLabels: Optional[Dict[str, str]] = Field(default_factory=dict)
+    accessTypeLabels: Optional[Dict[str, str]] = None
     itemCounts: Optional[Dict[str, int]] = Field(default_factory=dict)
 
     @classmethod
