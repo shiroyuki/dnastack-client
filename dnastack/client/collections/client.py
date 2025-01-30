@@ -1,16 +1,21 @@
-from typing import List, Union, Optional
+from pprint import pformat
+from typing import List, Union, Optional, Iterator
 from urllib.parse import urljoin
 
+from pydantic import ValidationError
+
 from dnastack.client.base_client import BaseServiceClient
+from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError
 from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
-    CollectionItem
+    CollectionItem, CollectionItemListOptions, PaginatedResource, PageableApiError, CollectionItemListResponse
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
 from dnastack.client.models import ServiceEndpoint
+from dnastack.client.result_iterator import ResultLoader, InactiveLoaderError, ResultIterator
 from dnastack.client.service_registry.models import ServiceType
 from dnastack.common.tracing import Span
 # Feature: Support the service registry integration
 # Feature: Using both root and "singular" soon-to-be-deprecated per-collection data connect endpoints
-from dnastack.http.session import ClientError
+from dnastack.http.session import ClientError, HttpSession, HttpError
 
 STANDARD_COLLECTION_SERVICE_TYPE_V1_0 = ServiceType(group='com.dnastack',
                                                     artifact='collection-service',
@@ -31,6 +36,118 @@ class UnknownCollectionError(RuntimeError):
     def __init__(self, id_or_slug_name, trace: Span):
         super().__init__(id_or_slug_name)
         self.trace = trace
+
+
+class CollectionItemListResultLoader(ResultLoader):
+    def __init__(self,
+                 service_url: str,
+                 http_session: HttpSession,
+                 trace: Optional[Span],
+                 list_options: Optional[CollectionItemListOptions] = None,
+                 max_results: int = None):
+        self.__http_session = http_session
+        self.__service_url = service_url
+        self.__list_options = list_options
+        self.__max_results = int(max_results) if max_results else None
+        self.__loaded_results = 0
+        self.__active = True
+        self.__visited_urls: List[str] = list()
+        self.__trace = trace
+        self.__next_page_url = None
+
+        if not self.__list_options:
+            self.__list_options = self.get_new_list_options()
+
+    def has_more(self) -> bool:
+        return self.__active
+
+    def __generate_api_error_feedback(self, response_body) -> str:
+        if self.__service_url:
+            return f'Failed to load the next page of data from {self.__service_url}: ({response_body})'
+        else:
+            return f'Failed to load the next page of data: ({response_body})'
+
+    def get_new_list_options(self) -> CollectionItemListOptions:
+        return CollectionItemListOptions()
+
+    def extract_api_response(self, response_body: dict) -> CollectionItemListResponse:
+        return CollectionItemListResponse(**response_body)
+
+    def load(self) -> List[any]:
+        if not self.__active:
+            raise InactiveLoaderError(self.__service_url)
+
+        with self.__http_session as session:
+            current_url = self.__service_url
+
+            try:
+
+                if not self.__next_page_url:
+                    response = session.get(current_url,
+                                           params=self.__list_options,
+                                           trace_context=self.__trace)
+                else:
+                    current_url = self.__next_page_url
+                    response = session.get(self.__next_page_url,
+                                           trace_context=self.__trace)
+            except HttpError as e:
+                status_code = e.response.status_code
+                response_text = e.response.text
+
+                self.__visited_urls.append(current_url)
+
+                if status_code == 401:
+                    raise UnauthenticatedApiAccessError(self.__generate_api_error_feedback(response_text))
+                elif status_code == 403:
+                    raise UnauthorizedApiAccessError(self.__generate_api_error_feedback(response_text))
+                elif status_code >= 400:  # Catch all errors
+                    raise PageableApiError(
+                        f'Unexpected error: {response_text}',
+                        status_code,
+                        response_text,
+                        urls=self.__visited_urls
+                    )
+
+            status_code = response.status_code
+            response_text = response.text
+
+            try:
+                response_body = response.json() if response_text else dict()
+            except Exception as e:
+                self.logger.error(f'{self.__service_url}: Unexpectedly non-JSON response body from {current_url}')
+                raise PageableApiError(
+                    f'Unable to deserialize JSON from {response_text}.',
+                    status_code,
+                    response_text,
+                    urls=self.__visited_urls
+                )
+
+
+            try:
+                api_response = self.extract_api_response(response_body)
+            except ValidationError as e:
+                raise PageableApiError(
+                    f'Invalid Response Body: {response_body}',
+                    status_code,
+                    response_text,
+                    urls=self.__visited_urls
+                )
+
+            self.logger.debug(f'Response:\n{pformat(response_body, indent=2)}')
+
+            self.__next_page_url = api_response.pagination.nextPageUrl if api_response.pagination and api_response.pagination.nextPageUrl else None
+            if not self.__next_page_url:
+                self.__active = False
+
+            items = api_response.items
+
+            if self.__max_results and (self.__loaded_results + len(items)) >= self.__max_results:
+                self.__active = False
+                num_of_loadable_results = self.__max_results - self.__loaded_results
+                return items[0:num_of_loadable_results]
+            else:
+                self.__loaded_results += len(items)
+                return items
 
 
 class CollectionServiceClient(BaseServiceClient):
@@ -87,6 +204,21 @@ class CollectionServiceClient(BaseServiceClient):
                                json=collection.dict(),
                                trace_context=trace)
             return Collection(**res.json())
+
+    def list_collection_items(self,
+                              collection_id_or_slug_name_or_db_schema_name: str,
+                              list_options: Optional[CollectionItemListOptions],
+                              max_results: Optional[int] = None,
+                              trace: Optional[Span] = None) -> Iterator[CollectionItem]:
+        """ List all items in a collection """
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            return ResultIterator(CollectionItemListResultLoader(
+                service_url=urljoin(self.endpoint.url, f'collection/{collection_id_or_slug_name_or_db_schema_name}/items'),
+                http_session=self.create_http_session(),
+                list_options=list_options,
+                trace=trace,
+                max_results=max_results))
 
     def create_collection_items(self,
                                 collection_id_or_slug_name_or_db_schema_name: str,

@@ -5,6 +5,8 @@ from typing import Optional, List, Any, Dict
 
 from pydantic import BaseModel, Field
 
+from dnastack.client.base_exceptions import ApiError
+
 
 class Tag(BaseModel):
     id: Optional[str]
@@ -59,8 +61,49 @@ class Collection(BaseModel):
         return cls(name=name, itemsQuery=items_query, slugName=slug_name, description=description)
 
 
+class PageableApiError(ApiError):
+    def __init__(self, message, status_code, text, urls):
+        super().__init__(message, status_code, text)
+        self.urls = urls
+
+
+class Pagination(BaseModel):
+    nextPageUrl: Optional[str]
+
+
+class PaginatedResource(BaseModel):
+    pagination: Optional[Pagination]
+
+    def items(self) -> List[Any]:
+        pass
+
 class CollectionItem(BaseModel):
     id: str
+    collectionId: str
+    type: Optional[str]
+    name: Optional[str]
+    displayName: Optional[str]
+    dataSourceName: Optional[str]
+    dataSourceType: Optional[str]
+    cachedAt: Optional[str]
+    createdTime: Optional[str]
+    updatedTime: Optional[str]
+    itemUpdatedTime: Optional[str]
+    sourceKey: Optional[str]
+    metadataUrl: Optional[str]
+    dataSourceUrl: Optional[str]
+    sizeUnit: Optional[str]
+    size: Optional[int]
+
+
+class CollectionItemListResponse(BaseModel):
+    items: List[CollectionItem]
+    pagination: Optional[Pagination]
+
+
+class CollectionItemListOptions(BaseModel):
+    type: Optional[str]
+    limit: Optional[int]
 
 
 class CreateCollectionItemsRequest(BaseModel):
@@ -71,3 +114,5 @@ class CreateCollectionItemsRequest(BaseModel):
 class DeleteCollectionItemsRequest(BaseModel):
     dataSourceId: str
     sourceKeys: List[str]
+
+

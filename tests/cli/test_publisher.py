@@ -158,12 +158,28 @@ class TestPublisherCommand(PublisherCliTestCase):
         items_result = self.simple_invoke(
             'publisher', 'collections', 'items', 'list',
             '--collection', first_collection.slugName,
-            '--limit', 1
+            '--max-results', 1
         )
 
         self.assertEqual(len(items_result), 1, f'Expected exactly one item. Found {items_result}')
         for item in items_result:
             self.assert_not_empty(item['id'], 'Item ID should not be empty')
+
+
+    def test_collections_items_list_with_type_and_limit(self):
+        first_collection = self._get_first_collection()
+        items_result = self.simple_invoke(
+            'publisher', 'collections', 'items', 'list',
+            '--collection', first_collection.slugName,
+            '--limit', 100,
+            '--type', 'table',
+            '--max-results', 1
+        )
+
+        self.assertEqual(len(items_result), 1, f'Expected exactly one item. Found {items_result}')
+        for item in items_result:
+            self.assert_not_empty(item['id'], 'Item ID should not be empty')
+            self.assertEqual(item['type'], 'table', 'Item type should be table')
 
 
     def test_collections_items_add_items_with_value(self):
