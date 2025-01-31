@@ -1,8 +1,11 @@
 import time
+from datetime import datetime
+from unittest.mock import patch, MagicMock
 
 import click
 
-from dnastack.client.collections.model import Collection
+from dnastack.client.collections.model import Collection, CollectionStatus, CollectionValidationStatus, \
+    CollectionValidationMissingItems
 from tests.cli.base import PublisherCliTestCase
 
 
@@ -135,6 +138,17 @@ class TestPublisherCommand(PublisherCliTestCase):
             '--description', "Cohort of participants with quality of life assessments",
         ],
             r'.*Error: Missing option \'--slug\'.*')
+
+
+    def test_collections_status(self):
+        first_collection = self._get_first_collection()
+        result = self.invoke(
+            'publisher', 'collections', 'status',
+            '--collection', first_collection.slugName,
+        )
+
+        self.assertIn('Validation Status:', result.output)
+        self.assertIn('Last Checked:', result.output)
 
 
     def test_collections_query(self):

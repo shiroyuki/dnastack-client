@@ -7,7 +7,8 @@ from pydantic import ValidationError
 from dnastack.client.base_client import BaseServiceClient
 from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError
 from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
-    CollectionItem, CollectionItemListOptions, PaginatedResource, PageableApiError, CollectionItemListResponse
+    CollectionItem, CollectionItemListOptions, PaginatedResource, PageableApiError, CollectionItemListResponse, \
+    CollectionStatus
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
 from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultLoader, InactiveLoaderError, ResultIterator
@@ -219,6 +220,16 @@ class CollectionServiceClient(BaseServiceClient):
                 list_options=list_options,
                 trace=trace,
                 max_results=max_results))
+
+    def get_collection_status(self,
+                              collection_id_or_slug_name_or_db_schema_name: str,
+                              trace: Optional[Span] = None) -> CollectionStatus:
+        """ Get the status of a collection """
+        trace = trace or Span(origin=self)
+        with self.create_http_session() as session:
+            res = session.get(urljoin(self.url, f'collection/{collection_id_or_slug_name_or_db_schema_name}/status'),
+                              trace_context=trace)
+            return CollectionStatus(**res.json())
 
     def create_collection_items(self,
                                 collection_id_or_slug_name_or_db_schema_name: str,
