@@ -8,13 +8,13 @@ from dnastack import DataConnectClient
 from dnastack.client.base_exceptions import DataConnectError
 from dnastack.client.data_connect import QueryLoader, InvalidQueryError, InvalidDataLoadingError
 from dnastack.common.logger import get_logger
-from tests.exam_helper import measure_runtime, DataConversionSample, BasePublisherTestCase
+from tests.exam_helper import measure_runtime, DataConversionSample, DeprecatedBasePublisherTestCase
 from tests.exam_helper_for_data_connect import DataConnectTestCaseMixin
 
 _logger = get_logger(os.path.basename(__file__))
 
 
-class TestUnit(BasePublisherTestCase):
+class TestUnit(DeprecatedBasePublisherTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True
@@ -193,7 +193,7 @@ class TestUnit(BasePublisherTestCase):
         self.assertEqual(ts.tzinfo, datetime.timezone.utc, 'Not in UTC')
 
 
-class TestEndToEnd(BasePublisherTestCase, DataConnectTestCaseMixin):
+class TestEndToEnd(DeprecatedBasePublisherTestCase, DataConnectTestCaseMixin):
     """ End-to-end test for a client to Data Connect Service """
     unusable_table_names: List[str] = []
 

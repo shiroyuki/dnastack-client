@@ -4,10 +4,10 @@ from dnastack import DataConnectClient
 from dnastack.client.collections.client import CollectionServiceClient
 from dnastack.common.events import Event
 from dnastack.http.authenticators.oauth2 import OAuth2Authenticator
-from tests.exam_helper import BasePublisherTestCase, EventCollector
+from tests.exam_helper import DeprecatedBasePublisherTestCase, EventCollector
 
 
-class TestOAuth2AuthenticatorIntegrationTest(BasePublisherTestCase):
+class TestOAuth2AuthenticatorIntegrationTest(DeprecatedBasePublisherTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True

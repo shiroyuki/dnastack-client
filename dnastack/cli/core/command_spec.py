@@ -78,7 +78,7 @@ RESOURCE_OUTPUT_ARG = ArgumentSpec(
     arg_names=['--output', '-o'],
     choices=[OutputFormat.JSON, OutputFormat.YAML],
     help='Output format',
-    default=OutputFormat.YAML,
+    default=OutputFormat.JSON,
 )
 
 DATA_OUTPUT_ARG = ArgumentSpec(

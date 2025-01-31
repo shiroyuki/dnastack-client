@@ -43,7 +43,6 @@ class TestWorkbenchCommand(WorkbenchCliTestCase):
         self.invoke('use', f'{self.workbench_base_url}/api/service-registry')
         self.submit_hello_world_workflow_batch()
         self.storage_account = None
-        self.platform = None
 
     # Namespace
     def test_get_default_namespace(self) -> None:

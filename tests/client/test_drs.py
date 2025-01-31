@@ -6,10 +6,10 @@ from urllib.parse import urlparse
 
 from dnastack.client.drs import DrsApiError, Blob, DrsClient, DrsObject
 from dnastack.client.factory import EndpointRepository
-from tests.exam_helper import BasePublisherTestCase
+from tests.exam_helper import DeprecatedBasePublisherTestCase
 
 
-class TestDrsClient(BasePublisherTestCase):
+class TestDrsClient(DeprecatedBasePublisherTestCase):
     """ Test a client for DRS service"""
     # Test-specified
     sample_size = 3

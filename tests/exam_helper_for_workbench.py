@@ -1,6 +1,7 @@
 import json
 import random
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 from typing import List, Optional
@@ -18,7 +19,8 @@ from dnastack.client.workbench.workflow.client import WorkflowClient
 from dnastack.client.workbench.workflow.models import Workflow, WorkflowCreate, WorkflowVersion, WorkflowTransformation
 from dnastack.common.environments import env
 from dnastack.http.session import HttpSession
-from tests.exam_helper import WithTestUserTestCase
+from tests.exam_helper import WithTestUserTestCase, wallet_base_uri
+from tests.wallet_hellper import WalletHelper
 from tests.workbench_user_service_helper import WorkbenchUserServiceHelper
 
 HELLO_WORLD_WORKFLOW = """
@@ -75,6 +77,17 @@ class ExecutionEngine(BaseModel):
 
 
 class BaseWorkbenchTestCase(WithTestUserTestCase):
+    _wallet_admin_client_id = env(
+        'E2E_WORKBENCH_WALLET_CLIENT_ID',
+        required=False,
+        default='workbench-frontend-e2e-test'
+    )
+    _wallet_admin_client_secret = env(
+        'E2E_WORKBENCH_WALLET_CLIENT_SECRET',
+        required=False,
+        default='dev-secret-never-use-in-prod'
+    )
+
     workbench_base_url = env('E2E_WORKBENCH_BASE_URL', required=False, default='http://localhost:9191')
     ewes_service_base_url = env('E2E_EWES_SERVICE_BASE_URL', required=False, default='http://localhost:9095')
     workflow_service_base_url = env('E2E_WORKFLOW_SERVICE_BASE_URL', required=False, default='http://localhost:9192')
@@ -143,19 +156,21 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
     def do_on_setup_class_before_auth(cls) -> None:
         super().do_on_setup_class_before_auth()
         cls.namespace = WorkbenchUserServiceHelper().register_user(cls.test_user.email).default_namespace
+        # Wait for the namespace to be created and initialized
+        time.sleep(1)
 
-        with cls._wallet_helper.login_to_app(cls.workbench_base_url,
-                                             cls.test_user.email,
-                                             cls.test_user.personalAccessToken) as session:
+        with cls._get_wallet_helper().log_in_with_personal_token(app_base_url=cls.workbench_base_url,
+                                                                 email=cls.test_user.email,
+                                                                 personal_access_token=cls.test_user.personalAccessToken) as session:
             cls.execution_engine = cls._create_execution_engine(session)
             cls.engine_params = cls._add_execution_engine_parameter(session, cls.execution_engine.id)
             cls._base_logger.info(f'Class {cls.__name__}: Created execution engine: {cls.execution_engine}')
 
     @classmethod
     def do_on_teardown_class(cls) -> None:
-        with cls._wallet_helper.login_to_app(cls.workbench_base_url,
-                                             cls.test_user.email,
-                                             cls.test_user.personalAccessToken) as session:
+        with cls._get_wallet_helper().log_in_with_personal_token(app_base_url=cls.workbench_base_url,
+                                                                 email=cls.test_user.email,
+                                                                 personal_access_token=cls.test_user.personalAccessToken) as session:
             cls._base_logger.info(f'Class {cls.__name__}: Cleaning up namespace: {cls.namespace}')
             cls._cleanup_namespace(session)
 
@@ -227,10 +242,10 @@ class BaseWorkbenchTestCase(WithTestUserTestCase):
 
     @classmethod
     def _cleanup_namespace(cls, session: HttpSession) -> None:
-        access_token = cls._wallet_helper.get_access_token(f'{cls.ewes_service_base_url}/', 'namespace')
+        access_token = cls._get_wallet_helper().get_access_token(f'{cls.ewes_service_base_url}/', 'namespace')
         session.delete(urljoin(cls.ewes_service_base_url, cls.namespace),
                        headers={'Authorization': f'Bearer {access_token}'})
-        access_token = cls._wallet_helper.get_access_token(f'{cls.workflow_service_base_url}/', 'namespace')
+        access_token = cls._get_wallet_helper().get_access_token(f'{cls.workflow_service_base_url}/', 'namespace')
         session.delete(urljoin(cls.workflow_service_base_url, cls.namespace),
                        headers={'Authorization': f'Bearer {access_token}'})
 

@@ -1,6 +1,6 @@
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
-class TestConfiguration(PublisherCliTestCase):
+class TestConfiguration(DeprecatedPublisherCliTestCase):
     def test_list_available_properties(self):
         result = self.simple_invoke('config', 'schema')
         self.assertIn('description', result)

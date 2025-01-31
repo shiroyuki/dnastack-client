@@ -8,10 +8,10 @@ from dnastack.client.models import ServiceEndpoint
 from dnastack.client.result_iterator import ResultIterator
 from dnastack.common.logger import get_logger
 
-from tests.exam_helper import BasePublisherTestCase
+from tests.exam_helper import DeprecatedBasePublisherTestCase
 
 
-class TestSmokeWithoutAuthentication(BasePublisherTestCase):
+class TestSmokeWithoutAuthentication(DeprecatedBasePublisherTestCase):
     _logger = get_logger('lib/smoke_test')
 
     @staticmethod
@@ -43,7 +43,7 @@ class TestSmokeWithoutAuthentication(BasePublisherTestCase):
         self.assertIsInstance(data[0], dict)
 
 
-class TestSmokeWithAuthentication(BasePublisherTestCase):
+class TestSmokeWithAuthentication(DeprecatedBasePublisherTestCase):
     _logger = get_logger('lib/smoke_test')
 
     def test_demo(self):

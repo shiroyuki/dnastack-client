@@ -179,3 +179,5 @@ main.wdl
 workflow.zip
 description.md
 transformation.js
+
+tests/cli/test-file-*

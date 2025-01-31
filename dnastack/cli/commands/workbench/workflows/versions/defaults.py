@@ -2,8 +2,8 @@ from typing import Optional, List
 
 import click
 
-from dnastack.cli.commands.workbench.utils import NAMESPACE_ARG, MAX_RESULTS_ARG, PAGINATION_PAGE_ARG, \
-    PAGINATION_PAGE_SIZE_ARG, create_sort_arg
+from dnastack.cli.commands.utils import MAX_RESULTS_ARG, PAGINATION_PAGE_ARG, PAGINATION_PAGE_SIZE_ARG
+from dnastack.cli.commands.workbench.utils import NAMESPACE_ARG, create_sort_arg
 from dnastack.cli.commands.workbench.workflows.utils import get_workflow_client
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, ArgumentType, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG

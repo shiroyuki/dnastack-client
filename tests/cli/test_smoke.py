@@ -1,7 +1,7 @@
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
 
-class TestSmoke(PublisherCliTestCase):
+class TestSmoke(DeprecatedPublisherCliTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True

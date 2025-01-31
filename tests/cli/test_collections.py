@@ -2,10 +2,10 @@ from uuid import uuid4
 
 from dnastack.client.base_exceptions import DataConnectError
 from dnastack.client.collections.client import UnknownCollectionError
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 
 
-class TestCollectionsCommand(PublisherCliTestCase):
+class TestCollectionsCommand(DeprecatedPublisherCliTestCase):
     @staticmethod
     def reuse_session() -> bool:
         return True

@@ -6,9 +6,8 @@ import click
 from click import style, Group
 
 from dnastack.cli.commands.workbench.runs.utils import UnableToFindParameterError, NoDefaultEngineError
-from dnastack.cli.commands.workbench.utils import get_ewes_client, NAMESPACE_ARG, MAX_RESULTS_ARG, PAGINATION_PAGE_ARG, \
-    PAGINATION_PAGE_SIZE_ARG, create_sort_arg
-from dnastack.cli.commands.workbench.workflows.utils import get_workflow_client
+from dnastack.cli.commands.utils import MAX_RESULTS_ARG, PAGINATION_PAGE_ARG, PAGINATION_PAGE_SIZE_ARG
+from dnastack.cli.commands.workbench.utils import get_ewes_client, NAMESPACE_ARG, create_sort_arg
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, ArgumentType, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG
 from dnastack.cli.helpers.exporter import to_json, normalize
@@ -19,7 +18,6 @@ from dnastack.client.workbench.ewes.models import ExtendedRunListOptions, Extend
     ExecutionEngineListOptions
 from dnastack.client.workbench.ewes.models import LogType
 from dnastack.client.workbench.samples.models import Sample
-from dnastack.client.workbench.workflow.models import WorkflowDefaultsSelector
 from dnastack.common.json_argument_parser import JsonLike, parse_and_merge_arguments, merge, merge_param_json_data
 from dnastack.common.tracing import Span
 

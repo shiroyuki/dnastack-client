@@ -1,7 +1,7 @@
 from typing import Optional
 
-from dnastack.cli.commands.workbench.utils import get_samples_client, NAMESPACE_ARG, MAX_RESULTS_ARG, \
-    PAGINATION_PAGE_ARG, PAGINATION_PAGE_SIZE_ARG, create_sort_arg
+from dnastack.cli.commands.utils import MAX_RESULTS_ARG, PAGINATION_PAGE_ARG, PAGINATION_PAGE_SIZE_ARG
+from dnastack.cli.commands.workbench.utils import get_samples_client, NAMESPACE_ARG, create_sort_arg
 from dnastack.cli.core.command import formatted_command
 from dnastack.cli.core.command_spec import ArgumentSpec, CONTEXT_ARG, SINGLE_ENDPOINT_ID_ARG
 from dnastack.cli.core.group import formatted_group

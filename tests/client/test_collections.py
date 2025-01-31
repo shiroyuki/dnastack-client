@@ -3,11 +3,11 @@ from dnastack.client.collections.client import CollectionServiceClient, Collecti
     UnknownCollectionError
 from dnastack.client.data_connect import DataConnectClient
 from dnastack.common.environments import flag
-from tests.exam_helper import BasePublisherTestCase
+from tests.exam_helper import DeprecatedBasePublisherTestCase
 from tests.exam_helper_for_data_connect import DataConnectTestCaseMixin
 
 
-class TestCollectionsClient(BasePublisherTestCase, DataConnectTestCaseMixin):
+class TestCollectionsClient(DeprecatedBasePublisherTestCase, DataConnectTestCaseMixin):
     """ Test a client for Collection Service """
 
     @staticmethod

@@ -4,12 +4,12 @@ from typing import TypeVar, Iterator, List
 
 from dnastack.alpha.client.wes.client import WesClient, STANDARD_WES_TYPE_V1_0, RunRequest, Run
 from dnastack.common.environments import env, EnvironmentVariableRequired, flag
-from tests.exam_helper import BasePublisherTestCase, initialize_test_endpoint
+from tests.exam_helper import DeprecatedBasePublisherTestCase, initialize_test_endpoint
 
 T = TypeVar('T')
 
 
-class TestClient(BasePublisherTestCase):
+class TestClient(DeprecatedBasePublisherTestCase):
     wes: WesClient
 
     @staticmethod

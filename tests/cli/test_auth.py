@@ -1,12 +1,12 @@
 from dnastack.common.environments import env, flag
 from tests.cli.auth_utils import handle_device_code_flow
-from tests.cli.base import PublisherCliTestCase
+from tests.cli.base import DeprecatedPublisherCliTestCase
 from tests.exam_helper import publisher_client_id, publisher_client_secret, token_endpoint
 
 
-class TestAuthentication(PublisherCliTestCase):
+class TestAuthentication(DeprecatedPublisherCliTestCase):
     test_resource_id = 'test-data-connect'
-    test_resource_url = env('E2E_DATA_CONNECT_URL', default=PublisherCliTestCase._explorer_base_url)
+    test_resource_url = env('E2E_DATA_CONNECT_URL', default=DeprecatedPublisherCliTestCase._explorer_base_url)
 
     @staticmethod
     def reuse_session() -> bool:
