@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from enum import Enum
 from time import time
 from typing import Optional, List, Any, Dict
 
@@ -116,3 +117,19 @@ class DeleteCollectionItemsRequest(BaseModel):
     sourceKeys: List[str]
 
 
+class CollectionValidationStatus(str, Enum):
+    VALIDATED = 'VALIDATED'
+    VALIDATION_STOPPED = 'VALIDATION_STOPPED'
+    VALIDATION_IN_PROGRESS = 'VALIDATION_IN_PROGRESS'
+    MISSING_ITEMS = 'MISSING_ITEMS'
+
+
+class CollectionValidationMissingItems(BaseModel):
+    files: Optional[int]
+    tables: Optional[int]
+
+
+class CollectionStatus(BaseModel):
+    validationsStatus: CollectionValidationStatus
+    lastChecked: Optional[datetime]
+    missingItems: Optional[CollectionValidationMissingItems]
