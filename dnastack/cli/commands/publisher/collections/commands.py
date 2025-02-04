@@ -130,8 +130,7 @@ def init_collections_commands(group: Group):
             name=name,
             description=description.value(),
             slugName=slug,
-            tags=parse_tags(tags),
-            itemsQuery=";",
+            tags=parse_tags(tags)
         )
 
         try:

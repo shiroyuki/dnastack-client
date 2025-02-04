@@ -14,6 +14,7 @@ from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
 from dnastack.client.collections.model import CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
     CollectionItemListOptions
 from dnastack.common.json_argument_parser import FileOrValue
+from dnastack.http.session import ClientError
 
 
 @formatted_group("items")
@@ -102,11 +103,19 @@ def add_files_to_collection(collection: str,
         sourceKeys=parsed_files,
     )
 
-    client = _get_collection_service_client()
-    click.echo(to_json(normalize(client.create_collection_items(
-        collection_id_or_slug_name_or_db_schema_name=collection,
-        create_items_request=request
-    ))))
+    try:
+        client = _get_collection_service_client()
+        client.create_collection_items(
+            collection_id_or_slug_name_or_db_schema_name=collection,
+            create_items_request=request
+        )
+
+        click.echo("Adding items to collection...")
+        click.echo(f"Validation in progress. Run 'status --collection {collection}' for updates.")
+    except ClientError as error:
+        error_message = f"Error: Failed to add items to collection. Server returned status {error.response.status_code}"
+        click.echo(click.style(error_message, fg='red'), err=True)
+        exit(1)
 
 
 @formatted_command(
