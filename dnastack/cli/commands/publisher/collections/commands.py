@@ -15,6 +15,7 @@ from dnastack.cli.helpers.iterator_printer import show_iterator
 from dnastack.client.collections.model import Collection, Tag, CollectionValidationStatus, CollectionStatus
 from dnastack.common.json_argument_parser import FileOrValue
 from dnastack.common.tracing import Span
+from dnastack.http.session import ClientError
 
 
 def init_collections_commands(group: Group):
@@ -108,6 +109,23 @@ def init_collections_commands(group: Group):
                 return None
             return [Tag(label=tag.strip()) for tag in tags.split(',')]
 
+        def handle_collection_error(error: ClientError, name: str, slug: str) -> str:
+            if error.response.status_code == 409:
+                return f'Error: A collection with the name "{name}" or slug "{slug}" already exists. Please use different values.'
+
+            elif error.response.status_code == 400:
+                error_body = error.response.json()
+                error_message = error_body.get('message', '')
+                return f'Error: Invalid input - {error_message}'
+
+            elif error.response.status_code == 401:
+                return 'Error: Authentication required. Please check your credentials.'
+
+            elif error.response.status_code == 403:
+                return 'Error: You do not have permission to create collections.'
+
+            return f'Error: Failed to create collection. Server returned status {error.response.status_code}'
+
         collection = Collection(
             name=name,
             description=description.value(),
@@ -116,9 +134,14 @@ def init_collections_commands(group: Group):
             itemsQuery=";",
         )
 
-        client = _get_collection_service_client()
-        response = client.create_collection(collection)
-        click.echo(to_json(normalize(response)))
+        try:
+            client = _get_collection_service_client()
+            response = client.create_collection(collection)
+            click.echo(to_json(normalize(response)))
+        except ClientError as e:
+            error_message = handle_collection_error(e, name, slug)
+            click.echo(click.style(error_message, fg='red'), err=True)
+            exit(1)
 
 
     @formatted_command(
