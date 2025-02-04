@@ -238,7 +238,7 @@ class CollectionServiceClient(BaseServiceClient):
         """ Add items to a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
-            res = session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/item'),
+            res = session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
                                json=create_items_request.dict(), trace_context=trace)
             return CollectionItem(**res.json())
 
@@ -249,7 +249,7 @@ class CollectionServiceClient(BaseServiceClient):
         """ Delete items from a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
-            session.delete(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/item'),
+            session.delete(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
                            json=delete_items_request.dict(), trace_context=trace)
             return None
 

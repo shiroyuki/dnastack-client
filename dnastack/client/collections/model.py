@@ -80,7 +80,7 @@ class PaginatedResource(BaseModel):
 
 class CollectionItem(BaseModel):
     id: str
-    collectionId: str
+    collectionId: Optional[str]
     type: Optional[str]
     name: Optional[str]
     displayName: Optional[str]
@@ -109,6 +109,7 @@ class CollectionItemListOptions(BaseModel):
 
 class CreateCollectionItemsRequest(BaseModel):
     dataSourceId: str
+    dataSourceType: Optional[str]
     sourceKeys: List[str]
 
 
