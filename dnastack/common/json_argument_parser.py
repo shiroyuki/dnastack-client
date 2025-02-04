@@ -1,4 +1,5 @@
 import json
+import sys
 import traceback
 from enum import Enum
 from io import UnsupportedOperation
@@ -51,7 +52,9 @@ class FileOrValue:
 
     def value(self) -> str:
         loaded_value = self.raw_value
-        if self.argument_type == ArgumentType.FILE:
+        if self.argument_type == ArgumentType.STRING_PARAM_TYPE:
+            loaded_value = read_stdin(self.raw_value)
+        elif self.argument_type == ArgumentType.FILE:
             loaded_value = read_file_content(self.raw_value)
         return loaded_value
 
@@ -122,14 +125,24 @@ def is_json_object_or_array_string(string: str) -> bool:
 
 
 def read_file_content(argument: str) -> str:
+    # Handle file with "@" prefix
     argument = argument.replace("@", "", 1)
     with open(argument) as argument_fp:
         return argument_fp.read()
 
 
+def read_stdin(argument: str) -> str:
+    # Handle stdin with "-"
+    if argument == "-":
+        if not sys.stdin.isatty():  # Check if there's data in stdin
+            return sys.stdin.read()
+        raise ValueError("No input provided via stdin")
+
 def get_argument_type(argument: str) -> str:
     if not argument:
         return ArgumentType.UNKNOWN_PARAM_TYPE
+    if argument.startswith("-"):
+        return ArgumentType.STRING_PARAM_TYPE
     if argument.startswith("@"):
         return ArgumentType.FILE
     if is_json_object_or_array_string(argument):
