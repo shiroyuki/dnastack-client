@@ -153,8 +153,16 @@ def remove_files_from_collection(collection: str,
         sourceKeys=parsed_files,
     )
 
-    client = _get_collection_service_client()
-    click.echo(to_json(normalize(client.delete_collection_items(
-        collection_id_or_slug_name_or_db_schema_name=collection,
-        delete_items_request=request
-    ))))
+    try:
+        client = _get_collection_service_client()
+        client.delete_collection_items(
+            collection_id_or_slug_name_or_db_schema_name=collection,
+            delete_items_request=request
+        )
+
+        click.echo("Removing items from collection...")
+        click.echo(f"Validation in progress. Run 'status --collection {collection}' for updates.")
+    except ClientError as error:
+        error_message = f"Error: Failed to remove items from collection. Server returned status {error.response.status_code}"
+        click.echo(click.style(error_message, fg='red'), err=True)
+        exit(1)
