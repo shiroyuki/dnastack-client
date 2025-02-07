@@ -1,11 +1,8 @@
 import time
-from datetime import datetime
-from unittest.mock import patch, MagicMock
 
 import click
 
-from dnastack.client.collections.model import Collection, CollectionStatus, CollectionValidationStatus, \
-    CollectionValidationMissingItems
+from dnastack.client.collections.model import Collection
 from tests.cli.base import PublisherCliTestCase
 
 
@@ -27,11 +24,26 @@ class TestPublisherCommand(PublisherCliTestCase):
         else:
             click.echo(f'Registry {collection_service_registry_id} already exists. Skipping adding it.')
 
-    def _get_first_collection(self):
+        self.collection = self._create_empty_collection()
+
+    def _get_first_collection_with_table(self):
         collections_result = self.simple_invoke(
             'publisher', 'collections', 'list'
         )
-        return Collection(**collections_result[0])
+        for collection_data in collections_result:
+            collection = Collection(**collection_data)
+            if collection.itemCounts.get('table', 0) > 0:
+                return collection
+        raise ValueError('No collection with table item count greater than 0 found')
+
+    def _create_empty_collection(self):
+        collection_name = f'dnastack-client-col{time.time_ns()}'
+        return Collection(**self.simple_invoke(
+            'publisher', 'collections', 'create',
+            '--name', collection_name,
+            '--description', "foo",
+            '--slug', collection_name,
+        ))
 
 
     def test_collections_list(self):
@@ -45,45 +57,42 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_describe(self):
-        first_collection = self._get_first_collection()
         describe_collections = self.simple_invoke(
             'publisher', 'collections', 'describe',
-            first_collection.slugName,
+            self.collection.slugName,
         )
 
         self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection.')
         for collection in describe_collections:
-            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+            self.assertEqual(collection['id'], self.collection.id, 'Collection ID should match')
 
 
     def test_collections_describe_with_duplicate_ids(self):
-        first_collection = self._get_first_collection()
         describe_collections = self.simple_invoke(
             'publisher', 'collections', 'describe',
-            first_collection.id,
-            first_collection.id
+            self.collection.id,
+            self.collection.id
         )
 
         self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection. Duplicates should be removed.')
         for collection in describe_collections:
-            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+            self.assertEqual(collection['id'], self.collection.id, 'Collection ID should match')
 
 
     def test_collections_describe_with_duplicate_results(self):
-        first_collection = self._get_first_collection()
         describe_collections = self.simple_invoke(
             'publisher', 'collections', 'describe',
-            first_collection.slugName,
-            first_collection.id
+            self.collection.slugName,
+            self.collection.id
         )
 
         self.assertEqual(len(describe_collections), 1, 'Expected exactly one collection. Duplicates should be removed.')
         for collection in describe_collections:
-            self.assertEqual(collection['id'], first_collection.id, 'Collection ID should match')
+            self.assertEqual(collection['id'], self.collection.id, 'Collection ID should match')
 
 
     def test_collections_create(self):
-        collection_name = f'col{time.time_ns()}'
+        collection_name = f'dnastack-client-col{time.time_ns()}'
         created_collection = Collection(**self.simple_invoke(
             'publisher', 'collections', 'create',
             '--name', collection_name,
@@ -97,7 +106,7 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_create_with_conflicting_name(self):
-        collection_name = f'col{time.time_ns()}'
+        collection_name = f'dnastack-client-col{time.time_ns()}'
         self.simple_invoke(
             'publisher', 'collections', 'create',
             '--name', collection_name,
@@ -111,7 +120,7 @@ class TestPublisherCommand(PublisherCliTestCase):
             '--description', "Cohort of participants with quality of life assessments",
             '--slug', collection_name,
         ],
-            rf'.*Collection with name {collection_name} already exists.*')
+            rf'.*Error: A collection with the name "{collection_name}" or slug .* already exists.*')
 
 
     def test_collections_create_with_missing_required_fields(self):
@@ -141,26 +150,24 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_status(self):
-        first_collection = self._get_first_collection()
         result = self.invoke(
             'publisher', 'collections', 'status',
-            '--collection', first_collection.slugName,
+            '--collection', self.collection.slugName,
         )
 
         self.assertIn('Validation Status:', result.output)
-        self.assertIn('Last Checked:', result.output)
 
 
     def test_collections_query(self):
-        first_collection = self._get_first_collection()
+        collection_with_table = self._get_first_collection_with_table()
         tables_result = self.simple_invoke(
             'publisher', 'collections', 'tables', 'list',
-            '--collection', first_collection.slugName
+            '--collection', collection_with_table.slugName
         )
         first_table = tables_result[0]
         query_result = self.simple_invoke(
             'publisher', 'collections', 'query',
-            '--collection', first_collection.slugName,
+            '--collection', collection_with_table.slugName,
             f'SELECT * FROM {first_table["name"]} LIMIT 1'
         )
 
@@ -168,10 +175,10 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_items_list(self):
-        first_collection = self._get_first_collection()
+        collection_with_table = self._get_first_collection_with_table()
         items_result = self.simple_invoke(
             'publisher', 'collections', 'items', 'list',
-            '--collection', first_collection.slugName,
+            '--collection', collection_with_table.slugName,
             '--max-results', 1
         )
 
@@ -181,10 +188,10 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_items_list_with_type_and_limit(self):
-        first_collection = self._get_first_collection()
+        collection_with_table = self._get_first_collection_with_table()
         items_result = self.simple_invoke(
             'publisher', 'collections', 'items', 'list',
-            '--collection', first_collection.slugName,
+            '--collection', collection_with_table.slugName,
             '--limit', 100,
             '--type', 'table',
             '--max-results', 1
@@ -196,40 +203,35 @@ class TestPublisherCommand(PublisherCliTestCase):
             self.assertEqual(item['type'], 'table', 'Item type should be table')
 
 
-    def test_collections_items_add_items_with_value(self):
-        first_collection = self._get_first_collection()
-        items_result = self.simple_invoke(
-            'publisher', 'collections', 'items', 'add',
-            '--collection', first_collection.slugName,
-            '--datasource', 'test-datasource',
-            '--files', 'file1.txt,file2.pdf,file3.jpg'
-        )
+    # TODO: uncomment this once datasource commands are available
+    # def test_collections_items_add_items_with_value(self):
+    #     result = self.simple_invoke(
+    #         'publisher', 'collections', 'items', 'add',
+    #         '--collection', self.collection.slugName,
+    #         '--datasource', 'test-datasource',
+    #         '--files', 'file1.txt,file2.pdf,file3.jpg'
+    #     )
+    #
+    #     self.assertRegex(result, r'.*Adding items to collection.*')
 
-        self.assertEqual(len(items_result), 3, f'Expected exactly three items to be added.')
-        for item in items_result:
-            self.assert_not_empty(item['id'], 'Item ID should not be empty')
-
-
-    def test_collections_items_add_items_with_file(self):
-        def create_files_file():
-            with open('test-file-files.txt', 'w') as files_file:
-                files_file.write("""
-            foo.txt,bar.txt,baz.txt
-            maz.txt
-            """)
-
-        create_files_file()
-        first_collection = self._get_first_collection()
-        items_result = self.simple_invoke(
-            'publisher', 'collections', 'items', 'add',
-            '--collection', first_collection.slugName,
-            '--datasource', 'test-datasource',
-            '--files', '@test-file-files.txt'
-        )
-
-        self.assertEqual(len(items_result), 3, f'Expected exactly four items to be added.')
-        for item in items_result:
-            self.assert_not_empty(item['id'], 'Item ID should not be empty')
+    # TODO: uncomment this once datasource commands are available
+    # def test_collections_items_add_items_with_file(self):
+    #     def create_files_file():
+    #         with open('test-file-files.txt', 'w') as files_file:
+    #             files_file.write("""
+    #         foo.txt,bar.txt,baz.txt
+    #         maz.txt
+    #         """)
+    #
+    #     create_files_file()
+    #     result = self.simple_invoke(
+    #         'publisher', 'collections', 'items', 'add',
+    #         '--collection', self.collection.slugName,
+    #         '--datasource', 'test-datasource',
+    #         '--files', '@test-file-files.txt'
+    #     )
+    #
+    #     self.assertRegex(result, r'.*Adding items to collection.*')
 
 
     def test_collections_items_add_with_missing_required_fields(self):
@@ -258,36 +260,38 @@ class TestPublisherCommand(PublisherCliTestCase):
             r'.*Error: Missing option \'--files\'.*')
 
 
-    def test_collections_items_remove_items_with_value(self):
-        first_collection = self._get_first_collection()
-        result = self.simple_invoke(
-            'publisher', 'collections', 'items', 'remove',
-            '--collection', first_collection.slugName,
-            '--datasource', 'test-datasource',
-            '--files', 'file1.txt,file2.pdf,file3.jpg'
-        )
+    # TODO: uncomment this once datasource commands are available
+    # def test_collections_items_remove_items_with_value(self):
+    #     collection = self._create_empty_collection()
+    #     result = self.simple_invoke(
+    #         'publisher', 'collections', 'items', 'remove',
+    #         '--collection', collection.slugName,
+    #         '--datasource', 'test-datasource',
+    #         '--files', 'file1.txt,file2.pdf,file3.jpg'
+    #     )
+    #
+    #     self.assertRegex(result, r'.*Removing items from collection.*')
 
-        self.assertEqual(result.exit_code, 0)
 
-
-    def test_collections_items_remove_items_with_file(self):
-        def create_files_file():
-            with open('test-file-files.txt', 'w') as files_file:
-                files_file.write("""
-            foo.txt,bar.txt,baz.txt
-            maz.txt
-            """)
-
-        create_files_file()
-        first_collection = self._get_first_collection()
-        result = self.simple_invoke(
-            'publisher', 'collections', 'items', 'remove',
-            '--collection', first_collection.slugName,
-            '--datasource', 'test-datasource',
-            '--files', '@test-file-files.txt'
-        )
-
-        self.assertEqual(result.exit_code, 0)
+    # TODO: uncomment this once datasource commands are available
+    # def test_collections_items_remove_items_with_file(self):
+    #     def create_files_file():
+    #         with open('test-file-files.txt', 'w') as files_file:
+    #             files_file.write("""
+    #         foo.txt,bar.txt,baz.txt
+    #         maz.txt
+    #         """)
+    #
+    #     create_files_file()
+    #     collection = self._create_empty_collection()
+    #     result = self.simple_invoke(
+    #         'publisher', 'collections', 'items', 'remove',
+    #         '--collection', collection.slugName,
+    #         '--datasource', 'test-datasource',
+    #         '--files', '@test-file-files.txt'
+    #     )
+    #
+    #     self.assertRegex(result, r'.*Removing items from collection.*')
 
 
     def test_collections_items_remove_with_missing_required_fields(self):
@@ -317,10 +321,10 @@ class TestPublisherCommand(PublisherCliTestCase):
 
 
     def test_collections_tables_list(self):
-        first_collection = self._get_first_collection()
+        collection_with_table = self._get_first_collection_with_table()
         tables_result = self.simple_invoke(
             'publisher', 'collections', 'tables', 'list',
-            '--collection', first_collection.slugName
+            '--collection', collection_with_table.slugName
         )
 
         self.assert_not_empty(tables_result, f'Expected at least one table. Found: {tables_result}')

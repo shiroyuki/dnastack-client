@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from dnastack.client.base_client import BaseServiceClient
 from dnastack.client.base_exceptions import UnauthenticatedApiAccessError, UnauthorizedApiAccessError
-from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
+from dnastack.client.collections.model import Collection, CreateCollectionItemsRequest, DeleteCollectionItemRequest, \
     CollectionItem, CollectionItemListOptions, PaginatedResource, PageableApiError, CollectionItemListResponse, \
     CollectionStatus
 from dnastack.client.data_connect import DATA_CONNECT_TYPE_V1_0
@@ -234,23 +234,32 @@ class CollectionServiceClient(BaseServiceClient):
     def create_collection_items(self,
                                 collection_id_or_slug_name_or_db_schema_name: str,
                                 create_items_request: CreateCollectionItemsRequest,
-                                trace: Optional[Span] = None) -> CollectionItem:
+                                trace: Optional[Span] = None) -> None:
         """ Add items to a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
-            res = session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
-                               json=create_items_request.dict(), trace_context=trace)
-            return CollectionItem(**res.json())
+            session.post(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
+                         json=create_items_request.dict(), trace_context=trace)
+            return None
 
     def delete_collection_items(self,
                                 collection_id_or_slug_name_or_db_schema_name: str,
-                                delete_items_request: DeleteCollectionItemsRequest,
+                                delete_items_request: DeleteCollectionItemRequest,
                                 trace: Optional[Span] = None) -> None:
         """ Delete items from a collection """
         trace = trace or Span(origin=self)
         with self.create_http_session() as session:
-            session.delete(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
-                           json=delete_items_request.dict(), trace_context=trace)
+            params = {
+                'dataSourceId': delete_items_request.dataSourceId,
+                'dataSourceType': delete_items_request.dataSourceType,
+                'sourceKey': delete_items_request.sourceKey
+            }
+            # Remove dataSourceType if it is None
+            if params['dataSourceType'] is None:
+                del params['dataSourceType']
+
+            session.delete(urljoin(self.url, f'collection/{collection_id_or_slug_name_or_db_schema_name}/items'),
+                           params=params, trace_context=trace)
             return None
 
     def data_connect_endpoint(self,

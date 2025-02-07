@@ -113,9 +113,10 @@ class CreateCollectionItemsRequest(BaseModel):
     sourceKeys: List[str]
 
 
-class DeleteCollectionItemsRequest(BaseModel):
+class DeleteCollectionItemRequest(BaseModel):
     dataSourceId: str
-    sourceKeys: List[str]
+    dataSourceType: Optional[str]
+    sourceKey: str
 
 
 class CollectionValidationStatus(str, Enum):

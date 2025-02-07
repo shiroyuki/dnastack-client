@@ -11,7 +11,7 @@ from dnastack.cli.core.command_spec import ArgumentSpec, RESOURCE_OUTPUT_ARG
 from dnastack.cli.core.group import formatted_group
 from dnastack.cli.helpers.exporter import to_json, normalize
 from dnastack.cli.helpers.iterator_printer import show_iterator, OutputFormat
-from dnastack.client.collections.model import CreateCollectionItemsRequest, DeleteCollectionItemsRequest, \
+from dnastack.client.collections.model import CreateCollectionItemsRequest, DeleteCollectionItemRequest, \
     CollectionItemListOptions
 from dnastack.common.json_argument_parser import FileOrValue
 from dnastack.http.session import ClientError
@@ -93,7 +93,7 @@ def add_files_to_collection(collection: str,
                             datasource: str,
                             files: FileOrValue):
     """ Add files to a collection """
-    parsed_files = [item.strip() for item in re.split(r'[,\n]', files.value()) if item.strip()]
+    parsed_files = set(item.strip() for item in re.split(r'[,\n]', files.value()) if item.strip())
     if not parsed_files:
         click.echo("Error: No valid files provided. Please specify at least one file.", err=True)
         return
@@ -143,26 +143,27 @@ def remove_files_from_collection(collection: str,
                                  datasource: str,
                                  files: FileOrValue):
     """ Remove files from a collection """
-    parsed_files = [item.strip() for item in re.split(r'[,\n]', files.value()) if item.strip()]
+    parsed_files = set(item.strip() for item in re.split(r'[,\n]', files.value()) if item.strip())
     if not parsed_files:
         click.echo("Error: No valid files provided. Please specify at least one file.", err=True)
         return
 
-    request = DeleteCollectionItemsRequest(
-        dataSourceId=datasource,
-        sourceKeys=parsed_files,
-    )
-
-    try:
-        client = _get_collection_service_client()
-        client.delete_collection_items(
-            collection_id_or_slug_name_or_db_schema_name=collection,
-            delete_items_request=request
+    client = _get_collection_service_client()
+    for file in parsed_files:
+        request = DeleteCollectionItemRequest(
+            dataSourceId=datasource,
+            sourceKey=file,
         )
 
-        click.echo("Removing items from collection...")
-        click.echo(f"Validation in progress. Run 'status --collection {collection}' for updates.")
-    except ClientError as error:
-        error_message = f"Error: Failed to remove items from collection. Server returned status {error.response.status_code}"
-        click.echo(click.style(error_message, fg='red'), err=True)
-        exit(1)
+        try:
+            client.delete_collection_items(
+                collection_id_or_slug_name_or_db_schema_name=collection,
+                delete_items_request=request
+            )
+        except ClientError as error:
+            error_message = f"Error: Failed to remove item '{file}' from collection. Server returned status {error.response.status_code}"
+            click.echo(click.style(error_message, fg='red'), err=True)
+            return
+
+    click.echo("Removing items from collection...")
+    click.echo(f"Validation in progress. Run 'status --collection {collection}' for updates.")
