@@ -32,6 +32,7 @@ class ArgumentType(str, Enum):
     JSON_LITERAL_PARAM_TYPE = "JSON_LITERAL"
     FILE = "FILE"
     KV_PARAM_TYPE = "KEY_VALUE"
+    STDIN_PARAM_TYPE = "STDIN"
     STRING_PARAM_TYPE = "STRING_PARAM"
     UNKNOWN_PARAM_TYPE = "UNKNOWN"
 
@@ -52,7 +53,7 @@ class FileOrValue:
 
     def value(self) -> str:
         loaded_value = self.raw_value
-        if self.argument_type == ArgumentType.STRING_PARAM_TYPE:
+        if self.argument_type == ArgumentType.STDIN_PARAM_TYPE:
             loaded_value = read_stdin(self.raw_value)
         elif self.argument_type == ArgumentType.FILE:
             loaded_value = read_file_content(self.raw_value)
@@ -142,7 +143,7 @@ def get_argument_type(argument: str) -> str:
     if not argument:
         return ArgumentType.UNKNOWN_PARAM_TYPE
     if argument.startswith("-"):
-        return ArgumentType.STRING_PARAM_TYPE
+        return ArgumentType.STDIN_PARAM_TYPE
     if argument.startswith("@"):
         return ArgumentType.FILE
     if is_json_object_or_array_string(argument):
