@@ -203,37 +203,6 @@ class TestPublisherCommand(PublisherCliTestCase):
             self.assertEqual(item['type'], 'table', 'Item type should be table')
 
 
-    # TODO: uncomment this once datasource commands are available
-    # def test_collections_items_add_items_with_value(self):
-    #     result = self.simple_invoke(
-    #         'publisher', 'collections', 'items', 'add',
-    #         '--collection', self.collection.slugName,
-    #         '--datasource', 'test-datasource',
-    #         '--files', 'file1.txt,file2.pdf,file3.jpg'
-    #     )
-    #
-    #     self.assertRegex(result, r'.*Adding items to collection.*')
-
-    # TODO: uncomment this once datasource commands are available
-    # def test_collections_items_add_items_with_file(self):
-    #     def create_files_file():
-    #         with open('test-file-files.txt', 'w') as files_file:
-    #             files_file.write("""
-    #         foo.txt,bar.txt,baz.txt
-    #         maz.txt
-    #         """)
-    #
-    #     create_files_file()
-    #     result = self.simple_invoke(
-    #         'publisher', 'collections', 'items', 'add',
-    #         '--collection', self.collection.slugName,
-    #         '--datasource', 'test-datasource',
-    #         '--files', '@test-file-files.txt'
-    #     )
-    #
-    #     self.assertRegex(result, r'.*Adding items to collection.*')
-
-
     def test_collections_items_add_with_missing_required_fields(self):
         # Missing collection
         self.expect_error_from([
@@ -258,40 +227,6 @@ class TestPublisherCommand(PublisherCliTestCase):
             '--datasource', 'test-datasource',
         ],
             r'.*Error: Missing option \'--files\'.*')
-
-
-    # TODO: uncomment this once datasource commands are available
-    # def test_collections_items_remove_items_with_value(self):
-    #     collection = self._create_empty_collection()
-    #     result = self.simple_invoke(
-    #         'publisher', 'collections', 'items', 'remove',
-    #         '--collection', collection.slugName,
-    #         '--datasource', 'test-datasource',
-    #         '--files', 'file1.txt,file2.pdf,file3.jpg'
-    #     )
-    #
-    #     self.assertRegex(result, r'.*Removing items from collection.*')
-
-
-    # TODO: uncomment this once datasource commands are available
-    # def test_collections_items_remove_items_with_file(self):
-    #     def create_files_file():
-    #         with open('test-file-files.txt', 'w') as files_file:
-    #             files_file.write("""
-    #         foo.txt,bar.txt,baz.txt
-    #         maz.txt
-    #         """)
-    #
-    #     create_files_file()
-    #     collection = self._create_empty_collection()
-    #     result = self.simple_invoke(
-    #         'publisher', 'collections', 'items', 'remove',
-    #         '--collection', collection.slugName,
-    #         '--datasource', 'test-datasource',
-    #         '--files', '@test-file-files.txt'
-    #     )
-    #
-    #     self.assertRegex(result, r'.*Removing items from collection.*')
 
 
     def test_collections_items_remove_with_missing_required_fields(self):
