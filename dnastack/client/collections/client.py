@@ -258,7 +258,7 @@ class CollectionServiceClient(BaseServiceClient):
             if params['dataSourceType'] is None:
                 del params['dataSourceType']
 
-            session.delete(urljoin(self.url, f'collection/{collection_id_or_slug_name_or_db_schema_name}/items'),
+            session.delete(urljoin(self.url, f'collections/{collection_id_or_slug_name_or_db_schema_name}/items'),
                            params=params, trace_context=trace)
             return None
 
