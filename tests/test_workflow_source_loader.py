@@ -105,15 +105,15 @@ class WorkflowSourceLoaderTestcase(unittest.TestCase):
         self.assertEqual(str(loader.loaded_files[0].rel_location), SUCCESS_NO_IMPORT_WORKFLOW.path,
                          "Expecting the computed path to be the same as the No Import workflow path")
 
-    def test_nested_no_import_worfklow_loads_and_removes_leading_path(self):
+    def test_nested_no_import_workflow_loads_and_removes_leading_path(self):
         test_file = self.create_files(workflow_files=[SUCCESS_NO_IMPORT_WORKFLOW_NESTED])[0]
         loader = WorkflowSourceLoader(source_files=[test_file.test_file_path])
         self.assertEqual(len(loader.loaded_files), 1)
         self.assertNotIn(self.tempdir.name, str(loader.loaded_files[0].rel_location),
                          "Expect the computed paths to not contain temp dir")
-        self.assertNotEquals(str(loader.loaded_files[0].rel_location), SUCCESS_NO_IMPORT_WORKFLOW_NESTED.path,
+        self.assertNotEqual(str(loader.loaded_files[0].rel_location), SUCCESS_NO_IMPORT_WORKFLOW_NESTED.path,
                              "Expecting the computed path to not be the same as the No Import workflow path")
-        self.assertEquals(str(loader.loaded_files[0].rel_location), Path(SUCCESS_NO_IMPORT_WORKFLOW_NESTED.path).name,
+        self.assertEqual(str(loader.loaded_files[0].rel_location), Path(SUCCESS_NO_IMPORT_WORKFLOW_NESTED.path).name,
                           "Expecting the compute path to be the same as the No Import workflow path")
 
     def test_un_nested_workflow_loads_with_all_imports(self):

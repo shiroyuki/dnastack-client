@@ -21,7 +21,7 @@ class UnitTest(TestCase):
 
         sample = AlphaService(url='http://foo.com', processor=lambda x: x)
 
-        self.assertEquals(sample.url, 'http://foo.com')
+        self.assertEqual(sample.url, 'http://foo.com')
         self.assertIsNone(sample.enabled)
         self.assertIsNotNone(sample.processor)
         self.assertIsNone(sample.after_init)
